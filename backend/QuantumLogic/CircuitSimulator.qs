@@ -18,6 +18,7 @@
 
     operation SimulateCircuit(gates : (String, Int, Int)[], numQubits : Int) : Result[] {
         use qubits = Qubit[numQubits];
+        mutable results = [Zero, size=numQubits];
         for (gate, target, control) in gates {
             if control >= 0 {
                 ApplyGate(gate, qubits[target], qubits[control]);
@@ -25,8 +26,7 @@
                 ApplyGate(gate, qubits[target], qubits[0]);
             }
         }
-        mutable results = Repeated(Zero, Length(qubits));
-        for i in 0..Length(qubits)-1 {
+        for i in 0..numQubits - 1 {
             set results w/= i <- M(qubits[i]);
         }
         ResetAll(qubits);
