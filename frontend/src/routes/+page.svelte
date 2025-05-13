@@ -3,29 +3,41 @@
 	import { simulateSingleQubitX } from '../lib/simulator';
 	import { get } from 'svelte/store';
 
+	function isUUID(value: string): boolean {
+		const uuidRejex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+		return uuidRejex.test(value);
+	}
+
 	function handleDrop(event: DragEvent) {
-		const gateType = event.dataTransfer?.getData('text/plain');
-		console.log('Dropped gate type:', gateType);
-		if (!gateType) return;
+		const gateData = event.dataTransfer?.getData('text/plain');
+		console.log('Dropped gate type:', gateData);
+		if (!gateData) return;
 
-		// Add X gate to qubit 0
-		circuit.update((current) => {
-			return {
-				...current,
-				gates: [
-					...current.gates,
-					{
-						id: crypto.randomUUID(),
-						gateType: gateType as 'X',
-						qubit: 0
-					}
-				]
-			};
-		});
+		if (isUUID(gateData)) {
+			return;
+		} else {
+			// Add X gate to qubit 0
+			circuit.update((current) => {
+				return {
+					...current,
+					gates: [
+						...current.gates,
+						{
+							id: crypto.randomUUID(),
+							gateData: gateData as 'X',
+							qubit: 0
+						}
+					]
+				};
+			});
 
-		// Re-run simulation
-		console.log(simulateSingleQubitX(get(circuit)));
-		SimulationResults.set(simulateSingleQubitX(get(circuit)));
+			// Re-run simulation
+			SimulationResults.set(simulateSingleQubitX(get(circuit)));
+		}
+	}
+
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault(); // Needed to allow drop
 	}
 
 	function removeGate(gateId: string) {
@@ -35,22 +47,20 @@
 				gates: current.gates.filter((gate) => gate.id !== gateId)
 			};
 		});
-	}
 
-	function handleDragOver(event: DragEvent) {
-		event.preventDefault(); // Needed to allow drop
-	}
-
-	function handleGateDragStart(event: DragEvent, gateId: string) {
-		event.dataTransfer?.setData('text/plain', gateId);
+		SimulationResults.set(simulateSingleQubitX(get(circuit)));
 	}
 
 	function handlePaletteDrop(event: DragEvent) {
 		event.preventDefault();
-		const data = event.dataTransfer?.getData('text/plain');
-		if (data && data !== 'X') {
-			removeGate(data);
+		const gateData = event.dataTransfer?.getData('text/plain');
+		if (gateData && isUUID(gateData)) {
+			removeGate(gateData);
 		}
+	}
+
+	function handleGateDragStart(event: DragEvent, gateId: string) {
+		event.dataTransfer?.setData('text/plain', gateId);
 	}
 </script>
 
@@ -106,7 +116,7 @@
 				on:dblclick={() => removeGate(gate.id)}
 				class="z-10 ml-4 cursor-grab select-none rounded bg-green-500 px-2 py-1 text-white shadow"
 			>
-				{gate.gateType}
+				{gate.gateData}
 			</div>
 		{/each}
 	</div>

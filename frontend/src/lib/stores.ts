@@ -3,7 +3,7 @@ import {writable} from 'svelte/store'; // Import the writable function from Svel
 // Defines a TypeScript interface for a quantum gate with an ID, type (e.g., X gate), and target qubit.
 export interface GateInstance {
     id: string;
-    gateType: 'X';
+    gateData: 'X';
     qubit: number;
 };
 
