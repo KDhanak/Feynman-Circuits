@@ -99,7 +99,7 @@
 </script>
 
 <main class="flex min-h-screen flex-col items-center justify-center bg-gray-100 text-gray-800">
-	<h1 class="mb-6 text-2xl font-bold">Quantum Circuit Simulator</h1>
+	<h1 class="mb-6 text-2xl font-bold">Feynman Circuits</h1>
 
 	<!-- Gate Palette -->
 	<div
