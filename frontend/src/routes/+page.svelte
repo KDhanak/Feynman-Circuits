@@ -1,38 +1,51 @@
 <script lang="ts">
-	import { circuit, SimulationResults } from '../lib/stores';
+	import { circuit, SimulationResults, type CircuitState, type GateType } from '../lib/stores';
 	import { simulateSingleQubitX } from '../lib/simulator';
 	import { get } from 'svelte/store';
 
-	function isUUID(value: string): boolean {
-		const uuidRejex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-		return uuidRejex.test(value);
+	interface DragData {
+		source: 'palette' | 'wire';
+		gateType?: string; // Present if source is 'palette'
+		gateId?: string;   // Present if source is 'wire'
 	}
 
 	function handleDrop(event: DragEvent) {
-		const gateData = event.dataTransfer?.getData('text/plain');
-		console.log('Dropped gate type:', gateData);
+		const gateData = event.dataTransfer?.getData('application/json');
 		if (!gateData) return;
 
-		if (isUUID(gateData)) {
+		let parsed: DragData;
+		try {
+			parsed = JSON.parse(gateData);
+		} catch (error) {
+			console.error('Failed to parse drag data in handleDrop:', error);
 			return;
-		} else {
-			// Add X gate to qubit 0
+		}
+
+		if (parsed.source === 'wire') {
+			// Dragged from the wire, do nothing for now
+			return;
+		} else if (parsed.source === 'palette' && parsed.gateType) {
+			// Dragged from the palette, add a new gate
 			circuit.update((current) => {
-				return {
+				const newCircuit = {
 					...current,
 					gates: [
 						...current.gates,
 						{
 							id: crypto.randomUUID(),
-							gateData: gateData as 'X',
+							gateType: parsed.gateType as GateType,
 							qubit: 0
 						}
 					]
 				};
+				console.log('Circuit updated (add gate):', newCircuit);
+				return newCircuit;
 			});
 
 			// Re-run simulation
-			SimulationResults.set(simulateSingleQubitX(get(circuit)));
+			const updatedCircuit = get(circuit);
+			const results = simulateSingleQubitX(updatedCircuit);
+			SimulationResults.set(results);
 		}
 	}
 
@@ -41,26 +54,47 @@
 	}
 
 	function removeGate(gateId: string) {
+		let updatedCircuit
 		circuit.update((current) => {
-			return {
+			const newCircuit = {
 				...current,
 				gates: current.gates.filter((gate) => gate.id !== gateId)
 			};
+			updatedCircuit = newCircuit;
+			console.log('Circuit updated (remove gate):', newCircuit);
+			return newCircuit;
 		});
 
-		SimulationResults.set(simulateSingleQubitX(get(circuit)));
+		if (!updatedCircuit) {
+			updatedCircuit = get(circuit);
+			console.log('Circuit fetched (fallback):', updatedCircuit);
+		}
+
+		const results = simulateSingleQubitX(updatedCircuit);
+		SimulationResults.set(results);
 	}
 
 	function handlePaletteDrop(event: DragEvent) {
 		event.preventDefault();
-		const gateData = event.dataTransfer?.getData('text/plain');
-		if (gateData && isUUID(gateData)) {
-			removeGate(gateData);
+		const gateData = event.dataTransfer?.getData('application/json');
+		if (!gateData) return;
+
+		let parsed: DragData;
+		try {
+			parsed = JSON.parse(gateData);
+		} catch (error) {
+			console.error('Failed to parse drag data in handlePaletteDrop:', error);
+			return;
+		}
+
+		if (parsed.source === 'wire' && parsed.gateId) {
+			removeGate(parsed.gateId);
 		}
 	}
 
 	function handleGateDragStart(event: DragEvent, gateId: string) {
-		event.dataTransfer?.setData('text/plain', gateId);
+		const dragData: DragData = { source: 'wire', gateId };
+		event.dataTransfer?.setData('application/json', JSON.stringify(dragData));
 	}
 </script>
 
@@ -75,13 +109,16 @@
 		on:dragover={(e) => e.preventDefault()}
 		on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
 		on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
-		class="mb-4 flex gap-4"
+		class="mb-4 flex gap-4 border-2 border-transparent transition-colors"
 	>
 		<div
 			role="region"
 			draggable="true"
-			on:dragstart={(e) => e.dataTransfer?.setData('text/plain', 'X')}
-			class="cursor-grab rounded bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
+			on:dragstart={(e) => {
+				const dragData: DragData = { source: 'palette', gateType: 'X' };
+				e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
+			}}
+			class="cursor-grab rounded bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 select-none"
 		>
 			X Gate
 		</div>
@@ -100,7 +137,7 @@
 
 		<!-- Qubit circle -->
 		<div
-			class="z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-blue-500 text-sm text-white shadow-lg"
+			class="z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-blue-500 text-sm text-white shadow-lg select-none"
 		>
 			|0⟩
 		</div>
@@ -109,14 +146,15 @@
 		{#each $circuit.gates as gate (gate.id)}
 			<div
 				role="button"
-				aria-label="Remove gate"
+				aria-label={`Remove ${gate.gateType} gate with double-click, Delete key, or drag back to palette`}
 				tabindex="0"
 				draggable="true"
 				on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 				on:dblclick={() => removeGate(gate.id)}
-				class="z-10 ml-4 cursor-grab select-none rounded bg-green-500 px-2 py-1 text-white shadow"
+				on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
+				class="z-10 ml-4 cursor-grab rounded bg-green-500 px-2 py-1 text-white shadow hover:bg-green-600 select-none"
 			>
-				{gate.gateData}
+				{gate.gateType}
 			</div>
 		{/each}
 	</div>
@@ -125,17 +163,17 @@
 	<div class="mt-6">
 		<p class="text-lg font-medium">Probabilities:</p>
 		<ul>
-			<li>|0⟩: {$SimulationResults?.probabilities['0'].toFixed(2)}</li>
-			<li>|1⟩: {$SimulationResults?.probabilities['1'].toFixed(2)}</li>
+			<li>|0⟩: {$SimulationResults.probabilities['0'].toFixed(2)}</li>
+			<li>|1⟩: {$SimulationResults.probabilities['1'].toFixed(2)}</li>
 		</ul>
 	</div>
 </main>
 
 <style>
 	.select-none {
-		-webkit-user-select: none; /* Safari */
-		-moz-user-select: none; /* Firefox */
-		-ms-user-select: none; /* Internet Explorer/Edge */
-		user-select: none; /* Standard */
+		-webkit-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;
 	}
 </style>

@@ -1,16 +1,17 @@
+// Interface for API input to specify a gate (if needed for an API)
 export interface GateInput {
-    gate: String;
+    gate: string; 
     targetQubit: number;
-    controlQubit: number;
+    controlQubit?: number;
 }
 
+// Interface for API input to specify a circuit (if needed for an API)
 export interface CircuitInput {
-    gate: GateInput;
+    gates: GateInput[];
     numQubits: number;
 }
 
+// Interface for API error responses
 export interface ErrorResponse {
     detail?: string;
 }
-
-export type SimulationResult = string[];

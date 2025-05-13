@@ -1,38 +1,43 @@
-import {writable} from 'svelte/store'; // Import the writable function from Svelte's store module
+import { writable } from 'svelte/store';
 
-// Defines a TypeScript interface for a quantum gate with an ID, type (e.g., X gate), and target qubit.
+// Define the possible gate types as a union of string literals
+export type GateType = 'X' | 'H' | 'Z' | 'CNOT';
+
+// Interface for a quantum gate instance
 export interface GateInstance {
     id: string;
-    gateData: 'X';
+    gateType: GateType; // Use gateType instead of gateData, with a union type
     qubit: number;
-};
+}
 
-// Defines a TypeScript interface for the quantum circuit’s state, including the number of qubits and an array of gates.
+// Interface for the quantum circuit's state
 export interface CircuitState {
     numQubits: number;
     gates: GateInstance[];
-};
+}
 
-// Defines a TypeScript interface for simulation results, mapping quantum states to their probabilities.
+// Interface for simulation results
 export interface SimulationResult {
     probabilities: { [state: string]: number };
-};
+}
 
-
-// Creates a writable store for the quantum circuit state, initialized with one qubit and no gates.
-// Provides a reactive store to manage the circuit’s configuration, allowing components to subscribe and update the UI when users add qubits or gates.
+// Writable store for the circuit state
 export const circuit = writable<CircuitState>({
     numQubits: 1,
     gates: [],
 });
 
-export const SimulationResults = writable<SimulationResult | null>(null);
+// Writable store for simulation results, initialized with default probabilities
+export const SimulationResults = writable<SimulationResult>({
+    probabilities: { '0': 1, '1': 0 } // Default state for a single qubit
+});
 
 export function resetCircuit() {
     circuit.set({
         numQubits: 1,
         gates: [],
     });
-    SimulationResults.set(null);
+    SimulationResults.set({
+        probabilities: { '0': 1, '1': 0 }
+    });
 }
-
