@@ -28,8 +28,29 @@
 		SimulationResults.set(simulateSingleQubitX(get(circuit)));
 	}
 
+	function removeGate(gateId: string) {
+		circuit.update((current) => {
+			return {
+				...current,
+				gates: current.gates.filter((gate) => gate.id !== gateId)
+			};
+		});
+	}
+
 	function handleDragOver(event: DragEvent) {
 		event.preventDefault(); // Needed to allow drop
+	}
+
+	function handleGateDragStart(event: DragEvent, gateId: string) {
+		event.dataTransfer?.setData('text/plain', gateId);
+	}
+
+	function handlePaletteDrop(event: DragEvent) {
+		event.preventDefault();
+		const data = event.dataTransfer?.getData('text/plain');
+		if (data && data !== 'X') {
+			removeGate(data);
+		}
 	}
 </script>
 
@@ -37,7 +58,15 @@
 	<h1 class="mb-6 text-2xl font-bold">Quantum Circuit Simulator</h1>
 
 	<!-- Gate Palette -->
-	<div class="mb-4 flex gap-4">
+	<div
+		aria-label="Quantum Circuit Gate Palette"
+		role="region"
+		on:drop={handlePaletteDrop}
+		on:dragover={(e) => e.preventDefault()}
+		on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
+		on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
+		class="mb-4 flex gap-4"
+	>
 		<div
 			role="region"
 			draggable="true"
@@ -68,7 +97,15 @@
 
 		<!-- Show gates placed on the wire -->
 		{#each $circuit.gates as gate (gate.id)}
-			<div class="ml-4 rounded bg-green-500 px-2 py-1 text-white shadow">
+			<div
+				role="button"
+				aria-label="Remove gate"
+				tabindex="0"
+				draggable="true"
+				on:dragstart={(e) => handleGateDragStart(e, gate.id)}
+				on:dblclick={() => removeGate(gate.id)}
+				class="z-10 ml-4 cursor-grab select-none rounded bg-green-500 px-2 py-1 text-white shadow"
+			>
 				{gate.gateType}
 			</div>
 		{/each}
@@ -83,3 +120,12 @@
 		</ul>
 	</div>
 </main>
+
+<style>
+	.select-none {
+		-webkit-user-select: none; /* Safari */
+		-moz-user-select: none; /* Firefox */
+		-ms-user-select: none; /* Internet Explorer/Edge */
+		user-select: none; /* Standard */
+	}
+</style>
