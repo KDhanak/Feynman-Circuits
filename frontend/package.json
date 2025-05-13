@@ -45,6 +45,7 @@
 		"vitest": "^3.0.0"
 	},
 	"dependencies": {
+		"@sveltejs/adapter-vercel": "^5.7.2",
 		"axios": "^1.9.0",
 		"quantum-tensors": "^0.4.15",
 		"svelte-dnd-action": "^0.9.61"
