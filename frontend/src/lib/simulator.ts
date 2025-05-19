@@ -1,47 +1,92 @@
-import type { CircuitState, SimulationResult } from "./stores";
-import { Complex, Vector, Gates, Dimension } from "quantum-tensors";
+import type { CircuitState, SimulationResult, GateType, GateInstance } from "./stores";
+import {type Complex, createComplex, magnitudeSquared} from "./quantum/complex";
+import {type QuantumState, createState, applyMatrix} from "./quantum/vector";
+import { GATE_MAP } from "./quantum/gates";
 
-export function simulateSingleQubitX(circuit: CircuitState): SimulationResult {
-    const qubitDim = Dimension.qubit();
+export interface ImportedGate {
+    gate: string;
+    qubit: number;
+}
 
-    // Initial state: |0⟩ (probability 1 for |0⟩, 0 for |1⟩)
-    let qubitState = Vector.fromArray(
-        [
-            new Complex(1, 0), // |0⟩ amplitude
-            new Complex(0, 0), // |1⟩ amplitude
-        ], 
-        [qubitDim]
-    );
+export interface ImportedCircuit {
+    gates: ImportedGate[];
+    numQubits: number;
+}
 
-    // Apply gates from the circuit
-    for (const gate of circuit.gates) {
-        if (gate.gateType === 'X') {
-            // Apply the X gate, which returns a Tensor
-            const newStateTensor = Gates.X.apply(qubitState);
-            // Convert the Tensor to a dense matrix (Complex[][])
-            const denseState = newStateTensor.toDense();
-            // For a single qubit, denseState is a 2x1 matrix: [[Complex(0, 0)], [Complex(1, 0)]]
-            // Extract the state vector as a Complex[]: [Complex(0, 0), Complex(1, 0)]
-            const stateVector = [denseState[0][0], denseState[1][0]];
-            // Create a new Vector from the state vector
-            qubitState = Vector.fromArray(stateVector, [qubitDim]);
-        }
+export interface ErrorResponse {
+    detail?: string;
+}
+
+/**
+ * Converts user imported circuit to the internal CircuitState format.
+ * Validates the circuit and returns an error response if invalid.
+ * @param input - The imported circuit object.
+ * @returns The internal CircuitState or an error response.
+ */
+export function importCircuit(input: ImportedCircuit): CircuitState | ErrorResponse {
+    if (input.numQubits < 1) {
+        return {detail: "Number of qubits must be at least 1"};
     }
 
-    // Calculate probabilities
-    const probabilities: { [state: string]: number } = {};
-        const newQubitState = qubitState.toDense();
-        
-        const amp0 = newQubitState[0]; // amplitude for |0⟩
-        const amp1 = newQubitState[1]; // amplitude for |1⟩
+    const validGates: GateType[] = ["X", "H", "Z"];
+    const gates: GateInstance[] = [];
 
-        const prob0 = amp0.re ** 2 + amp0.im ** 2;
-        const prob1 = amp1.re ** 2 + amp1.im ** 2;
+    for (const gateInput of input.gates) {
+        if (!validGates.includes(gateInput.gate as GateType)) {
+            return {detail: `Invalid gate type: ${gateInput.gate}`};
+        }
+
+        if (gateInput.qubit < 0 || gateInput.qubit >= input.numQubits) {
+            return {detail: `Invalid target qubit: ${gateInput.qubit}`};
+        }
+
+        gates.push({
+            id: crypto.randomUUID(),
+            gateType: gateInput.gate as GateType,
+            qubit: gateInput.qubit,
+        });
+    }
+
+    return {
+        numQubits: input.numQubits,
+        gates: gates,
+    };
+};
 
 
-        probabilities["0"] = prob0;
-        probabilities["1"] = prob1;
+/**
+ * Simulates a quantum circuit with a single qubit.
+ * Applies the gates in the circuit to the initial state |0⟩.
+ * @param circuit - The CircuitState object representing the circuit.
+ * @returns The simulation result containing probabilities of measuring |0⟩ and |1⟩.
+ */
+export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
+  // Validate circuit
+  if (circuit.numQubits !== 1) {
+    throw new Error('Simulator supports only 1 qubit');
+  }
 
-    return { probabilities };
+  // Initial state: |0⟩ = [1, 0]
+  let state: QuantumState = createState([
+    createComplex(1, 0),
+    createComplex(0, 0),
+  ]);
 
+  // Apply gates sequentially
+  for (const gate of circuit.gates) {
+    const gateDef = GATE_MAP[gate.gateType];
+    if (gateDef && gateDef.matrix.length > 0) {
+      state = applyMatrix(gateDef.matrix, state);
+    } else {
+      console.warn(`Skipping gate: ${gate.gateType} not supported`);
+    }
+  }
+
+  // Calculate probabilities
+  const probabilities: { [state: string]: number } = {
+    '0': magnitudeSquared(state[0]),
+    '1': magnitudeSquared(state[1]),
+  };
+
+  return { probabilities };
 }
