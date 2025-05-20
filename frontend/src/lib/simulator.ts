@@ -28,7 +28,7 @@ export function importCircuit(input: ImportedCircuit): CircuitState | ErrorRespo
         return {detail: "Number of qubits must be at least 1"};
     }
 
-    const validGates: GateType[] = ["X", "H", "Z"];
+    const validGates: GateType[] = ["X", "Y", "Z", "H", "S", "T"];
     const gates: GateInstance[] = [];
 
     for (const gateInput of input.gates) {

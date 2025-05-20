@@ -1,2 +1,16 @@
 @import 'tailwindcss';
-@plugin '@tailwindcss/forms';
+
+@theme {
+    --color-primary: #FF204E;
+    --color-primary-accent: #A0153E;
+    --color-primary-accent-2: #5D0E41;
+    --color-secondary-1: #e9d5ff;
+    --color-secondary-2: #a855f7;
+    --color-secondary-3: #7e22ce;
+    --color-secondary-4: #3b0764;
+    --color-green-1: #bbf7d0;
+    --color-green-2: #22c55e;
+    --color-green-3: #15803d;
+    --color-green-4: #052e16;
+    --color-background: #152238;
+}

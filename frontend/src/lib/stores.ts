@@ -5,7 +5,7 @@ import { writable } from 'svelte/store';
  * Valid gate types for the quantum circuit.
  * Used in GateInstance for internal state and simulation.
  */
-export type GateType = 'X' | 'H' | 'Z';
+export type GateType = 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T';
 
 /**
  * Represents a gate instance in the internal circuit state.
