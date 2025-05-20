@@ -37,6 +37,8 @@ export interface CircuitState {
  */
 export interface SimulationResult {
     probabilities: { [state: string]: number };
+    formattedState?: string;
+    formattedStatePolar?: string;
 }
 
 export const circuit = writable<CircuitState>({

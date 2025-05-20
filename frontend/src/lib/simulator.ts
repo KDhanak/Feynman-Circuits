@@ -1,20 +1,20 @@
 import type { CircuitState, SimulationResult, GateType, GateInstance } from "./stores";
-import {type Complex, createComplex, magnitudeSquared} from "./quantum/complex";
-import {type QuantumState, createState, applyMatrix} from "./quantum/vector";
+import { type Complex, createComplex, formatComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
+import { type QuantumState, createState, applyMatrix } from "./quantum/vector";
 import { GATE_MAP } from "./quantum/gates";
 
 export interface ImportedGate {
-    gate: string;
-    qubit: number;
+	gate: string;
+	qubit: number;
 }
 
 export interface ImportedCircuit {
-    gates: ImportedGate[];
-    numQubits: number;
+	gates: ImportedGate[];
+	numQubits: number;
 }
 
 export interface ErrorResponse {
-    detail?: string;
+	detail?: string;
 }
 
 /**
@@ -24,33 +24,33 @@ export interface ErrorResponse {
  * @returns The internal CircuitState or an error response.
  */
 export function importCircuit(input: ImportedCircuit): CircuitState | ErrorResponse {
-    if (input.numQubits < 1) {
-        return {detail: "Number of qubits must be at least 1"};
-    }
+	if (input.numQubits < 1) {
+		return { detail: "Number of qubits must be at least 1" };
+	}
 
-    const validGates: GateType[] = ["X", "Y", "Z", "H", "S", "T"];
-    const gates: GateInstance[] = [];
+	const validGates: GateType[] = ["X", "Y", "Z", "H", "S", "T"];
+	const gates: GateInstance[] = [];
 
-    for (const gateInput of input.gates) {
-        if (!validGates.includes(gateInput.gate as GateType)) {
-            return {detail: `Invalid gate type: ${gateInput.gate}`};
-        }
+	for (const gateInput of input.gates) {
+		if (!validGates.includes(gateInput.gate as GateType)) {
+			return { detail: `Invalid gate type: ${gateInput.gate}` };
+		}
 
-        if (gateInput.qubit < 0 || gateInput.qubit >= input.numQubits) {
-            return {detail: `Invalid target qubit: ${gateInput.qubit}`};
-        }
+		if (gateInput.qubit < 0 || gateInput.qubit >= input.numQubits) {
+			return { detail: `Invalid target qubit: ${gateInput.qubit}` };
+		}
 
-        gates.push({
-            id: crypto.randomUUID(),
-            gateType: gateInput.gate as GateType,
-            qubit: gateInput.qubit,
-        });
-    }
+		gates.push({
+			id: crypto.randomUUID(),
+			gateType: gateInput.gate as GateType,
+			qubit: gateInput.qubit,
+		});
+	}
 
-    return {
-        numQubits: input.numQubits,
-        gates: gates,
-    };
+	return {
+		numQubits: input.numQubits,
+		gates: gates,
+	};
 };
 
 
@@ -61,32 +61,35 @@ export function importCircuit(input: ImportedCircuit): CircuitState | ErrorRespo
  * @returns The simulation result containing probabilities of measuring |0⟩ and |1⟩.
  */
 export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
-  // Validate circuit
-  if (circuit.numQubits !== 1) {
-    throw new Error('Simulator supports only 1 qubit');
-  }
+	// Validate circuit
+	if (circuit.numQubits !== 1) {
+		throw new Error('Simulator supports only 1 qubit');
+	}
 
-  // Initial state: |0⟩ = [1, 0]
-  let state: QuantumState = createState([
-    createComplex(1, 0),
-    createComplex(0, 0),
-  ]);
+	// Initial state: |0⟩ = [1, 0]
+	let state: QuantumState = createState([
+		createComplex(1, 0),
+		createComplex(0, 0),
+	]);
 
-  // Apply gates sequentially
-  for (const gate of circuit.gates) {
-    const gateDef = GATE_MAP[gate.gateType];
-    if (gateDef && gateDef.matrix.length > 0) {
-      state = applyMatrix(gateDef.matrix, state);
-    } else {
-      console.warn(`Skipping gate: ${gate.gateType} not supported`);
-    }
-  }
+	// Apply gates sequentially
+	for (const gate of circuit.gates) {
+		const gateDef = GATE_MAP[gate.gateType];
+		if (gateDef && gateDef.matrix.length > 0) {
+			state = applyMatrix(gateDef.matrix, state);
+		} else {
+			console.warn(`Skipping gate: ${gate.gateType} not supported`);
+		}
+	}
 
-  // Calculate probabilities
-  const probabilities: { [state: string]: number } = {
-    '0': magnitudeSquared(state[0]),
-    '1': magnitudeSquared(state[1]),
-  };
+	// Calculate probabilities
+	const probabilities: { [state: string]: number } = {
+		'0': magnitudeSquared(state[0]),
+		'1': magnitudeSquared(state[1]),
+	};
 
-  return { probabilities };
+	const formattedState = formatQuantumState(state);
+	const formattedStatePolar = formatQuantumStatePolar(state);
+
+	return { probabilities, formattedState, formattedStatePolar };
 }

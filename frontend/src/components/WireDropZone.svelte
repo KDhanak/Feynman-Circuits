@@ -12,12 +12,12 @@
 >
 	<!-- Wire -->
 	<div
-		class="absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 transform bg-primary-accent"
+		class="absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-yellow-1"
 	></div>
 
 	<!-- Qubit circle -->
 	<div
-		class="z-10 flex h-10 w-10 select-none items-center justify-center rounded-full border-2 border-white bg-primary-accent-2 text-sm text-white shadow-lg"
+		class="z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-primary-accent bg-primary-accent-2 text-md text-white shadow-lg"
 	>
 		|0⟩
 	</div>
@@ -32,7 +32,7 @@
 			on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 			on:dblclick={() => removeGate(gate.id)}
 			on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
-			class="z-10 ml-4 cursor-grab select-none rounded px-4 py-2 border bg-green-1 text-green-2 hover:bg-green-3 border-green-4 hover:text-white hover:border-white shadow"
+			class="z-10 ml-4 cursor-grab select-none rounded px-4 py-2 border bg-secondary-1 text-secondary-4 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white shadow"
 		>
 			{gate.gateType}
 		</div>

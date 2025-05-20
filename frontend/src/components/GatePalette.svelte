@@ -11,7 +11,7 @@
 	on:dragover={(e) => e.preventDefault()}
 	on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
 	on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
-	class="mb-4 flex gap-4 border-2 border-transparent transition-colors"
+	class="mb-4 w-4/5 h-auto py-10 flex items-center justify-center gap-4 rounded-md border-2 border-secondary-3"
 >
 	{#each gates as gate}
 		<div
