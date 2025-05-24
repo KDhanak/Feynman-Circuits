@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { handlePaletteDrop } from '../lib/dragDropUtils';
+	import { handlePaletteDrop, handleDoubleClick } from '../lib/dragDropUtils';
 	import { gates } from '../lib/types';
-	import type { DragData } from '../lib/types';
+	import type { GateData } from '../lib/types';
 </script>
 
 <div
@@ -19,9 +19,10 @@
 			role="region"
 			draggable="true"
 			on:dragstart={(e) => {
-				const dragData: DragData = { source: 'palette', gateType: gate.type };
+				const dragData: GateData = { source: 'palette', gateType: gate.type };
 				e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
 			}}
+			on:dblclick={() => handleDoubleClick({ source: 'palette', gateType: gate.type })}
 			class="cursor-grab select-none rounded border px-4 py-2 bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white"
 		>
 			{gate.name}

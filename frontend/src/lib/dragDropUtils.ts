@@ -1,15 +1,22 @@
 import { circuit, SimulationResults, type CircuitState, type GateType } from './stores'
 import { simulateSingleQubit } from '$lib/simulator';
 import { get } from 'svelte/store';
-import { type DragData } from './types';
+import { type GateData } from './types';
 
+export function handleGateDragStart(event: DragEvent, gateId: string) {
+    const dragData: GateData = { source: 'wire', gateId };
+    event.dataTransfer?.setData('application/json', JSON.stringify(dragData));
+}
 
+export function handleDragOver(event: DragEvent) {
+    event.preventDefault(); // Needed to allow drop
+}
 //define the handleDrop function
 export function handleDrop(event: DragEvent) {
     const gateData = event.dataTransfer?.getData('application/json');
     if (!gateData) return;
 
-    let parsed: DragData;
+    let parsed: GateData;
     // Parse the drag data
     // If parsing fails, log the error and return
     // This is important to avoid breaking the app if the data format changes
@@ -48,11 +55,7 @@ export function handleDrop(event: DragEvent) {
     }
 }
 
-export function handleDragOver(event: DragEvent) {
-    event.preventDefault(); // Needed to allow drop
-}
-
-export function removeGate(gateId: string) {
+export function removeGate(gateId: string | undefined) {
     let updatedCircuit;
     circuit.update((current) => {
         const newCircuit = {
@@ -76,7 +79,7 @@ export function handlePaletteDrop(event: DragEvent) {
     const gateData = event.dataTransfer?.getData('application/json');
     if (!gateData) return;
 
-    let parsed: DragData;
+    let parsed: GateData;
     try {
         parsed = JSON.parse(gateData);
     } catch (error) {
@@ -89,7 +92,37 @@ export function handlePaletteDrop(event: DragEvent) {
     }
 }
 
-export function handleGateDragStart(event: DragEvent, gateId: string) {
-    const dragData: DragData = { source: 'wire', gateId };
-    event.dataTransfer?.setData('application/json', JSON.stringify(dragData));
+
+export function handleDoubleClick(gateData: GateData) {
+    const validGates: GateType[] = ['X', 'Y', 'Z', 'H', 'S', 'T'];
+
+    if (gateData.source === 'palette') {
+        const gateType = gateData.gateType as GateType;
+        if (!validGates.includes(gateType)) {
+            console.error(`Incalid gate type: ${gateType}`);
+            return;
+        }
+
+        circuit.update((current) => {
+            const newCircuit: CircuitState = {
+                ...current,
+                gates: [
+                    ...current.gates,
+                    {
+                        id: crypto.randomUUID(),
+                        gateType: gateType,
+                        qubit: 0,
+                    },
+                ],
+            };
+            return newCircuit;
+        });
+    } else if (gateData.source === 'wire') {
+        const gateId = gateData.gateId
+        removeGate(gateId);
+    }
+
+    const updatedCircuit = get(circuit);
+    const results = simulateSingleQubit(updatedCircuit);
+    SimulationResults.set(results);
 }

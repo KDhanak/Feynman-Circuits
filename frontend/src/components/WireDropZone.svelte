@@ -1,6 +1,13 @@
 <script lang="ts">
-    import {circuit} from '../lib/stores';
-    import { handleDrop, handleDragOver, handleGateDragStart, removeGate } from '../lib/dragDropUtils';
+	import { circuit } from '../lib/stores';
+	import {
+		handleDrop,
+		handleDragOver,
+		handleGateDragStart,
+		handleDoubleClick,
+		removeGate,
+	} from '../lib/dragDropUtils';
+	import type { GateData } from '../lib/types';
 </script>
 
 <div
@@ -30,7 +37,7 @@
 			tabindex="0"
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id)}
-			on:dblclick={() => removeGate(gate.id)}
+			on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 			on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
 			class="z-10 ml-4 cursor-grab select-none rounded px-4 py-2 border bg-secondary-1 text-secondary-4 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white shadow"
 		>

@@ -1,7 +1,7 @@
 import type { GateType } from "./stores";
 // Define the type for the drag data
 // This is used to transfer data during drag-and-drop operations
-export interface DragData {
+export interface GateData {
     source: 'palette' | 'wire';
     gateType?: string; // Present if source is 'palette'
     gateId?: string; // Present if source is 'wire'

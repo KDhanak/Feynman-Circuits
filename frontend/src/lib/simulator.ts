@@ -1,5 +1,5 @@
 import type { CircuitState, SimulationResult, GateType, GateInstance } from "./stores";
-import { type Complex, createComplex, formatComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
+import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState, applyMatrix } from "./quantum/vector";
 import { GATE_MAP } from "./quantum/gates";
 
@@ -16,6 +16,48 @@ export interface ImportedCircuit {
 export interface ErrorResponse {
 	detail?: string;
 }
+
+/**
+ * Simulates a quantum circuit with a single qubit.
+ * Applies the gates in the circuit to the initial state |0⟩.
+ * @param circuit - The CircuitState object representing the circuit.
+ * @returns The simulation result containing probabilities of measuring |0⟩ and |1⟩.
+ */
+export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
+	// Validate circuit
+	if (circuit.numQubits !== 1) {
+		throw new Error('Simulator supports only 1 qubit');
+	}
+
+	// Initial state: |0⟩ = [1, 0]
+	let state: QuantumState = createState([
+		createComplex(1, 0),
+		createComplex(0, 0),
+	]);
+
+	// Apply gates sequentially
+	for (const gate of circuit.gates) {
+		const gateDef = GATE_MAP[gate.gateType];
+		if (gateDef && gateDef.matrix.length > 0) {
+			state = applyMatrix(gateDef.matrix, state);
+
+		} else {
+			console.warn(`Skipping gate: ${gate.gateType} not supported`);
+		}
+	}
+
+	// Calculate probabilities
+	const probabilities: { [state: string]: number } = {
+		'0': magnitudeSquared(state[0]),
+		'1': magnitudeSquared(state[1]),
+	};
+
+	const formattedState = formatQuantumState(state);
+	const formattedStatePolar = formatQuantumStatePolar(state);
+
+	return { probabilities, formattedState, formattedStatePolar };
+}
+
 
 /**
  * Converts user imported circuit to the internal CircuitState format.
@@ -52,44 +94,3 @@ export function importCircuit(input: ImportedCircuit): CircuitState | ErrorRespo
 		gates: gates,
 	};
 };
-
-
-/**
- * Simulates a quantum circuit with a single qubit.
- * Applies the gates in the circuit to the initial state |0⟩.
- * @param circuit - The CircuitState object representing the circuit.
- * @returns The simulation result containing probabilities of measuring |0⟩ and |1⟩.
- */
-export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
-	// Validate circuit
-	if (circuit.numQubits !== 1) {
-		throw new Error('Simulator supports only 1 qubit');
-	}
-
-	// Initial state: |0⟩ = [1, 0]
-	let state: QuantumState = createState([
-		createComplex(1, 0),
-		createComplex(0, 0),
-	]);
-
-	// Apply gates sequentially
-	for (const gate of circuit.gates) {
-		const gateDef = GATE_MAP[gate.gateType];
-		if (gateDef && gateDef.matrix.length > 0) {
-			state = applyMatrix(gateDef.matrix, state);
-		} else {
-			console.warn(`Skipping gate: ${gate.gateType} not supported`);
-		}
-	}
-
-	// Calculate probabilities
-	const probabilities: { [state: string]: number } = {
-		'0': magnitudeSquared(state[0]),
-		'1': magnitudeSquared(state[1]),
-	};
-
-	const formattedState = formatQuantumState(state);
-	const formattedStatePolar = formatQuantumStatePolar(state);
-
-	return { probabilities, formattedState, formattedStatePolar };
-}

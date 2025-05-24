@@ -38,6 +38,7 @@ export interface CircuitState {
 export interface SimulationResult {
     probabilities: { [state: string]: number };
     formattedState?: string;
+    formattedQuantumStateApproximate?: string;
     formattedStatePolar?: string;
 }
 
