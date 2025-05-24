@@ -8,10 +8,12 @@
 	} from '$lib/simulator';
 	import { get } from 'svelte/store';
 	import ErrorDisplay from './ErrorDisplay.svelte';
+	import MessageDisplay from './MessageDisplay.svelte';
 	import Icon from '@iconify/svelte';
 
 	let circuitInputJson = '';
 	let errorMessage: string = '';
+	let message: string = '';
 
 	// Import circuit from user input
 	// This function is called when the user clicks the "Import Circuit" button
@@ -39,6 +41,7 @@
 	// Export the current circuit to JSON
 	// This function is called when the user clicks the "Export Circuit" button
 	function exportCircuit() {
+		message = '';
 		const currentCircuit = get(circuit);
 		const exported: ImportedCircuit = {
 			numQubits: currentCircuit.numQubits,
@@ -51,12 +54,12 @@
 	}
 
 	async function copyToClipboard() {
+		errorMessage = '';
 		try {
 			await navigator.clipboard.writeText(circuitInputJson);
-			alert('Text copied to clipboard!');
+			message = 'Text copied to clipboard!';
 		} catch (error) {
-			console.error('Failed to copy to clipboard', error);
-			alert('Failed to copy text. Please try selecting and copying manually.');
+			errorMessage = 'Failed to copy text. Please try selecting and copying manually.';
 		}
 	}
 </script>
@@ -76,7 +79,7 @@
 		</div>
 		<textarea
 			bind:value={circuitInputJson}
-			class={`rounded border bg-transparent ${errorMessage ? 'border-ternary-1' : 'border-primary-2'} w-2xl h-20 resize-none text-white`}
+			class={`rounded border bg-transparent ${message ? 'border-success-1': (errorMessage ? 'border-ternary-1' : 'border-primary-2')} w-2xl h-20 resize-none text-white`}
 		>
 		</textarea>
 	</div>
@@ -97,7 +100,12 @@
 	</div>
 	<div class="absolute -bottom-12">
 		{#if errorMessage}
-			<ErrorDisplay message={errorMessage} />
+			<ErrorDisplay {errorMessage} />
+		{/if}
+	</div>
+	<div class="absolute -bottom-12">
+		{#if message}
+			<MessageDisplay {message} />
 		{/if}
 	</div>
 </div>

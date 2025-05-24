@@ -18,7 +18,7 @@
 <main class="flex min-h-screen flex-col items-center bg-background text-gray-800">
 	<div class="flex flex-row mt-10">
 		<h1 class="mb-6 text-2xl font-bold text-secondary-2">Feynman</h1>
-		<h1 class="mb-6 text-2xl font-bold text-primary-2">Circuits</h1>
+		<h1 class="mb-6 text-2xl font-bold text-primary-1">Circuits</h1>
 	</div>
 
 	<!-- Gate Palette -->
