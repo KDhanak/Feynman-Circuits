@@ -7,7 +7,6 @@
 		handleDoubleClick,
 		removeGate,
 	} from '../lib/dragDropUtils';
-	import type { GateData } from '../lib/types';
 </script>
 
 <div
@@ -19,12 +18,12 @@
 >
 	<!-- Wire -->
 	<div
-		class="absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-yellow-1"
+		class="absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-primary-1"
 	></div>
 
 	<!-- Qubit circle -->
 	<div
-		class="z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-primary-accent bg-primary-accent-2 text-md text-white shadow-lg"
+		class="z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-ternary-3 bg-ternary-2 text-md text-white shadow-lg"
 	>
 		|0⟩
 	</div>

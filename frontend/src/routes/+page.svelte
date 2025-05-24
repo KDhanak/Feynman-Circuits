@@ -5,31 +5,33 @@
 	import WireDropZone from '../components/WireDropZone.svelte';
 	import SimulationResult from '../components/SimulationResult.svelte';
 
-	const gates: {type: GateType; name: string}[] = [
+	const gates: { type: GateType; name: string }[] = [
 		{ type: 'X', name: 'X Gate' },
 		{ type: 'Y', name: 'Y Gate' },
 		{ type: 'Z', name: 'Z Gate' },
 		{ type: 'H', name: 'H Gate' },
 		{ type: 'S', name: 'S Gate' },
 		{ type: 'T', name: 'T Gate' }
-	]
-
+	];
 </script>
 
 <main class="flex min-h-screen flex-col items-center bg-background text-gray-800">
-	<h1 class="mb-6 text-2xl font-bold text-primary">Feynman Circuits</h1>
+	<div class="flex flex-row mt-10">
+		<h1 class="mb-6 text-2xl font-bold text-secondary-2">Feynman</h1>
+		<h1 class="mb-6 text-2xl font-bold text-primary-2">Circuits</h1>
+	</div>
 
 	<!-- Gate Palette -->
-	 <GatePalette />
+	<GatePalette />
 
 	<!-- Wire with Drop Zone -->
-	 <WireDropZone />
+	<WireDropZone />
 
-	 <!-- Simulation result -->
-	  <SimulationResult />
-	
+	<!-- Simulation result -->
+	<SimulationResult />
+
 	<!-- Circuit Import/Export -->
-	 <CircuitIE />
+	<CircuitIE />
 </main>
 
 <style>

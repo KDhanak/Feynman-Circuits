@@ -64,7 +64,7 @@
 <div class="z-10 absolute input mt-6 bottom-20">
 	<div class="flex flex-col justify-end gap-2 mb-1 text-sm">
 		<div class="flex justify-between">
-			<h3 class="text-primary">Import/Export Circuit (JSON)</h3>
+			<h3 class="text-primary-1">Import/Export Circuit (JSON)</h3>
 			<Icon
 				icon="mage:copy"
 				role="button"
@@ -76,7 +76,7 @@
 		</div>
 		<textarea
 			bind:value={circuitInputJson}
-			class="rounded border bg-transparent border-primary-accent w-2xl h-20 resize-none text-white"
+			class={`rounded border bg-transparent ${errorMessage ? 'border-ternary-1' : 'border-primary-2'} w-2xl h-20 resize-none text-white`}
 		>
 		</textarea>
 	</div>
