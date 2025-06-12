@@ -14,14 +14,15 @@
 	];
 
 	export function resetCircuit() {
-    circuit.set({
-        numQubits: 1,
-        gates: [],
-    });
-    SimulationResults.set({
-        probabilities: { '0': 1, '1': 0 }
-    });
-}
+		circuit.set({
+			numQubits: 1,
+			gates: []
+		});
+		SimulationResults.set({
+			probabilities: { '0': 1, '1': 0 },
+			formattedState: '1.00|0⟩'
+		});
+	}
 </script>
 
 <div
@@ -50,7 +51,7 @@
 	{/each}
 
 	<button
-	on:click={() => resetCircuit() }
+		on:click={() => resetCircuit()}
 		type="button"
 		aria-label="reset circuit"
 		class="cursor-pointer rounded border px-4 py-2 bg-ternary-2 text-white hover:bg-ternary-2 border-white hover:text-ternary-3 hover:border-ternary-3"
