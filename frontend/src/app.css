@@ -1,18 +1,18 @@
 @import 'tailwindcss';
 
 @theme {
-    --color-primary-1: #f6f54d;
-    --color-primary-2: #dddc45;
-    --color-primary-3: #c4c43d;
-    --color-primary-4: #acab35;
-    --color-ternary-1: #FF204E;
-    --color-ternary-2: #A0153E;
-    --color-ternary-3: #5D0E41;
-    --color-secondary-1: #e9d5ff;
-    --color-secondary-2: #a855f7;
-    --color-secondary-3: #7e22ce;
-    --color-secondary-4: #3b0764;
-    --color-background: #152238;
-    --color-background-2: #000066;
-    --color-success-1: #00bba7;
+    --color-primary-1: #f6f54d; /* bright yellow */
+    --color-primary-2: #dddc45; /* slightly muted yellow */
+    --color-primary-3: #c4c43d; /* muted yellow */
+    --color-primary-4: #acab35; /* olive yellow */
+    --color-ternary-1: #FF204E; /* bright red/pink */
+    --color-ternary-2: #A0153E; /* typo: likely meant #A0153E, dark red */
+    --color-ternary-3: #5D0E41; /* deep purple-red */
+    --color-secondary-1: #e9d5ff; /* pale purple */
+    --color-secondary-2: #a855f7; /* bright purple */
+    --color-secondary-3: #7e22ce; /* deep purple */
+    --color-secondary-4: #3b0764; /* very dark purple */
+    --color-background: #152238; /* dark navy blue */
+    --color-background-2: #000066; /* deep blue */
+    --color-success-1: #00bba7; /* teal */
 }

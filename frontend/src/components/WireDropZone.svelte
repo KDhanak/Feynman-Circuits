@@ -12,7 +12,7 @@
 <div
 	role="region"
 	aria-label="Quantum Circuit Wire Drop Zone"
-	class="relative flex w-4/5 h-24 items-center border-black"
+	class="relative flex w-4/5 h-24 items-center"
 	on:drop={handleDrop}
 	on:dragover={handleDragOver}
 >

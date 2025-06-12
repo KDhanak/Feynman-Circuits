@@ -4,13 +4,13 @@
 	import type { GateType } from '../lib/stores';
 
 	export const gates: { type: GateType; name: string }[] = [
-    { type: 'X', name: 'X Gate' },
-    { type: 'Y', name: 'Y Gate' },
-    { type: 'Z', name: 'Z Gate' },
-    { type: 'H', name: 'H Gate' },
-    { type: 'S', name: 'S Gate' },
-    { type: 'T', name: 'T Gate' }
-];
+		{ type: 'X', name: 'X Gate' },
+		{ type: 'Y', name: 'Y Gate' },
+		{ type: 'Z', name: 'Z Gate' },
+		{ type: 'H', name: 'H Gate' },
+		{ type: 'S', name: 'S Gate' },
+		{ type: 'T', name: 'T Gate' }
+	];
 </script>
 
 <div
