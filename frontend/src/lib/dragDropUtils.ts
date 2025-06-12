@@ -1,7 +1,6 @@
-import { circuit, SimulationResults, type CircuitState, type GateType } from './stores'
+import { circuit, SimulationResults, type CircuitState, type GateType, type GateData,  } from './stores'
 import { simulateSingleQubit } from '$lib/simulator';
 import { get } from 'svelte/store';
-import { type GateData } from './types';
 
 export function handleGateDragStart(event: DragEvent, gateId: string) {
     const dragData: GateData = { source: 'wire', gateId };

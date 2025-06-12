@@ -61,5 +61,4 @@ export const GATE_MAP: Record<GateType, QuantumGate> = {
     "H": H_GATE,
     "S": S_GATE,
     "T": T_GATE,
-
 }

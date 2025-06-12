@@ -24,12 +24,3 @@
 	<!-- Circuit Import/Export -->
 	<CircuitIE />
 </main>
-
-<style>
-	.select-none {
-		-webkit-user-select: none;
-		-moz-user-select: none;
-		-ms-user-select: none;
-		user-select: none;
-	}
-</style>

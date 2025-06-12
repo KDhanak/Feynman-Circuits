@@ -1,6 +1,7 @@
 import type { CircuitState, SimulationResult, GateType, GateInstance } from "./stores";
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
-import { type QuantumState, createState, applyMatrix } from "./quantum/vector";
+import { type QuantumState, createState } from "./quantum/vector";
+import { applyMatrix } from "./quantum/matrix";
 import { GATE_MAP } from "./quantum/gates";
 
 export interface ImportedGate {
