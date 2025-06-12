@@ -59,13 +59,3 @@ export const SimulationResults = writable<SimulationResult>({
     probabilities: { '0': 1, '1': 0 },
     formattedState: '1.00|0⟩',
 });
-
-export function resetCircuit() {
-    circuit.set({
-        numQubits: 1,
-        gates: [],
-    });
-    SimulationResults.set({
-        probabilities: { '0': 1, '1': 0 }
-    });
-}

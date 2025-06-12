@@ -2,6 +2,7 @@
 	import { handlePaletteDrop, handleDoubleClick } from '../lib/dragDropUtils';
 	import type { GateData } from '../lib/stores';
 	import type { GateType } from '../lib/stores';
+	import { circuit, SimulationResults } from '../lib/stores';
 
 	export const gates: { type: GateType; name: string }[] = [
 		{ type: 'X', name: 'X Gate' },
@@ -11,6 +12,16 @@
 		{ type: 'S', name: 'S Gate' },
 		{ type: 'T', name: 'T Gate' }
 	];
+
+	export function resetCircuit() {
+    circuit.set({
+        numQubits: 1,
+        gates: [],
+    });
+    SimulationResults.set({
+        probabilities: { '0': 1, '1': 0 }
+    });
+}
 </script>
 
 <div
@@ -37,4 +48,13 @@
 			{gate.name}
 		</div>
 	{/each}
+
+	<button
+	on:click={() => resetCircuit() }
+		type="button"
+		aria-label="reset circuit"
+		class="cursor-pointer rounded border px-4 py-2 bg-ternary-2 text-white hover:bg-ternary-2 border-white hover:text-ternary-3 hover:border-ternary-3"
+	>
+		Reset Circuit
+	</button>
 </div>
