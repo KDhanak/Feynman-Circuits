@@ -12,6 +12,8 @@
 		<h1 class="mb-6 text-2xl font-bold text-secondary-2">Feynman</h1>
 		<h1 class="mb-6 text-2xl font-bold text-primary-1">Circuits</h1>
 	</div>
+
+	<!-- Single-Multi-Qubit toggleUI switch -->
 	<div class="absolute top-10 right-10">
 		<ToggleUI />
 	</div>
@@ -22,9 +24,15 @@
 	<!-- Wire with Drop Zone -->
 	<WireDropZone />
 
-	<!-- Simulation result -->
-	<SimulationResult />
+	<div class="absolute z-10 flex flex-row bottom-20 w-4/5 justify-between">
+		<!-- Simulation result -->
+		<div class="flex flex-coljustify-center border-2 border-ternary-1 rounded-md p-6 w-1/3 ">
+			<SimulationResult />
+		</div>
 
-	<!-- Circuit Import/Export -->
-	<CircuitIE />
+		<div class="flex flex-col items-center justify-center">
+			<!-- Circuit Import/Export -->
+			<CircuitIE />
+		</div>
+	</div>
 </main>

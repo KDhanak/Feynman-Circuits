@@ -56,7 +56,8 @@ export const circuit = writable<CircuitState>({
 });
 
 export const SimulationResults = writable<SimulationResult>({
-    probabilities: { '0': 1, '1': 0 }
+    probabilities: { '0': 1, '1': 0 },
+    formattedState: '1.00|0⟩',
 });
 
 export function resetCircuit() {

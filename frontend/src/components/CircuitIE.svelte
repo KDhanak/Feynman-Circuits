@@ -15,6 +15,8 @@
 	let errorMessage: string = '';
 	let message: string = '';
 
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
 	// Import circuit from user input
 	// This function is called when the user clicks the "Import Circuit" button
 	function loadCircuitInput() {
@@ -23,17 +25,28 @@
 			const result = importCircuit(input);
 			if ('detail' in result) {
 				errorMessage = (result as ErrorResponse).detail ?? 'Unknown error';
+				if (timeoutId) clearTimeout(timeoutId);
+				timeoutId = setTimeout(() => {
+					errorMessage = '';
+				}, 3000);
 			} else {
 				circuit.set(result as CircuitState);
-				errorMessage = '';
+				message = 'Circuit loaded successfully!';
 				// Re-run simulation after loading the circuit
 				const updatedCircuit = get(circuit);
 				const results = simulateSingleQubit(updatedCircuit);
 				SimulationResults.set(results);
+				timeoutId = setTimeout(() => {
+					message = '';
+				}, 3000);
 			}
 		} catch (error) {
 			// Handle JSON parsing error
 			errorMessage = 'Invalid JSON format';
+			if (timeoutId) clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => {
+				errorMessage = '';
+			}, 3000);
 			console.error('Error loading circuit input:', error);
 		}
 	}
@@ -51,6 +64,11 @@
 			}))
 		};
 		circuitInputJson = JSON.stringify(exported, null, 2);
+		message = 'Circuit exported!';
+		if (timeoutId) clearTimeout(timeoutId);
+		timeoutId = setTimeout(() => {
+			message = '';
+		}, 3000);
 	}
 
 	async function copyToClipboard() {
@@ -58,13 +76,21 @@
 		try {
 			await navigator.clipboard.writeText(circuitInputJson);
 			message = 'Text copied to clipboard!';
+			if (timeoutId) clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => {
+				message = '';
+			}, 3000);
 		} catch (error) {
 			errorMessage = 'Failed to copy text. Please try selecting and copying manually.';
+			if (timeoutId) clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => {
+				errorMessage = '';
+			}, 3000);
 		}
 	}
 </script>
 
-<div class="z-10 absolute input mt-6 bottom-20">
+<div class="input">
 	<div class="flex flex-col justify-end gap-2 mb-1 text-sm">
 		<div class="flex justify-between">
 			<h3 class="text-primary-1">Import/Export Circuit (JSON)</h3>
@@ -79,7 +105,7 @@
 		</div>
 		<textarea
 			bind:value={circuitInputJson}
-			class={`rounded border bg-transparent ${message ? 'border-success-1': (errorMessage ? 'border-ternary-1' : 'border-primary-2')} w-2xl h-20 resize-none text-white`}
+			class={`rounded border bg-transparent ${message ? 'border-success-1' : errorMessage ? 'border-ternary-1' : 'border-primary-2'} w-xl h-20 resize-none text-white`}
 		>
 		</textarea>
 	</div>
