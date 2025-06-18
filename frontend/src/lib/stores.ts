@@ -5,7 +5,8 @@ import { writable } from 'svelte/store';
  * Valid gate types for the quantum circuit.
  * Used in GateInstance for internal state and simulation.
  */
-export type GateType = 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T';
+export type MatrixGateType = 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T';
+export type GateType = MatrixGateType | 'CONTROL';
 
 /**
  * Represents a gate instance in the internal circuit state.
@@ -18,6 +19,10 @@ export interface GateInstance {
     gateType: GateType;
     /** Qubit index the gate acts on (e.g., 0 for single qubit) */
     qubit: number;
+    /** Optional target qubit for gates like CNOT */
+    targetQubit?: number; 
+    /**The column of "time step" this gate belongs to */
+    columnIndex: number;
 }
 
 /**
@@ -50,12 +55,27 @@ export interface SimulationResult {
     formattedStatePolar?: string;
 }
 
+/**
+ * Store for the quantum circuit state.
+ * Contains the number of qubits and an array of gate instances.
+ */
 export const circuit = writable<CircuitState>({
     numQubits: 1,
     gates: [],
 });
 
+/**
+ * Store for the results of the quantum circuit simulation.
+ * Contains probabilities of measuring each state and formatted representations.
+ */
 export const SimulationResults = writable<SimulationResult>({
     probabilities: { '0': 1, '1': 0 },
     formattedState: '1.00|0⟩',
 });
+
+/**
+ * Store for the current state of the quantum circuit.
+ */
+export const isSingleQubitMode = writable(true);
+
+export const universalNumQubits = writable(2);

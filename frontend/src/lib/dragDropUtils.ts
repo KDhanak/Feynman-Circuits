@@ -1,5 +1,5 @@
-import { circuit, SimulationResults, type CircuitState, type GateType, type GateData,  } from './stores'
-import { simulateSingleQubit } from '$lib/simulator';
+import { circuit, SimulationResults, type CircuitState, type GateType, type GateData, isSingleQubitMode, universalNumQubits, type GateInstance, } from './stores'
+import { simulateMultipleQubits, simulateSingleQubit } from '$lib/simulator';
 import { get } from 'svelte/store';
 
 export function handleGateDragStart(event: DragEvent, gateId: string) {
@@ -10,8 +10,10 @@ export function handleGateDragStart(event: DragEvent, gateId: string) {
 export function handleDragOver(event: DragEvent) {
     event.preventDefault(); // Needed to allow drop
 }
+
 //define the handleDrop function
-export function handleDrop(event: DragEvent) {
+export function handleDrop(event: DragEvent, columnIndex: number, qubit: number) {
+    event.preventDefault();
     const gateData = event.dataTransfer?.getData('application/json');
     if (!gateData) return;
 
@@ -26,50 +28,99 @@ export function handleDrop(event: DragEvent) {
         return;
     }
 
+    const numQubits = get(universalNumQubits);
+    const singleMode = get(isSingleQubitMode);
+
+    circuit.update((current) => {
+        const updatedNumQubits = singleMode ? 1 : numQubits;
+        return { ...current, numQubits: updatedNumQubits }; // Sync numQubits
+    });
+
     // Handle the drop based on the source of the drag data
-    if (parsed.source === 'wire') {
-        // Dragged from the wire, do nothing for now
-        return;
+    if (parsed.source === 'wire' && parsed.gateId) {
+        circuit.update((current) => {
+            const existingGate = current.gates.find(g => g.id === parsed.gateId);
+
+            if (!existingGate) return current; // If gate not found, do nothing
+
+            const isOccupied = current.gates.some(g => g.qubit === qubit && g.columnIndex === columnIndex);
+            if (isOccupied) {
+                console.warn(`Column ${columnIndex} on qubit ${qubit} is already occupied`);
+                return current; // Do not move gate if the column is occupied
+            };
+
+            const updatedGates = current.gates.map(g =>
+                g.id === parsed.gateId ? { ...g, columnIndex, qubit } : g
+            );
+
+            return { ...current, gates: updatedGates };
+        });
+
+        const updatedCircuit = get(circuit);
+        const results = singleMode ? simulateSingleQubit(updatedCircuit) : simulateMultipleQubits(updatedCircuit);
+        SimulationResults.set(results);
+
     } else if (parsed.source === 'palette' && parsed.gateType) {
+        const dropZone = (event.currentTarget as HTMLElement).closest('.wire-container');
+        if (!dropZone) return;
+
+        if (parsed.gateType === 'CONTROL' && (singleMode || numQubits < 2)) {
+            console.error('Control gate requires at least 2 qubits');
+            return;
+        }
+
         // Dragged from the palette, add a new gate
         circuit.update((current) => {
+            const isOccupied = current.gates.some(g => g.qubit === qubit && g.columnIndex === columnIndex);
+
+            if (isOccupied) {
+                console.warn(`Column ${columnIndex} on qubit ${qubit} is already occupied`);
+                return current; // Do not add gate if the column is occupied
+            }
+
+            const newGate: GateInstance = {
+                id: crypto.randomUUID(),
+                gateType: parsed.gateType as GateType,
+                qubit: singleMode ? 0 : qubit,
+                columnIndex: columnIndex,
+            };
+
             const newCircuit = {
                 ...current,
                 gates: [
                     ...current.gates,
-                    {
-                        id: crypto.randomUUID(),
-                        gateType: parsed.gateType as GateType,
-                        qubit: 0
-                    }
-                ]
+                    newGate,
+                ],
             };
             return newCircuit;
         });
 
+        if (parsed.gateType === 'CONTROL') {
+            console.log(`Place an X gate on the target qubit for CONTROL on qubit ${qubit}`);
+        }
+
         // Re-run simulation
         const updatedCircuit = get(circuit);
-        const results = simulateSingleQubit(updatedCircuit);
+        const results = singleMode ? simulateSingleQubit(updatedCircuit) : simulateMultipleQubits(updatedCircuit);
         SimulationResults.set(results);
     }
 }
 
 export function removeGate(gateId: string | undefined) {
-    let updatedCircuit;
+    if (!gateId) return;
+
+    let updatedCircuit: CircuitState;
     circuit.update((current) => {
         const newCircuit = {
             ...current,
-            gates: current.gates.filter((gate) => gate.id !== gateId)
+            gates: current.gates.filter((gate) => gate.id !== gateId),
         };
         updatedCircuit = newCircuit;
         return newCircuit;
     });
 
-    if (!updatedCircuit) {
-        updatedCircuit = get(circuit);
-    }
-
-    const results = simulateSingleQubit(updatedCircuit);
+    const singleMode = get(isSingleQubitMode);
+    const results = singleMode ? simulateSingleQubit(updatedCircuit!) : simulateMultipleQubits(updatedCircuit!);
     SimulationResults.set(results);
 }
 
@@ -93,12 +144,19 @@ export function handlePaletteDrop(event: DragEvent) {
 
 
 export function handleDoubleClick(gateData: GateData) {
-    const validGates: GateType[] = ['X', 'Y', 'Z', 'H', 'S', 'T'];
+    const validGates: GateType[] = ['X', 'Y', 'Z', 'H', 'S', 'T', 'CONTROL'];
+    const singleMode = get(isSingleQubitMode);
+    const numQubitsValue = get(universalNumQubits);
 
-    if (gateData.source === 'palette') {
+    if (gateData.source === 'palette' && gateData.gateType) {
         const gateType = gateData.gateType as GateType;
         if (!validGates.includes(gateType)) {
-            console.error(`Incalid gate type: ${gateType}`);
+            console.error(`Invalid gate type: ${gateType}`);
+            return;
+        }
+
+        if (gateType === 'CONTROL' && (singleMode || numQubitsValue < 2)) {
+            console.error('Control gate requires at least 2 qubits');
             return;
         }
 
@@ -110,7 +168,9 @@ export function handleDoubleClick(gateData: GateData) {
                     {
                         id: crypto.randomUUID(),
                         gateType: gateType,
-                        qubit: 0,
+                        columnIndex: 0, // Default column index for new gates
+                        qubit: singleMode ? 0 : 0,
+                        ...(gateType === 'CONTROL' ? { targetQubit: undefined } : {}),
                     },
                 ],
             };
@@ -122,6 +182,6 @@ export function handleDoubleClick(gateData: GateData) {
     }
 
     const updatedCircuit = get(circuit);
-    const results = simulateSingleQubit(updatedCircuit);
+    const results = singleMode ? simulateSingleQubit(updatedCircuit) : simulateMultipleQubits(updatedCircuit);;
     SimulationResults.set(results);
 }

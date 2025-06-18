@@ -1,9 +1,11 @@
 <script lang="ts">
 	import CircuitIE from '../components/CircuitIE.svelte';
 	import GatePalette from '../components/GatePalette.svelte';
-	import WireDropZone from '../components/WireDropZone.svelte';
+	import SingleWireDropZone from '../components/SingleWireDropZone.svelte';
+	import MultiWireDropZone from '../components/MultiWireDropZone.svelte';
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import ToggleUI from '../components/ToggleUI.svelte';
+	import { isSingleQubitMode } from '../lib/stores';
 </script>
 
 <main class="flex min-h-screen flex-col items-center bg-background text-gray-800">
@@ -21,12 +23,16 @@
 	<!-- Gate Palette -->
 	<GatePalette />
 
-	<!-- Wire with Drop Zone -->
-	<WireDropZone />
+	<!-- Wire/s with Drop Zone -->
+	{#if $isSingleQubitMode}
+		<SingleWireDropZone />
+	{:else}
+		<MultiWireDropZone />
+	{/if}
 
 	<div class="absolute z-10 flex flex-row bottom-20 w-4/5 justify-between">
 		<!-- Simulation result -->
-		<div class="flex flex-coljustify-center border-2 border-ternary-1 rounded-md p-6 w-1/3 ">
+		<div class="flex flex-col justify-center border-2 border-ternary-1 rounded-md p-6 w-1/3 ">
 			<SimulationResult />
 		</div>
 

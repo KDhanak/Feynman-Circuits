@@ -1,4 +1,4 @@
-import {type Complex} from "./complex";
+import {createComplex, type Complex} from "./complex";
 import { type QuantumState } from "./vector";
 import { add, multiply } from "./complex";
 
@@ -53,3 +53,49 @@ export function tensorProduct(state1: QuantumState, state2: QuantumState): Quant
 
     return result; // Return the tensor product state
 }
+
+/**
+ * Extends a single-qubit gate matrix to a multi-qubit gate matrix.
+ * This function takes a single-qubit gate matrix and extends it to act on a specified qubit
+ */
+export function extendGateMatrix(singleGateMatrix: Complex[][], qubit: number, numQubits: number): Complex[][] {
+    const dim = 1 << numQubits;
+    let result: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(createComplex(0, 0)));
+
+    for (let i =0; i < dim; i++) {
+        result[i][i] = createComplex(1, 0);
+    }
+
+    for (let i = 0; i < dim; i++) {
+        for (let j = 0; j < dim; j++) {
+            const iQubitBit = (i >> (numQubits - 1 - qubit)) & 1;
+            const jQubitBit = (j >> (numQubits - 1 - qubit)) & 1;
+            const otherBitsMatch = (i ^ (iQubitBit << (numQubits - 1 - qubit))) === (j ^ (jQubitBit << (numQubits - 1 - qubit)));
+            if (otherBitsMatch) {
+                result[i][j] = singleGateMatrix[iQubitBit][jQubitBit];
+            }
+        }
+    }
+    return result;
+};
+
+/**
+ * Computes the matrix representation of a CNOT gate.
+ * The CNOT gate flips the target qubit if the control qubit is in state |1⟩.
+ */
+export function computeCNOTMatrix(controlQubit: number, targetQubit: number, numQubits: number): Complex[][] {
+  const dim = 1 << numQubits;
+  const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(createComplex(0, 0)));
+
+  for (let i = 0; i < dim; i++) {
+    const controlBit = (i >> (numQubits - 1 - controlQubit)) & 1;
+    let j = i;
+    if (controlBit === 1) {
+      // Flip target bit
+      j ^= 1 << (numQubits - 1 - targetQubit);
+    }
+    matrix[i][j] = createComplex(1, 0);
+  }
+
+  return matrix;
+};

@@ -1,7 +1,7 @@
-import type { CircuitState, SimulationResult, GateType, GateInstance } from "./stores";
+import type { CircuitState, SimulationResult, GateType, GateInstance, MatrixGateType } from "./stores";
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
-import { applyMatrix } from "./quantum/matrix";
+import { applyMatrix, extendGateMatrix, computeCNOTMatrix } from "./quantum/matrix";
 import { GATE_MAP } from "./quantum/gates";
 
 export interface ImportedGate {
@@ -38,12 +38,14 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 
 	// Apply gates sequentially
 	for (const gate of circuit.gates) {
-		const gateDef = GATE_MAP[gate.gateType];
-		if (gateDef && gateDef.matrix.length > 0) {
-			state = applyMatrix(gateDef.matrix, state);
+		if (gate.gateType !== 'CONTROL') {
+			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
+			if (gateDef && gateDef.matrix.length > 0) {
+				state = applyMatrix(gateDef.matrix, state);
 
-		} else {
-			console.warn(`Skipping gate: ${gate.gateType} not supported`);
+			} else {
+				console.warn(`Skipping gate: ${gate.gateType} not supported`);
+			}
 		}
 	}
 
@@ -59,6 +61,51 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 	return { probabilities, formattedState, formattedStatePolar };
 }
 
+export function simulateMultipleQubits(circuit: CircuitState): SimulationResult {
+	const { numQubits, gates } = circuit;
+	if (numQubits < 2) {
+		throw new Error('Multi-Qubit simulator requires at least 2 qubits');
+	}
+
+	const dim = 1 << numQubits;
+	let state: QuantumState = createState(Array(dim).fill(null).map(() => createComplex(0, 0)));
+	state[0] = createComplex(1, 0);
+
+	const controlGates = gates.filter((g) => g.gateType === 'CONTROL' && g.targetQubit !== undefined);
+	const otherGates = gates.filter((g) => g.gateType !== 'CONTROL');
+
+	for (const gate of otherGates) {
+		if (gate.gateType !== 'X' || !controlGates.some((cg) => cg.targetQubit === gate.qubit)) {
+			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
+			if (gateDef && gateDef.matrix.length > 0) {
+				const matrix = extendGateMatrix(gateDef.matrix, gate.qubit, numQubits);
+				state = applyMatrix(matrix, state);
+			} else {
+				console.warn(`Skipping gate: ${gate.gateType} not supported`);
+			}
+		}
+	}
+
+	for (const controlGate of controlGates) {
+		const targetGate = gates.find((g) =>
+			g.columnIndex === controlGate.columnIndex &&
+			g.qubit === controlGate.targetQubit
+		);
+		if (targetGate) {
+			const cnotMatrix = computeCNOTMatrix(controlGate.qubit, controlGate.targetQubit!, numQubits);
+			state = applyMatrix(cnotMatrix, state);
+		}
+	}
+
+	const probabilities: { [state: string]: number } = {};
+	for (let i = 0; i < dim; i++) {
+		const stateStr = i.toString(2).padStart(numQubits, '0');
+		probabilities[stateStr] = magnitudeSquared(state[i]);
+	}
+	const formattedState = formatQuantumState(state);
+	const formattedStatePolar = formatQuantumStatePolar(state);
+	return { probabilities, formattedState, formattedStatePolar };
+}
 
 /**
  * Converts user imported circuit to the internal CircuitState format.
@@ -87,6 +134,8 @@ export function importCircuit(input: ImportedCircuit): CircuitState | ErrorRespo
 			id: crypto.randomUUID(),
 			gateType: gateInput.gate as GateType,
 			qubit: gateInput.qubit,
+			targetQubit: gateInput.gate === 'CONTROL' ? undefined : undefined,
+			columnIndex: 0, // Default column index for imported gates
 		});
 	}
 

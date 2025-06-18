@@ -1,4 +1,4 @@
-import { type GateType } from "$lib/stores";
+import { type GateType, type MatrixGateType } from "$lib/stores";
 import { type Complex, createComplex } from "./complex";
 
 export interface QuantumGate {
@@ -54,7 +54,7 @@ export const T_GATE: QuantumGate = {
     ],
 };
 
-export const GATE_MAP: Record<GateType, QuantumGate> = {
+export const GATE_MAP: Record<MatrixGateType, QuantumGate> = {
     "X": X_GATE,
     "Y": Y_GATE,
     "Z": Z_GATE,

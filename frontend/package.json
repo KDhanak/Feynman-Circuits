@@ -47,7 +47,9 @@
 		"@iconify/svelte": "^5.0.0",
 		"@sveltejs/adapter-vercel": "^5.7.2",
 		"@tailwindcss/postcss": "^4.1.7",
+		"@types/lodash-es": "^4.17.12",
 		"axios": "^1.9.0",
+		"lodash-es": "^4.17.21",
 		"svelte-dnd-action": "^0.9.61"
 	}
 }
