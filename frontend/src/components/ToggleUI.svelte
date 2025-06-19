@@ -1,5 +1,6 @@
 <script>
 	import { isSingleQubitMode } from "$lib/stores";
+	import {resetCircuit} from "../lib/simulator";
 
 	export let checked = false;
 	export let id = 'toggle';
@@ -8,6 +9,7 @@
 
 	function handleToggle() {
 		isSingleQubitMode.update(value => !value);
+		resetCircuit();
 	}
 </script>
 

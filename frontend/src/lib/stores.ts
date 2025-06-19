@@ -20,7 +20,7 @@ export interface GateInstance {
     /** Qubit index the gate acts on (e.g., 0 for single qubit) */
     qubit: number;
     /** Optional target qubit for gates like CNOT */
-    targetQubit?: number; 
+    targetQubit?: number;
     /**The column of "time step" this gate belongs to */
     columnIndex: number;
 }
@@ -53,6 +53,34 @@ export interface SimulationResult {
     formattedState?: string;
     formattedQuantumStateApproximate?: string;
     formattedStatePolar?: string;
+}
+
+/**
+ * Represents a gate imported from an external source.
+ * Used in the import functionality to convert to CircuitState.
+ */
+export interface ImportedGate {
+    gate: GateType;
+    qubit: number;
+    columnIndex: number;
+    targetQubit?: number;
+}
+
+/**
+ * Represents a circuit imported from an external source.
+ * Used in the import functionality to convert to CircuitState.
+ */
+export interface ImportedCircuit {
+    gates: ImportedGate[];
+    numQubits: number;
+}
+
+/**
+ * Represents an error response for invalid circuit imports.
+ * Contains a detail message describing the error.
+ */
+export interface ErrorResponse {
+    detail?: string;
 }
 
 /**

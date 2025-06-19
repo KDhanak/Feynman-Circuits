@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { circuit, type GateInstance, universalNumQubits } from '../lib/stores';
+	import { circuit, universalNumQubits } from '../lib/stores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -27,9 +27,9 @@
 	{#each $circuit.gates.filter((g) => g.gateType === 'CONTROL' && g.targetQubit !== undefined) as gate (gate.id + '-connector')}
 		<!-- @ts-expect-error Safe because of filter -->
 		<div
-			class="absolute bg-secondary-4 w-1 z-0"
+			class="absolute bg-ternary-1 w-0.5 z-0"
 			style="
-			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 20}px;
+			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 18}px;
 			top: {Math.min(gate.qubit, gate.targetQubit!) * 56 + 28}px;
 			height: {Math.abs(gate.qubit - gate.targetQubit!) * 56}px;
 		"
@@ -67,7 +67,7 @@
 
 			<!-- Show gates placed on the wire -->
 			{#each $circuit.gates as gate (gate.id)}
-				{#if gate.qubit === wire.qubit || gate.targetQubit === wire.qubit}
+				{#if gate.qubit === wire.qubit}
 					<div
 						role="button"
 						aria-label={`Remove ${gate.gateType} gate with double-click, Delete key, or drag back to palette`}
@@ -113,21 +113,7 @@
 		position: absolute;
 		top: 50%;
 		transform: translateY(-50%);
-		cursor: grab;
-		padding: 0.5rem 1rem;
-		font-size: 0.875rem;
-		background-color: var(--color-secondary-1);
-		color: var(--color-secondary-4);
-		border: 1px solid var(--color-secondary-4);
-		border-radius: 0.5rem;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-		white-space: nowrap;
 		z-index: 10;
-	}
-	.gate:hover {
-		background-color: var(--color-secondary-3);
-		color: white;
-		border-color: white;
 	}
 
 	/* Qubit circle styles (optional to isolate and adjust) */

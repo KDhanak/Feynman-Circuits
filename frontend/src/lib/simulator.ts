@@ -1,21 +1,13 @@
 import type { CircuitState, SimulationResult, GateType, GateInstance, MatrixGateType } from "./stores";
+import { circuit, SimulationResults, isSingleQubitMode, universalNumQubits } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
 import { applyMatrix, extendGateMatrix, computeCNOTMatrix } from "./quantum/matrix";
 import { GATE_MAP } from "./quantum/gates";
+import { get } from "svelte/store";
 
-export interface ImportedGate {
-	gate: string;
-	qubit: number;
-}
-
-export interface ImportedCircuit {
-	gates: ImportedGate[];
-	numQubits: number;
-}
-
-export interface ErrorResponse {
-	detail?: string;
+function gateActsOnTarget(gate: GateInstance): boolean {
+	return gate.gateType !== 'CONTROL';
 }
 
 /**
@@ -71,29 +63,50 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 	let state: QuantumState = createState(Array(dim).fill(null).map(() => createComplex(0, 0)));
 	state[0] = createComplex(1, 0);
 
-	const controlGates = gates.filter((g) => g.gateType === 'CONTROL' && g.targetQubit !== undefined);
-	const otherGates = gates.filter((g) => g.gateType !== 'CONTROL');
+	const maxColumn = gates.length ? Math.max(...gates.map(g => g.columnIndex)) + 1 : 0;
+	const columns = Array.from({ length: maxColumn }, (_, colIndex) =>
+		gates.filter(g => g.columnIndex === colIndex)
+	);
 
-	for (const gate of otherGates) {
-		if (gate.gateType !== 'X' || !controlGates.some((cg) => cg.targetQubit === gate.qubit)) {
+	for (const colGates of columns) {
+		// Group CONTROL gates with their targets
+		const controlGates = colGates.filter(g => g.gateType === 'CONTROL');
+		const controlledPairs: { control: GateInstance; target: GateInstance }[] = [];
+
+		for (const controlGate of controlGates) {
+			const targetGate = colGates.find(g =>
+				g.qubit === controlGate.targetQubit && g.gateType !== 'CONTROL'
+			);
+			if (targetGate) {
+				controlledPairs.push({ control: controlGate, target: targetGate });
+			}
+		}
+
+		// Apply non-controlled gates that aren't part of a controlled pair
+		const controlledQubits = new Set(
+			controlledPairs.flatMap(pair => [pair.control.qubit, pair.target.qubit])
+		);
+		for (const gate of colGates) {
+			if (gate.gateType === 'CONTROL' || controlledQubits.has(gate.qubit)) continue;
+
 			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
 			if (gateDef && gateDef.matrix.length > 0) {
 				const matrix = extendGateMatrix(gateDef.matrix, gate.qubit, numQubits);
 				state = applyMatrix(matrix, state);
 			} else {
-				console.warn(`Skipping gate: ${gate.gateType} not supported`);
+				console.warn(`Invalid or unsupported gate type: ${gate.gateType}`);
 			}
 		}
-	}
 
-	for (const controlGate of controlGates) {
-		const targetGate = gates.find((g) =>
-			g.columnIndex === controlGate.columnIndex &&
-			g.qubit === controlGate.targetQubit
-		);
-		if (targetGate) {
-			const cnotMatrix = computeCNOTMatrix(controlGate.qubit, controlGate.targetQubit!, numQubits);
-			state = applyMatrix(cnotMatrix, state);
+		// Apply controlled gates
+		for (const { control, target } of controlledPairs) {
+			if (target.gateType === 'X') {
+				const cnotMatrix = computeCNOTMatrix(control.qubit, target.qubit, numQubits);
+				state = applyMatrix(cnotMatrix, state);
+			} else {
+				console.warn(`Unsupported controlled gate type: ${target.gateType}`);
+				// Future: Add support for other controlled gates (e.g., controlled-Z)
+			}
 		}
 	}
 
@@ -107,40 +120,21 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 	return { probabilities, formattedState, formattedStatePolar };
 }
 
-/**
- * Converts user imported circuit to the internal CircuitState format.
- * Validates the circuit and returns an error response if invalid.
- * @param input - The imported circuit object.
- * @returns The internal CircuitState or an error response.
- */
-export function importCircuit(input: ImportedCircuit): CircuitState | ErrorResponse {
-	if (input.numQubits < 1) {
-		return { detail: "Number of qubits must be at least 1" };
+export function resetCircuit() {
+	const singleMode = get(isSingleQubitMode);
+	const qubits = singleMode ? 1 : get(universalNumQubits);
+	circuit.set({
+		numQubits: qubits,
+		gates: []
+	});
+
+	const probabilities: { [state: string]: number } = {};
+	for (let i = 0; i < 1 << qubits; i++) {
+		probabilities[i.toString(2).padStart(qubits, '0')] = i === 0 ? 1 : 0;
 	}
 
-	const validGates: GateType[] = ["X", "Y", "Z", "H", "S", "T"];
-	const gates: GateInstance[] = [];
-
-	for (const gateInput of input.gates) {
-		if (!validGates.includes(gateInput.gate as GateType)) {
-			return { detail: `Invalid gate type: ${gateInput.gate}` };
-		}
-
-		if (gateInput.qubit < 0 || gateInput.qubit >= input.numQubits) {
-			return { detail: `Invalid target qubit: ${gateInput.qubit}` };
-		}
-
-		gates.push({
-			id: crypto.randomUUID(),
-			gateType: gateInput.gate as GateType,
-			qubit: gateInput.qubit,
-			targetQubit: gateInput.gate === 'CONTROL' ? undefined : undefined,
-			columnIndex: 0, // Default column index for imported gates
-		});
-	}
-
-	return {
-		numQubits: input.numQubits,
-		gates: gates,
-	};
-};
+	SimulationResults.set({
+		probabilities,
+		formattedState: `1.00|${'0'.repeat(qubits)}⟩`
+	});
+}

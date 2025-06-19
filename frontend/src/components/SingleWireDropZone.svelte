@@ -86,21 +86,7 @@
 		position: absolute;
 		top: 50%;
 		transform: translateY(-50%);
-		cursor: grab;
-		padding: 0.5rem 1rem;
-		font-size: 0.875rem;
-		background-color: var(--color-secondary-1);
-		color: var(--color-secondary-4);
-		border: 1px solid var(--color-secondary-4);
-		border-radius: 0.5rem;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-		white-space: nowrap;
 		z-index: 10;
-	}
-	.gate:hover {
-		background-color: var(--color-secondary-3);
-		color: white;
-		border-color: white;
 	}
 
 	/* Qubit circle styles (optional to isolate and adjust) */

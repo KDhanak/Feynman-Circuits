@@ -1,11 +1,14 @@
 <script lang="ts">
-	import { circuit, SimulationResults, type CircuitState } from '$lib/stores';
 	import {
-		importCircuit,
-		simulateSingleQubit,
+		circuit,
+		SimulationResults,
+		type CircuitState,
 		type ErrorResponse,
+		type GateType,
 		type ImportedCircuit
-	} from '$lib/simulator';
+	} from '$lib/stores';
+	import { simulateSingleQubit } from '$lib/simulator';
+	import { importCircuit } from '$lib/IE';
 	import { get } from 'svelte/store';
 	import ErrorDisplay from './ErrorDisplay.svelte';
 	import MessageDisplay from './MessageDisplay.svelte';
@@ -28,7 +31,7 @@
 				if (timeoutId) clearTimeout(timeoutId);
 				timeoutId = setTimeout(() => {
 					errorMessage = '';
-				}, 3000);
+				}, 1500);
 			} else {
 				circuit.set(result as CircuitState);
 				message = 'Circuit loaded successfully!';
@@ -38,7 +41,7 @@
 				SimulationResults.set(results);
 				timeoutId = setTimeout(() => {
 					message = '';
-				}, 3000);
+				}, 1500);
 			}
 		} catch (error) {
 			// Handle JSON parsing error
@@ -46,7 +49,7 @@
 			if (timeoutId) clearTimeout(timeoutId);
 			timeoutId = setTimeout(() => {
 				errorMessage = '';
-			}, 3000);
+			}, 1500);
 			console.error('Error loading circuit input:', error);
 		}
 	}
@@ -58,17 +61,23 @@
 		const currentCircuit = get(circuit);
 		const exported: ImportedCircuit = {
 			numQubits: currentCircuit.numQubits,
-			gates: currentCircuit.gates.map((gate) => ({
-				gate: gate.gateType as string,
-				qubit: gate.qubit
-			}))
+			gates: currentCircuit.gates.map((gate) => {
+				const baseGate = {
+					gate: gate.gateType as GateType,
+					qubit: gate.qubit,
+					columnIndex: gate.columnIndex
+				};
+				return gate.gateType === 'CONTROL' ? { ...baseGate, targetQubit: gate.targetQubit} : baseGate;
+			})
 		};
+		
 		circuitInputJson = JSON.stringify(exported, null, 2);
 		message = 'Circuit exported!';
+		console.log('Exported Circuit:', exported);
 		if (timeoutId) clearTimeout(timeoutId);
 		timeoutId = setTimeout(() => {
 			message = '';
-		}, 3000);
+		}, 1500);
 	}
 
 	async function copyToClipboard() {
@@ -79,13 +88,13 @@
 			if (timeoutId) clearTimeout(timeoutId);
 			timeoutId = setTimeout(() => {
 				message = '';
-			}, 3000);
+			}, 500);
 		} catch (error) {
 			errorMessage = 'Failed to copy text. Please try selecting and copying manually.';
 			if (timeoutId) clearTimeout(timeoutId);
 			timeoutId = setTimeout(() => {
 				errorMessage = '';
-			}, 3000);
+			}, 500);
 		}
 	}
 </script>

@@ -2,8 +2,8 @@
 	import { handlePaletteDrop, handleDoubleClick } from '../lib/dragDropUtils';
 	import type { GateData } from '../lib/stores';
 	import type { GateType } from '../lib/stores';
-	import { circuit, SimulationResults, isSingleQubitMode, universalNumQubits } from '../lib/stores';
-	import { get } from 'svelte/store';
+	import { isSingleQubitMode } from '../lib/stores';
+	import { resetCircuit } from '../lib/simulator';
 
 	export const gates: { type: GateType; name: string; category: string }[] = [
 		{ type: 'X', name: 'X Gate', category: 'single' },
@@ -14,25 +14,6 @@
 		{ type: 'T', name: 'T Gate', category: 'single' },
 		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' }
 	];
-
-	export function resetCircuit() {
-		const singleMode = get(isSingleQubitMode);
-		const qubits = singleMode ? 1 : get(universalNumQubits);
-		circuit.set({
-			numQubits: qubits,
-			gates: []
-		});
-
-		const probabilities: { [state: string]: number } = {};
-		for (let i = 0; i < 1 << qubits; i++) {
-			probabilities[i.toString(2).padStart(qubits, '0')] = i === 0 ? 1 : 0;
-		}
-
-		SimulationResults.set({
-			probabilities,
-			formattedState: `1.00|${'0'.repeat(qubits)}⟩`
-		});
-	}
 </script>
 
 <div
