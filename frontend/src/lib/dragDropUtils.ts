@@ -157,19 +157,31 @@ export function handleDrop(event: DragEvent, columnIndex: number, qubit: number)
 export function removeGate(gateId: string | undefined) {
     if (!gateId) return;
 
-    let updatedCircuit: CircuitState;
     circuit.update((current) => {
-        const newCircuit = {
-            ...current,
-            gates: current.gates.filter((gate) => gate.id !== gateId),
-        };
-        updatedCircuit = newCircuit;
-        return newCircuit;
-    });
+        const gateToRemove = current.gates.find(g => g.id === gateId);
+        if (!gateToRemove) return current;
 
-    const singleMode = get(isSingleQubitMode);
-    const results = singleMode ? simulateSingleQubit(updatedCircuit!) : simulateMultipleQubits(updatedCircuit!);
-    SimulationResults.set(results);
+        let updatedGates = current.gates.filter(g => g.id !== gateId);
+
+        if (gateToRemove.gateType === 'X') {
+            updatedGates = updatedGates.map(g => {
+                if (
+                    g.gateType === 'CONTROL' &&
+                    g.columnIndex === gateToRemove.columnIndex &&
+                    g.targetQubit === gateToRemove.qubit
+                ) {
+                    return { ...g, targetQubit: undefined };
+                }
+                return g;
+            });
+        }
+
+        const newCircuit = { ...current, gates: updatedGates };
+
+        triggerSimulation(newCircuit, get(isSingleQubitMode));
+
+        return newCircuit;
+    })
 }
 
 export function handlePaletteDrop(event: DragEvent) {
