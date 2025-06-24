@@ -6,10 +6,13 @@
 		handleGateDragStart,
 		removeGate
 	} from '../lib/dragDropUtils';
+	import { get } from 'svelte/store';
+	import { updateQubitLabel } from '$lib/qubitLables';
 
 	const MAX_COLUMNS = 29;
 	const COLUMN_WIDTH = 58;
-	const GATE_OFFSET = 44;
+	const LABEL_WIDTH = 80;
+	const GATE_OFFSET = LABEL_WIDTH + 44;
 
 	$: wires = Array.from({ length: $universalNumQubits }, (_, i) => ({
 		id: `wire-${i}`,
@@ -25,7 +28,6 @@
 >
 	<!-- Draw vertical connector lines for multiqubit gates -->
 	{#each $circuit.gates.filter((g) => g.gateType === 'CONTROL' && g.targetQubit !== undefined) as gate (gate.id + '-connector')}
-		<!-- @ts-expect-error Safe because of filter -->
 		<div
 			class="absolute bg-ternary-1 w-0.5 z-0"
 			style="
@@ -64,6 +66,17 @@
 			>
 				|0⟩
 			</div>
+
+			<input
+				type="text"
+				value={$circuit.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
+				on:input={(e) => {
+					const target = e.target as HTMLInputElement | null;
+					if (target) updateQubitLabel(wire.qubit, target.value);
+				}}
+				placeholder="Label"
+				class="z-10 w-14 h-7 text-xs border scroll-px-0.5 text-center border-ternary-3 text-ternary-2 rounded-md bg-purple-300 shadow-lg"
+			/>
 
 			<!-- Show gates placed on the wire -->
 			{#each $circuit.gates as gate (gate.id)}

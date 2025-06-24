@@ -7,17 +7,23 @@
 		handleDoubleClick,
 		removeGate
 	} from '../lib/dragDropUtils';
+	import { get } from 'svelte/store';
+	import { updateQubitLabel } from '$lib/qubitLables';
+
+	let qubitIndex = 0;
+	let label = get(circuit).qubitLabels?.[qubitIndex] ?? `Qubit ${qubitIndex}`;
+
+	// Subscribe and sync label
+	$circuit; // reactive trigger
+	$: label = $circuit.qubitLabels?.[qubitIndex] ?? `Qubit ${qubitIndex}`;
 
 	const MAX_COLUMNS = 29;
 	const COLUMN_WIDTH = 58;
-	const GATE_OFFSET = 44;
+	const LABEL_WIDTH = 80;
+	const GATE_OFFSET = LABEL_WIDTH + 44;
 </script>
 
-<div
-	role="region"
-	aria-label="Quantum Circuit Wire Drop Zone"
-	class="wire-container"
->
+<div role="region" aria-label="Quantum Circuit Wire Drop Zone" class="wire-container">
 	<!-- Wire -->
 	<div
 		class="absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-primary-1"
@@ -41,6 +47,14 @@
 	>
 		|0⟩
 	</div>
+
+	<input
+		type="text"
+		bind:value={label}
+		on:input={(e) => updateQubitLabel(qubitIndex, label)}
+		placeholder="Label"
+		class="z-10 w-14 h-7 text-xs border scroll-px-0.5 text-center border-ternary-3 text-ternary-2 rounded-md bg-purple-300 shadow-lg"
+	/>
 
 	<!-- Show gates placed on the wire -->
 	{#each $circuit.gates.filter((g: GateInstance) => g.qubit === 0) as gate (gate.id)}

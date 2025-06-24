@@ -6,10 +6,6 @@ import { applyMatrix, extendGateMatrix, computeCNOTMatrix } from "./quantum/matr
 import { GATE_MAP } from "./quantum/gates";
 import { get } from "svelte/store";
 
-function gateActsOnTarget(gate: GateInstance): boolean {
-	return gate.gateType !== 'CONTROL';
-}
-
 /**
  * Simulates a quantum circuit with a single qubit.
  * Applies the gates in the circuit to the initial state |0⟩.

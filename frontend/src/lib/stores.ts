@@ -34,6 +34,8 @@ export interface CircuitState {
     numQubits: number;
     /** Array of gates in the circuit */
     gates: GateInstance[];
+    /** Optional labels for qubits, used in UI */
+    qubitLabels?: string[];
 }
 
 // Define the type for the drag data
@@ -90,6 +92,7 @@ export interface ErrorResponse {
 export const circuit = writable<CircuitState>({
     numQubits: 1,
     gates: [],
+    qubitLabels: ['Qubit 0'],
 });
 
 /**

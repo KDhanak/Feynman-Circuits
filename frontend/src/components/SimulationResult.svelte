@@ -5,6 +5,8 @@
 	// Define the display limit as a constant for easy configuration
 	const DISPLAY_LIMIT = 3;
 
+	console.log($SimulationResults);
+
 	// This component's only job is to DISPLAY the results.
 	// The logic for updating SimulationResults is correctly handled in `dragDropUtils.ts`
 	// whenever the circuit changes. This is a better separation of concerns.

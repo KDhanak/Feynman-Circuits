@@ -36,54 +36,66 @@ export function scale(z: Complex, scalar: number): Complex {
 
 export function formatComplex({ re, im }: Complex): string {
     if (re === 0 && im === 0) {
-        return '0';
+        return '(0)';
     }
 
     let result = '';
+
     if (re !== 0) {
         result += re.toFixed(2);
     }
 
     if (im !== 0) {
         if (im === 1) {
-            // Just "i"
-            result += (re === 0 ? '' : im < 0 ? ' - ' : ' + ') + 'i';
+            result += (re === 0 ? '' : ' + ') + 'i';
         } else if (im === -1) {
-            // Just "-i"
             result += (re === 0 ? '-' : ' - ') + 'i';
         } else {
-            // General case, e.g., "2i" or "-3i"
-            const imPart = Math.abs(im) + 'i';
+            const imPart = Math.abs(im).toFixed(2) + 'i';
             result += (re === 0 ? (im < 0 ? '-' : '') : im < 0 ? ' - ' : ' + ') + imPart;
         }
     }
 
-    return result || '0'; // Fallback if both parts are 0
+    return `(${result})`; // Always wrap in brackets
 }
 
 // Format the quantum state as α|0⟩ + β|1⟩
 export function formatQuantumState(state: Complex[]): string {
-	const alpha = formatComplex(state[0]);
-	const beta = formatComplex(state[1]);
+    const numQubits = Math.log2(state.length);
 
-	if (alpha === '0' && beta === '0') return '0';
-	if (alpha === '0') return `${beta}|1⟩`;
-	if (beta === '0') return `${alpha}|0⟩`;
+    return state
+        .map((amplitude, index) => {
+            const formatted = formatComplex(amplitude);
+            if (formatted === '0') return null;
 
-	const betaSign = state[1].re < 0 || state[1].im < 0 ? '' : '+';
-	return `${alpha}|0⟩ ${betaSign}${beta}|1⟩`;
+            const basis = index.toString(2).padStart(numQubits, '0');
+            return `${formatted}|${basis}⟩`;
+        })
+        .filter(Boolean)
+        .join(' + ');
 }
 
 // Format the quantum state in polar form to highlight phase shifts
 export function formatQuantumStatePolar(state: Complex[]): string {
-	const getPolar = ({ re, im }: Complex) => {
-		const magnitude = Math.sqrt(re * re + im * im);
-		const phase = Math.atan2(im, re); // Phase in radians
-		return { magnitude: magnitude.toFixed(2), phase: (phase * 180 / Math.PI).toFixed(2) }; // Phase in degrees
-	};
+    const numQubits = Math.log2(state.length);
 
-	const alphaPolar = getPolar(state[0]);
-	const betaPolar = getPolar(state[1]);
+    const getPolar = ({ re, im }: Complex) => {
+        const magnitude = Math.sqrt(re * re + im * im);
+        const phase = Math.atan2(im, re); // radians
+        return {
+            magnitude: magnitude.toFixed(2),
+            phase: (phase * 180 / Math.PI).toFixed(2) // degrees
+        };
+    };
 
-	return `|0⟩: ${alphaPolar.magnitude}e^(i * ${alphaPolar.phase}°), |1⟩: ${betaPolar.magnitude}e^(i * ${betaPolar.phase}°)`
+    return state
+        .map((amplitude, index) => {
+            const { magnitude, phase } = getPolar(amplitude);
+            if (parseFloat(magnitude) === 0) return null;
+
+            const basis = index.toString(2).padStart(numQubits, '0');
+            return `|${basis}⟩: ${magnitude}e^(i * ${phase}°)`;
+        })
+        .filter(Boolean)
+        .join(', ');
 }
