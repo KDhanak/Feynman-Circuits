@@ -66,7 +66,7 @@ export function formatQuantumState(state: Complex[]): string {
     return state
         .map((amplitude, index) => {
             const formatted = formatComplex(amplitude);
-            if (formatted === '0') return null;
+            if (formatted === '(0)') return null;
 
             const basis = index.toString(2).padStart(numQubits, '0');
             return `${formatted}|${basis}⟩`;
