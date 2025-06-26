@@ -4,9 +4,9 @@
 		handleDrop,
 		handleDragOver,
 		handleGateDragStart,
+		handleDoubleClick,
 		removeGate
 	} from '../lib/dragDropUtils';
-	import { get } from 'svelte/store';
 	import { updateQubitLabel } from '$lib/qubitLables';
 
 	const MAX_COLUMNS = 29;
@@ -88,6 +88,7 @@
 						draggable="true"
 						on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 						on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
+						on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 						class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-secondary-1 text-secondary-4 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white shadow"
 						style="left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH}px;"
 					>

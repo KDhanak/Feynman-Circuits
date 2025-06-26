@@ -208,7 +208,7 @@ export function handleDoubleClick(gateData: GateData) {
     const singleMode = get(isSingleQubitMode);
     const numQubitsValue = get(universalNumQubits);
 
-    if (gateData.source === 'palette' && gateData.gateType) {
+    if (gateData.source === 'palette' && gateData.gateType && singleMode) {
         const gateType = gateData.gateType as GateType;
         if (!validGates.includes(gateType)) {
             console.error(`Invalid gate type: ${gateType}`);
@@ -237,6 +237,7 @@ export function handleDoubleClick(gateData: GateData) {
             return newCircuit;
         });
     } else if (gateData.source === 'wire') {
+        console.log('Removing gate:', gateData.gateId);
         const gateId = gateData.gateId
         removeGate(gateId);
     }
