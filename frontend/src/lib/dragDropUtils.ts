@@ -220,12 +220,16 @@ export function handleDoubleClick(gateData: GateData) {
 
             const assignedQubit = current.numQubits === 1 ? 0 : 0;
 
+            const occupiedColumns = current.gates.filter(g => g.qubit === assignedQubit).map(g => g.columnIndex);
+
+            const nextColumn = occupiedColumns.length > 0 ? Math.max(...occupiedColumns) + 1 : 0;
+
             const newGate: GateInstance = {
                 id: crypto.randomUUID(),
                 gateType,
-                columnIndex: 0,
+                columnIndex: nextColumn,
                 qubit: assignedQubit,
-                ...(gateType === 'CONTROL' ? {targetQubit: undefined} : {}),
+                ...(gateType === 'CONTROL' ? { targetQubit: undefined } : {}),
             };
 
             updatedCircuit = {

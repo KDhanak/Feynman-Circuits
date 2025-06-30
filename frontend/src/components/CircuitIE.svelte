@@ -7,9 +7,8 @@
 		type GateType,
 		type ImportedCircuit
 	} from '$lib/stores';
-	import { simulateSingleQubit } from '$lib/simulator';
+	import { simulateSingleQubit, simulateMultipleQubits } from '$lib/simulator';
 	import { importCircuit } from '$lib/IE';
-	import { get } from 'svelte/store';
 	import ErrorDisplay from './ErrorDisplay.svelte';
 	import MessageDisplay from './MessageDisplay.svelte';
 	import Icon from '@iconify/svelte';
@@ -17,8 +16,24 @@
 	let circuitInputJson = '';
 	let errorMessage: string = '';
 	let message: string = '';
-
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+		$: {
+			const state = $circuit;
+			const results = state.numQubits === 1 ? simulateSingleQubit(state) : simulateMultipleQubits(state);
+			SimulationResults.set(results);
+		}
+
+	function flash(opts: { text: string; isError?: boolean; duration?: number }) {
+		const { text, isError = false, duration = 2000 } = opts;
+		if (timeoutId) clearTimeout(timeoutId);
+		if (isError) errorMessage = text;
+		else message = text;
+		timeoutId = setTimeout(() => {
+			errorMessage = '';
+			message = '';
+		}, duration);
+	}
 
 	// Import circuit from user input
 	// This function is called when the user clicks the "Import Circuit" button
@@ -28,56 +43,36 @@
 			const result = importCircuit(input);
 			if ('detail' in result) {
 				errorMessage = (result as ErrorResponse).detail ?? 'Unknown error';
-				if (timeoutId) clearTimeout(timeoutId);
-				timeoutId = setTimeout(() => {
-					errorMessage = '';
-				}, 1500);
+				flash({ text: errorMessage, isError: true });
 			} else {
 				circuit.set(result as CircuitState);
-				message = 'Circuit loaded successfully!';
-				// Re-run simulation after loading the circuit
-				const updatedCircuit = get(circuit);
-				const results = simulateSingleQubit(updatedCircuit);
-				SimulationResults.set(results);
-				timeoutId = setTimeout(() => {
-					message = '';
-				}, 1500);
+				flash({ text: 'Circuit loaded successfully!' });
 			}
 		} catch (error) {
 			// Handle JSON parsing error
-			errorMessage = 'Invalid JSON format';
-			if (timeoutId) clearTimeout(timeoutId);
-			timeoutId = setTimeout(() => {
-				errorMessage = '';
-			}, 1500);
-			console.error('Error loading circuit input:', error);
+			flash({ text: 'Invalid JSON format', isError: true });
 		}
 	}
 
 	// Export the current circuit to JSON
 	// This function is called when the user clicks the "Export Circuit" button
 	function exportCircuit() {
-		message = '';
-		const currentCircuit = get(circuit);
-		const exported: ImportedCircuit = {
-			numQubits: currentCircuit.numQubits,
-			gates: currentCircuit.gates.map((gate) => {
-				const baseGate = {
-					gate: gate.gateType as GateType,
-					qubit: gate.qubit,
-					columnIndex: gate.columnIndex
-				};
-				return gate.gateType === 'CONTROL' ? { ...baseGate, targetQubit: gate.targetQubit} : baseGate;
-			})
-		};
-		
+		const { numQubits, gates, qubitLabels, mode } = $circuit;
+		const exported = {
+			mode: mode,
+			numQubits: numQubits,
+			qubitLabels: qubitLabels,
+			gates: gates.map(({ gateType, qubit, columnIndex, targetQubit }) => ({
+				gate: gateType as GateType,
+				qubit,
+				columnIndex,
+				...(gateType === 'CONTROL' && { targetQubit })
+			}))
+		} as ImportedCircuit;
+
 		circuitInputJson = JSON.stringify(exported, null, 2);
-		message = 'Circuit exported!';
-		console.log('Exported Circuit:', exported);
-		if (timeoutId) clearTimeout(timeoutId);
-		timeoutId = setTimeout(() => {
-			message = '';
-		}, 1500);
+
+		flash({ text: 'Circuit exported!' });
 	}
 
 	async function copyToClipboard() {
@@ -136,10 +131,7 @@
 	<div class="absolute -bottom-12">
 		{#if errorMessage}
 			<ErrorDisplay {errorMessage} />
-		{/if}
-	</div>
-	<div class="absolute -bottom-12">
-		{#if message}
+		{:else if message}
 			<MessageDisplay {message} />
 		{/if}
 	</div>

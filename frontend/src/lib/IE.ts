@@ -1,4 +1,5 @@
-import type { CircuitState, SimulationResult, GateType, GateInstance, MatrixGateType } from "./stores";
+import { generateDefaultQubitLabels } from "./qubitLables";
+import type { CircuitState, GateType, GateInstance, QubitMode } from "./stores";
 import type { ImportedCircuit, ErrorResponse } from "./stores";
 
 /**
@@ -42,12 +43,19 @@ export function importCircuit(input: ImportedCircuit): CircuitState | ErrorRespo
 			gateType: gateInput.gate as GateType,
 			qubit: gateInput.qubit,
 			columnIndex: gateInput.columnIndex,
-			...(gateInput.gate === 'CONTROL' ? {targetQubit: gateInput.targetQubit} : {})
+			...(gateInput.gate === 'CONTROL' ? { targetQubit: gateInput.targetQubit } : {})
 		});
-	}
+
+	};
+
+	const mode: QubitMode = input.mode ? input.mode : (input.numQubits === 1 ? 'single' : 'multi');
+
+	const labels = input.qubitLabels?.slice(0, input.numQubits) ?? generateDefaultQubitLabels(input.numQubits);
 
 	return {
 		numQubits: input.numQubits,
 		gates: gates,
+		qubitLabels: labels,
+		mode: mode,
 	};
 };

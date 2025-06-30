@@ -26,7 +26,7 @@
 	<GatePalette />
 
 	<!-- Wire/s with Drop Zone -->
-	{#if $circuit.numQubits === 1}
+	{#if $circuit.mode === 'single'}
 		<SingleWireDropZone />
 	{:else}
 		<MultiWireDropZone />

@@ -13,11 +13,6 @@ import { get } from "svelte/store";
  * @returns The simulation result containing probabilities of measuring |0⟩ and |1⟩.
  */
 export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
-	// Validate circuit
-	if (circuit.numQubits !== 1) {
-		throw new Error('Simulator supports only 1 qubit');
-	}
-
 	// Initial state: |0⟩ = [1, 0]
 	let state: QuantumState = createState([
 		createComplex(1, 0),
