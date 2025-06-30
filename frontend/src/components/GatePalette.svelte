@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { handlePaletteDrop, handleDoubleClick } from '../lib/dragDropUtils';
-	import type { GateData } from '../lib/stores';
-	import type { GateType } from '../lib/stores';
-	import { isSingleQubitMode } from '../lib/stores';
-	import { resetCircuit } from '../lib/simulator';
+	import { handlePaletteDrop, handleDoubleClick } from '$lib/dragDropUtils';
+	import type { GateData, GateType } from '$lib/stores';
+	import { circuit } from '$lib/stores';
+	import { resetCircuit } from '$lib/simulator';
 
 	export const gates: { type: GateType; name: string; category: string }[] = [
 		{ type: 'X', name: 'X Gate', category: 'single' },
@@ -14,6 +13,8 @@
 		{ type: 'T', name: 'T Gate', category: 'single' },
 		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' }
 	];
+
+	$: isSingleMode = $circuit.numQubits === 1;
 </script>
 
 <div
@@ -26,7 +27,7 @@
 	class="mb-4 w-14/15 h-auto py-10 flex items-center justify-center gap-4 rounded-md border-2 border-secondary-3"
 >
 	{#each gates as gate}
-		{#if $isSingleQubitMode ? gate.category === 'single' : true}
+		{#if isSingleMode ? gate.category === 'single' : true}
 			<div
 				title={gate.name}
 				role="region"

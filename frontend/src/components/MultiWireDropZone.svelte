@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { circuit, universalNumQubits } from '../lib/stores';
+	import { circuit } from '../lib/stores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -14,11 +14,10 @@
 	const LABEL_WIDTH = 80;
 	const GATE_OFFSET = LABEL_WIDTH + 44;
 
-	$: wires = Array.from({ length: $universalNumQubits }, (_, i) => ({
+	$: wires = Array.from({ length: $circuit.numQubits }, (_, i) => ({
 		id: `wire-${i}`,
 		qubit: i
 	}));
-	$: circuit.update((c) => ({ ...c, numQubits: $universalNumQubits }));
 </script>
 
 <div

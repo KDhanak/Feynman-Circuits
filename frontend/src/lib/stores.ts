@@ -107,6 +107,21 @@ export const SimulationResults = writable<SimulationResult>({
 /**
  * Store for the current state of the quantum circuit.
  */
-export const isSingleQubitMode = writable(true);
+export function setNumQubits(n: number) {
+    circuit.update(c => ({
+        ...c,
+        numQubits: n,
+        qubitLabels: Array.from({ length: n }, (_, i) => `Qubit ${i}`),
+    }));
+};
 
-export const universalNumQubits = writable(2);
+export function toggleMode(backToCount: number = 2){
+    circuit.update(c => {
+        const newCount = c.numQubits === 1 ? backToCount : 1;
+        return {
+            ...c, 
+            numQubits: newCount,
+            qubitLabels: Array.from({length: newCount}, (_, i) => `Qubit ${i}`)
+        };
+    });
+};

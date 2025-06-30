@@ -1,14 +1,15 @@
 <script>
-	import { isSingleQubitMode } from "$lib/stores";
-	import {resetCircuit} from "../lib/simulator";
+	import { circuit, toggleMode } from '$lib/stores';
+	import { resetCircuit } from '$lib/simulator';
 
-	export let checked = false;
-	export let id = 'toggle';
-	export let labelOn = "|𝛙<sub class='text-ternary-1'>n</sub>⟩";
-	export let labelOff = '|𝛙⟩';
+	let id = 'toggle';
+	let labelOn = "|𝛙<sub class='text-ternary-1'>n</sub>⟩";
+	let labelOff = '|𝛙⟩';
+
+	$: checked = $circuit.numQubits > 1;
 
 	function handleToggle() {
-		isSingleQubitMode.update(value => !value);
+		toggleMode(2);
 		resetCircuit();
 	}
 </script>

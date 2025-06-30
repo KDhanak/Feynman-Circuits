@@ -1,5 +1,5 @@
-import type { CircuitState, SimulationResult, GateType, GateInstance, MatrixGateType } from "./stores";
-import { circuit, SimulationResults, isSingleQubitMode, universalNumQubits } from '../lib/stores';
+import type { CircuitState, SimulationResult, GateInstance, MatrixGateType } from "./stores";
+import { circuit, SimulationResults } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
 import { applyMatrix, extendGateMatrix, computeCNOTMatrix } from "./quantum/matrix";
@@ -106,19 +106,22 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 		}
 	}
 
-	const probabilities: { [state: string]: number } = {};
-	for (let i = 0; i < dim; i++) {
-		const stateStr = i.toString(2).padStart(numQubits, '0');
-		probabilities[stateStr] = magnitudeSquared(state[i]);
-	}
+	const probabilities = Object.fromEntries(
+		state.map((amplitude, idx) => {
+			const bitString = idx.toString(2).padStart(numQubits, '0');
+			const prob = magnitudeSquared(amplitude);
+			return [bitString, prob] as [string, number];
+		})
+	)
+
 	const formattedState = formatQuantumState(state);
 	const formattedStatePolar = formatQuantumStatePolar(state);
 	return { probabilities, formattedState, formattedStatePolar };
 }
 
 export function resetCircuit() {
-	const singleMode = get(isSingleQubitMode);
-	const qubits = singleMode ? 1 : get(universalNumQubits);
+	const current = get(circuit);
+	const qubits = current.numQubits;
 	circuit.set({
 		numQubits: qubits,
 		gates: []

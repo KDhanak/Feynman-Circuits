@@ -5,7 +5,9 @@
 	import MultiWireDropZone from '../components/MultiWireDropZone.svelte';
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import ToggleUI from '../components/ToggleUI.svelte';
-	import { isSingleQubitMode } from '../lib/stores';
+	import { circuit } from '$lib/stores';
+	import { get } from 'svelte/store';
+
 </script>
 
 <main class="flex min-h-screen flex-col items-center bg-background text-gray-800">
@@ -24,7 +26,7 @@
 	<GatePalette />
 
 	<!-- Wire/s with Drop Zone -->
-	{#if $isSingleQubitMode}
+	{#if $circuit.numQubits === 1}
 		<SingleWireDropZone />
 	{:else}
 		<MultiWireDropZone />
