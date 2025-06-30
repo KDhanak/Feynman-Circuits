@@ -53,7 +53,7 @@
 		bind:value={label}
 		on:input={(e) => updateQubitLabel(qubitIndex, label)}
 		placeholder="Label"
-		class="z-10 w-14 h-7 text-xs border scroll-px-0.5 text-center border-ternary-3 text-ternary-2 rounded-md bg-purple-300 shadow-lg"
+		class="z-10 w-15 h-7.5 px-1.5 cursor-text hover:scale-110 transition-transform duration-300 ease-in-out text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
 	/>
 
 	<!-- Show gates placed on the wire -->
