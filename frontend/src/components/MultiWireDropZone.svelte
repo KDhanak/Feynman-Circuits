@@ -5,7 +5,10 @@
 		handleDragOver,
 		handleGateDragStart,
 		handleDoubleClick,
-		removeGate
+		removeGate,
+		handleTouchStart,
+		handleTouchMove,
+		handleTouchEnd
 	} from '../lib/dragDropUtils';
 	import { updateQubitLabel } from '$lib/qubitLables';
 
@@ -40,11 +43,12 @@
 		<div
 			role="region"
 			aria-label="Qubit ${wire.qubit} Wire Drop Zone"
-			class="wire-container relative flex h-14 items-center"
+			class="wire-container-upper relative flex h-14 items-center"
+			data-qubit={wire.qubit}
 		>
 			<!-- Wire -->
 			<div
-				class="absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-primary-1"
+				class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-primary-1"
 			>
 				{#each Array(MAX_COLUMNS) as _, colIndex}
 					<div
@@ -88,6 +92,10 @@
 						on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 						on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
 						on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
+						on:touchstart={(e) =>
+							handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
+						on:touchmove={handleTouchMove}
+						on:touchend={(e) => handleTouchEnd(e)}
 						class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-secondary-1 text-secondary-4 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white shadow"
 						style="left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH}px;"
 					>
@@ -130,7 +138,7 @@
 	}
 
 	/* Qubit circle styles (optional to isolate and adjust) */
-	.wire-container > div:first-child + div {
+	.wire-container-upper > div:first-child + div {
 		z-index: 10;
 		display: flex;
 		align-items: center;
