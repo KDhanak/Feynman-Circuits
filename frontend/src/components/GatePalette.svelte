@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { handlePaletteDrop, handleDoubleClick } from '$lib/dragDropUtils';
+	import { handlePaletteDrop, handleDoubleClick, handleTouchStart, handleTouchEnd, handleTouchMove } from '$lib/dragDropUtils';
 	import type { GateData, GateType } from '$lib/stores';
 	import { circuit } from '$lib/stores';
 	import { resetCircuit } from '$lib/simulator';
@@ -37,7 +37,10 @@
 					e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
 				}}
 				on:dblclick={() => handleDoubleClick({ source: 'palette', gateType: gate.type })}
-				class="cursor-grab select-none rounded border px-4 py-2 bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white"
+				on:touchstart={(e) => handleTouchStart(e, {source: 'palette', gateType: gate.type})}
+				on:touchmove={handleTouchMove} 
+				on:touchend={(e) => handleTouchEnd(e)}
+				class="cursor-grab select-none rounded-md border px-4 py-2 bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white"
 			>
 				{gate.name}
 			</div>
@@ -53,3 +56,10 @@
 		Reset Circuit
 	</button>
 </div>
+
+<style>
+	.ghost-gate {
+		pointer-events: none;
+		opacity: 0.8;
+	}
+</style>

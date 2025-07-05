@@ -1,6 +1,9 @@
 import { circuit, SimulationResults, type CircuitState, type GateType, type GateData, type GateInstance, } from './stores'
 import { simulateMultipleQubits, simulateSingleQubit } from '$lib/simulator';
 
+let touchData: GateData | null = null;
+let ghostElement: HTMLElement | null = null;
+
 export function handleGateDragStart(event: DragEvent, gateId: string) {
     const dragData: GateData = { source: 'wire', gateId };
     event.dataTransfer?.setData('application/json', JSON.stringify(dragData));
@@ -10,9 +13,126 @@ export function handleDragOver(event: DragEvent) {
     event.preventDefault(); // Needed to allow drop
 }
 
+export function handleTouchStart(event: TouchEvent, gateData: GateData) {
+    event.preventDefault();
+
+    touchData = gateData;
+    // Create ghost element
+    const target = event.currentTarget as HTMLElement;
+    ghostElement = document.createElement('div');
+    ghostElement.textContent = gateData.gateType || '';
+    ghostElement.className = 'ghost-gate';
+    ghostElement.style.position = 'fixed';
+    ghostElement.style.zIndex = '1000';
+    ghostElement.style.padding = '8px 16px';
+    ghostElement.style.borderRadius = '6px';
+    ghostElement.style.backgroundColor = '#7e22ce';
+    ghostElement.style.color = 'white';
+    ghostElement.style.border = 'solid #3b0764'
+    document.body.appendChild(ghostElement);
+    // Set initial position
+    const touch = event.touches[0];
+    ghostElement.style.left = `${touch.clientX - 50}px`;
+    ghostElement.style.top = `${touch.clientY - 50}px`;
+}
+
+export function handleTouchMove(event: TouchEvent) {
+    event.preventDefault();
+    if (ghostElement) {
+        const touch = event.touches[0];
+        ghostElement.style.left = `${touch.clientX - 40}px`; // Offset for better visibility
+        ghostElement.style.top = `${touch.clientY - 40}px`;
+    }
+}
+
+export function handleTouchEnd(event: TouchEvent) {
+    event.preventDefault();
+    if (!touchData) {
+        console.warn('No touchData available in handleTouchEnd. Exiting.'); // DEBUG
+        if (ghostElement) {
+            ghostElement.remove();
+            ghostElement = null;
+        }
+        return;
+    }
+
+    // Temporarily hide ghost element to find the element underneath the touch
+    if (ghostElement) {
+        ghostElement.style.display = 'none';
+    }
+    const touch = event.changedTouches[0];
+    const elementUnderFinger = document.elementFromPoint(touch.clientX, touch.clientY);
+    // Show ghost element again
+    if (ghostElement) {
+        ghostElement.style.display = '';
+    }
+
+    let droppedHandled = false;
+
+    // Check if dropped on the wire container (primary touch drop target)
+    const wireContainer = elementUnderFinger?.closest('.wire-container');
+    if (wireContainer) {
+
+        // Define constants used in Wire.svelte for column calculation
+        const LABEL_WIDTH = 80;
+        const GATE_OFFSET = LABEL_WIDTH + 44;
+        const COLUMN_WIDTH = 58;
+        const MAX_COLUMNS = 29; // Ensure this matches Wire.svelte
+
+        // Calculate columnIndex based on touch X position relative to wire container
+        const wireRect = wireContainer.getBoundingClientRect();
+        const touchXRelativeToWire = touch.clientX - wireRect.left;
+        let calculatedColumnIndex = Math.floor((touchXRelativeToWire - GATE_OFFSET) / COLUMN_WIDTH);
+
+        // Clamp columnIndex to valid range
+        calculatedColumnIndex = Math.max(0, Math.min(calculatedColumnIndex, MAX_COLUMNS - 1));
+
+        const qubit = 0; // Assuming single qubit for now, or fetch from wire-container data-qubit-index if multi-qubit
+
+        const syntheticEvent = {
+            preventDefault: () => { },
+            dataTransfer: {
+                getData: () => JSON.stringify(touchData),
+            }
+        } as unknown as DragEvent;
+        handleDrop(syntheticEvent, calculatedColumnIndex, qubit);
+        droppedHandled = true;
+
+    } else {
+        // Check if dropped back on the palette (for removing gates dragged from wire)
+        const paletteElement = elementUnderFinger?.closest('[aria-label="Quantum Circuit Gate Palette"]');
+        if (paletteElement) {
+            if (touchData.source === 'wire' && touchData.gateId) { // Only remove if dragged from wire
+                removeGate(touchData.gateId);
+                droppedHandled = true;
+            } else {
+                droppedHandled = true; // Still handled, just no action
+            }
+        } else {
+            console.log('Dropped on an invalid area. No action taken.'); // DEBUG
+        }
+    }
+
+    // Clean up ghost element and touch data regardless of drop validity
+    if (ghostElement) {
+        ghostElement.remove();
+        ghostElement = null;
+    }
+    touchData = null;
+}
+
+
 function triggerSimulation(circuitState: CircuitState) {
     const results = circuitState.numQubits === 1 ? simulateSingleQubit(circuitState) : simulateMultipleQubits(circuitState);
     SimulationResults.set(results);
+}
+
+export function findNextAvailableColumn(currentCircuitState: CircuitState, qubitIndex: number): number {
+    const occupiedColumns = currentCircuitState.gates
+        .filter(g => g.qubit === qubitIndex)
+        .map(g => g.columnIndex);
+
+    return occupiedColumns.length > 0 ? Math.max(...occupiedColumns) + 1 : 0;
 }
 
 export function handleDrop(event: DragEvent, columnIndex: number, qubit: number) {
@@ -220,9 +340,7 @@ export function handleDoubleClick(gateData: GateData) {
 
             const assignedQubit = current.numQubits === 1 ? 0 : 0;
 
-            const occupiedColumns = current.gates.filter(g => g.qubit === assignedQubit).map(g => g.columnIndex);
-
-            const nextColumn = occupiedColumns.length > 0 ? Math.max(...occupiedColumns) + 1 : 0;
+            const nextColumn = findNextAvailableColumn(current, assignedQubit);
 
             const newGate: GateInstance = {
                 id: crypto.randomUUID(),
