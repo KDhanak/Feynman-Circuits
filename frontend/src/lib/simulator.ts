@@ -2,7 +2,8 @@ import type { CircuitState, SimulationResult, GateInstance, MatrixGateType } fro
 import { circuit, SimulationResults } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
-import { applyMatrix, extendGateMatrix, computeCNOTMatrix } from "./quantum/matrix";
+import { applyMatrix, extendGateMatrix, computeControlledUMatrix } from "./quantum/matrix";
+import { X_GATE, Y_GATE, Z_GATE, H_GATE, S_GATE, T_GATE } from "./quantum/gates";
 import { GATE_MAP } from "./quantum/gates";
 import { get } from "svelte/store";
 
@@ -92,9 +93,25 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 		// Apply controlled gates
 		for (const { control, target } of controlledPairs) {
 			if (target.gateType === 'X') {
-				const cnotMatrix = computeCNOTMatrix(control.qubit, target.qubit, numQubits);
+				const cnotMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, X_GATE.matrix);
 				state = applyMatrix(cnotMatrix, state);
-			} else {
+			} else if (target.gateType === 'Y') {
+				const cyMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, Y_GATE.matrix);
+				state = applyMatrix(cyMatrix, state);
+			} else if (target.gateType === 'Z') {
+				const cyMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, Z_GATE.matrix);
+				state = applyMatrix(cyMatrix, state);
+			} else if (target.gateType === 'H') {
+				const chMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, H_GATE.matrix);
+				state = applyMatrix(chMatrix, state);
+			} else if (target.gateType === 'S') {
+				const csMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, S_GATE.matrix);
+				state = applyMatrix(csMatrix, state);
+			} else if (target.gateType === 'T') {
+				const ctMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, T_GATE.matrix);
+				state = applyMatrix(ctMatrix, state);
+			}
+			else {
 				console.warn(`Unsupported controlled gate type: ${target.gateType}`);
 				// Future: Add support for other controlled gates (e.g., controlled-Z)
 			}

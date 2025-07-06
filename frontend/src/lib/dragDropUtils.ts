@@ -34,7 +34,7 @@ function relinkControls(gates: GateInstance[]): GateInstance[] {
                 ...g,
                 targetQubit: gates.find(
                     o =>
-                        o.gateType === "X" &&
+                        (o.gateType === "X" || "Y" || "Z" || "H" || "S" || "T") &&
                         o.columnIndex === g.columnIndex &&
                         o.qubit !== g.qubit
                 )?.qubit,
@@ -180,37 +180,37 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 
     const parsed = JSON.parse(raw) as GateData;
 
-    circuit.update(curr => {
+    circuit.update(current => {
         /*─── 1. MOVE an existing gate ───*/
         if (parsed.source === "wire" && parsed.gateId) {
-            const moving = curr.gates.find(g => g.id === parsed.gateId);
-            if (!moving) return curr;
+            const moving = current.gates.find(g => g.id === parsed.gateId);
+            if (!moving) return current;
 
             if (
-                curr.gates.some(
+                current.gates.some(
                     g => g.columnIndex === col && g.qubit === qubit && g.id !== moving.id
                 )
             ) {
                 console.warn(`Cell (${col}, q=${qubit}) is occupied.`);
-                return curr;
+                return current;
             }
 
-            const afterMove = curr.gates.map(g =>
+            const afterMove = current.gates.map(g =>
                 g.id === moving.id ? { ...g, columnIndex: col, qubit } : g
             );
 
             const relinked = relinkControls(afterMove);
-            const updated = { ...curr, gates: relinked };
+            const updated = { ...current, gates: relinked };
             triggerSimulation(updated);
             return updated;
         }
 
         /*─── 2. DROP from palette ───*/
         if (parsed.source === "palette" && parsed.gateType) {
-            const q = curr.numQubits === 1 ? 0 : qubit;
-            if (curr.gates.some(g => g.qubit === q && g.columnIndex === col)) {
+            const q = current.numQubits === 1 ? 0 : qubit;
+            if (current.gates.some(g => g.qubit === q && g.columnIndex === col)) {
                 console.warn(`Cell (${col}, q=${q}) is occupied.`);
-                return curr;
+                return current;
             }
 
             const newGate: GateInstance = {
@@ -220,13 +220,13 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
                 columnIndex: col,
             };
 
-            const relinked = relinkControls([...curr.gates, newGate]);
-            const updated = { ...curr, gates: relinked };
+            const relinked = relinkControls([...current.gates, newGate]);
+            const updated = { ...current, gates: relinked };
             triggerSimulation(updated);
             return updated;
         }
 
-        return curr;
+        return current;
     });
 }
 
@@ -234,10 +234,10 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 
 export function removeGate(id?: string) {
     if (!id) return;
-    circuit.update(curr => {
-        const afterDelete = curr.gates.filter(g => g.id !== id);
+    circuit.update(current => {
+        const afterDelete = current.gates.filter(g => g.id !== id);
         const relinked = relinkControls(afterDelete);
-        const updated = { ...curr, gates: relinked };
+        const updated = { ...current, gates: relinked };
         triggerSimulation(updated);
         return updated;
     });
@@ -257,25 +257,25 @@ export function handlePaletteDrop(e: DragEvent) {
 
 export function handleDoubleClick(data: GateData) {
     const valid: GateType[] = ["X", "Y", "Z", "H", "S", "T", "CONTROL"];
-    circuit.update(curr => {
-        let next = curr;
+    circuit.update(current => {
+        let next = current;
 
         if (data.source === "palette" && data.gateType) {
-            if (curr.numQubits > 1) return curr;
+            if (current.numQubits > 1) return current;
             const gt = data.gateType as GateType;
-            if (!valid.includes(gt)) return curr;
+            if (!valid.includes(gt)) return current;
 
             const q = 0;
-            const col = findNextAvailableColumn(curr, q);
+            const col = findNextAvailableColumn(current, q);
             const g: GateInstance = {
                 id: crypto.randomUUID(),
                 gateType: gt,
                 qubit: q,
                 columnIndex: col,
             };
-            next = { ...curr, gates: [...curr.gates, g] };
+            next = { ...current, gates: [...current.gates, g] };
         } else if (data.source === "wire" && data.gateId) {
-            next = { ...curr, gates: curr.gates.filter(g => g.id !== data.gateId) };
+            next = { ...current, gates: current.gates.filter(g => g.id !== data.gateId) };
         }
 
         const relinked = relinkControls(next.gates);

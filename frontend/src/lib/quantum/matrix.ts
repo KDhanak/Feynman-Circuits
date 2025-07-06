@@ -1,4 +1,4 @@
-import {createComplex, type Complex} from "./complex";
+import { createComplex, type Complex } from "./complex";
 import { type QuantumState } from "./vector";
 import { add, multiply } from "./complex";
 
@@ -22,7 +22,7 @@ export function applyMatrix(matrix: Complex[][], state: QuantumState): QuantumSt
     }
 
     // Initialize result state with zeros (Complex numbers with re=0, im=0)
-    const result: QuantumState = Array(dim).fill(null).map(() => ({re: 0, im: 0}));
+    const result: QuantumState = Array(dim).fill(null).map(() => ({ re: 0, im: 0 }));
 
     // Perform matrix-vector multiplication: result[i] = sum(matrix[i][j] * state[j])
     for (let i = 0; i < dim; i++) {
@@ -62,7 +62,7 @@ export function extendGateMatrix(singleGateMatrix: Complex[][], qubit: number, n
     const dim = 1 << numQubits;
     let result: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(createComplex(0, 0)));
 
-    for (let i =0; i < dim; i++) {
+    for (let i = 0; i < dim; i++) {
         result[i][i] = createComplex(1, 0);
     }
 
@@ -79,23 +79,36 @@ export function extendGateMatrix(singleGateMatrix: Complex[][], qubit: number, n
     return result;
 };
 
-/**
- * Computes the matrix representation of a CNOT gate.
- * The CNOT gate flips the target qubit if the control qubit is in state |1⟩.
- */
-export function computeCNOTMatrix(controlQubit: number, targetQubit: number, numQubits: number): Complex[][] {
-  const dim = 1 << numQubits;
-  const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(createComplex(0, 0)));
+export function computeControlledUMatrix(controlQubit: number, targetQubit: number, numQubits: number, U: Complex[][]): Complex[][] {
+    const dim = 1 << numQubits;
+    const zero = createComplex(0, 0);
+    const one = createComplex(1, 0);
 
-  for (let i = 0; i < dim; i++) {
-    const controlBit = (i >> (numQubits - 1 - controlQubit)) & 1;
-    let j = i;
-    if (controlBit === 1) {
-      // Flip target bit
-      j ^= 1 << (numQubits - 1 - targetQubit);
+    const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(zero));
+    const bitPos = numQubits - 1 - targetQubit
+
+    const bitMask = 1 << bitPos
+
+    for (let src = 0; src < dim; src++) {
+        const ctrlBit = (src >> (numQubits -  1 - controlQubit)) & 1;
+
+        if (ctrlBit === 0) {
+            matrix[src][src] = one; // Identity for control bit 0
+            continue;
+        }
+
+        const beforeBit = (src >> bitPos) & 1;
+
+        for (let rowBit = 0; rowBit < 2; rowBit++) {
+            const amp = U[rowBit][beforeBit];
+
+            if (amp.re === 0 && amp.im === 0) continue;
+
+            const dest = (rowBit === beforeBit) ? src : (src ^ bitMask);
+
+            matrix[dest][src] = amp;
+        }
     }
-    matrix[i][j] = createComplex(1, 0);
-  }
+    return matrix;
+}
 
-  return matrix;
-};
