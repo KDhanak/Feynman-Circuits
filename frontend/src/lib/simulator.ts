@@ -20,8 +20,12 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 		createComplex(0, 0),
 	]);
 
+	const gatesInColumnOrder = [...circuit.gates].sort(
+		(a, b) => a.columnIndex - b.columnIndex
+	);
+
 	// Apply gates sequentially
-	for (const gate of circuit.gates) {
+	for (const gate of gatesInColumnOrder) {
 		if (gate.gateType !== 'CONTROL') {
 			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
 			if (gateDef && gateDef.matrix.length > 0) {
@@ -44,6 +48,7 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 
 	return { probabilities, formattedState, formattedStatePolar };
 }
+
 
 export function simulateMultipleQubits(circuit: CircuitState): SimulationResult {
 	const { numQubits, gates } = circuit;

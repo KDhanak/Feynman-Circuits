@@ -31,12 +31,12 @@
 	<!-- Draw vertical connector lines for multiqubit gates -->
 	{#each $circuit.gates.filter((g) => g.gateType === 'CONTROL' && g.targetQubit !== undefined) as gate (gate.id + '-connector')}
 		<div
-			class="absolute bg-ternary-1 w-0.5 z-0"
+			class="absolute bg-ternary-1 w-0.5 z-10"
 			style="
 			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 18}px;
 			top: {Math.min(gate.qubit, gate.targetQubit!) * 56 + 28}px;
 			height: {Math.abs(gate.qubit - gate.targetQubit!) * 56}px;
-		"
+        "
 		></div>
 	{/each}
 	{#each wires as wire (wire.id)}

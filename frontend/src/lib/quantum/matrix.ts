@@ -85,12 +85,11 @@ export function computeControlledUMatrix(controlQubit: number, targetQubit: numb
     const one = createComplex(1, 0);
 
     const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(zero));
-    const bitPos = numQubits - 1 - targetQubit
-
-    const bitMask = 1 << bitPos
+    const bitPos = numQubits - 1 - targetQubit;
+    const bitMask = 1 << bitPos;
 
     for (let src = 0; src < dim; src++) {
-        const ctrlBit = (src >> (numQubits -  1 - controlQubit)) & 1;
+        const ctrlBit = (src >> (numQubits - 1 - controlQubit)) & 1;
 
         if (ctrlBit === 0) {
             matrix[src][src] = one; // Identity for control bit 0
