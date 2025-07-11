@@ -12,17 +12,21 @@
 	import ErrorDisplay from './ErrorDisplay.svelte';
 	import MessageDisplay from './MessageDisplay.svelte';
 	import Icon from '@iconify/svelte';
+	import { fade, scale } from 'svelte/transition';
+	import { onMount } from 'svelte';
 
+	let isEnlarged = false;
 	let circuitInputJson = '';
 	let errorMessage: string = '';
 	let message: string = '';
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-		$: {
-			const state = $circuit;
-			const results = state.numQubits === 1 ? simulateSingleQubit(state) : simulateMultipleQubits(state);
-			SimulationResults.set(results);
-		}
+	$: {
+		const state = $circuit;
+		const results =
+			state.numQubits === 1 ? simulateSingleQubit(state) : simulateMultipleQubits(state);
+		SimulationResults.set(results);
+	}
 
 	function flash(opts: { text: string; isError?: boolean; duration?: number }) {
 		const { text, isError = false, duration = 2000 } = opts;
@@ -92,39 +96,106 @@
 			}, 500);
 		}
 	}
+
+	function toggleEnlarge() {
+		isEnlarged = !isEnlarged;
+	}
+	function focusOnMount(node: HTMLElement) {
+		node.focus();
+		return;
+	}
 </script>
 
 <div class="input">
 	<div class="flex flex-col justify-end gap-2 mb-1 text-sm">
 		<div class="flex justify-between">
 			<h3 class="text-primary-1">Import/Export Circuit (JSON)</h3>
-			<Icon
-				icon="mage:copy"
-				role="button"
-				class="text-white cursor-pointer"
-				width="24"
-				height="24"
-				onclick={copyToClipboard}
-			/>
+			<div class="flex gap-2">
+				<Icon
+					icon="mage:copy"
+					role="button"
+					class="text-white cursor-pointer"
+					width="24"
+					height="24"
+					onclick={copyToClipboard}
+				/>
+				<Icon
+					icon="iconoir:enlarge"
+					role="button"
+					class="text-white cursor-pointer"
+					width="24"
+					height="24"
+					onclick={toggleEnlarge}
+				></Icon>
+			</div>
 		</div>
 		<textarea
 			bind:value={circuitInputJson}
-			class={`rounded border bg-transparent ${message ? 'border-success-1' : errorMessage ? 'border-ternary-1' : 'border-primary-2'} w-xl h-20 resize-none text-white`}
+			class={`rounded border bg-transparent ${message ? 'border-success-1' : errorMessage ? 'border-ternary-1' : 'border-primary-2'} w-xs h-20 resize-none text-white`}
 		>
 		</textarea>
 	</div>
+
+	{#if isEnlarged}
+		<div
+			class="fixed inset-0 bg-transparent flex items-center justify-center z-50"
+			transition:fade={{ duration: 200 }}
+			role="button"
+			tabindex="0"
+			aria-label="Close enlarged circuit JSON editor"
+			on:click={toggleEnlarge}
+			on:keydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					toggleEnlarge();
+				}
+			}}
+		>
+			<div
+				class="bg-background border border-success-1 p-4 rounded-md max-w-3xl w-full max-h-[80vh] flex flex-col"
+				transition:scale={{ duration: 200, start: 0.8 }}
+				role="dialog"
+				aria-modal="true"
+				tabindex="0"
+				use:focusOnMount
+				on:click|stopPropagation
+				on:keydown={(e) => {
+					if (e.key === 'Escape') {
+						toggleEnlarge();
+					}
+				}}
+			>
+				<div class="flex justify-between mb-2">
+					<h3 class="text-primary-1">Edit Circuit</h3>
+					<button type="button" aria-label="Close dialog" on:click={toggleEnlarge}>
+						<Icon
+							icon="material-symbols:close"
+							role="button"
+							class="text-ternary-0 cursor-pointer"
+							width="24"
+							height="24"
+							on:click={toggleEnlarge}
+						/>
+					</button>
+				</div>
+				<textarea
+					bind:value={circuitInputJson}
+					class="rounded border bg-transparent border-success-1 w-full h-[50vh] text-white p-2 resize-none"
+				></textarea>
+			</div>
+		</div>
+	{/if}
 
 	<div class="flex gap-4 mt-2 items-center">
 		<button
 			on:click={loadCircuitInput}
 			type="button"
-			class="rounded px-4 py-2 border bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white cursor-pointer"
+			class="rounded-md px-3 py-1.5 text-sm border bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white cursor-pointer"
 			>Import Circuit</button
 		>
 		<button
 			on:click={exportCircuit}
 			type="button"
-			class="rounded px-4 py-2 border bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white cursor-pointer"
+			class="rounded-md px-3 py-1.5 border text-sm bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white cursor-pointer"
 			>Export Circuit</button
 		>
 	</div>

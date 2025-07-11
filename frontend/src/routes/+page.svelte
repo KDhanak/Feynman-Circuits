@@ -32,9 +32,9 @@
 		<MultiWireDropZone />
 	{/if}
 
-	<div class="absolute z-10 flex flex-row bottom-20 w-4/5 justify-between">
+	<div class="absolute z-10 flex flex-row bottom-5 w-11/12 justify-between">
 		<!-- Simulation result -->
-		<div class="flex flex-col justify-center border-2 border-ternary-1 rounded-md p-6 w-1/3 ">
+		<div class="flex flex-col justify-center border-2 border-ternary-1 rounded-md p-6 w-1/4 ">
 			<SimulationResult />
 		</div>
 
