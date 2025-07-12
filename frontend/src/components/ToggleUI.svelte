@@ -9,7 +9,7 @@
 	$: checked = $circuit.numQubits > 1;
 
 	function handleToggle() {
-		toggleMode(2);
+		toggleMode(3);
 		resetCircuit();
 	}
 </script>

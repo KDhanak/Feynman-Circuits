@@ -79,35 +79,64 @@ export function extendGateMatrix(singleGateMatrix: Complex[][], qubit: number, n
     return result;
 };
 
-export function computeControlledUMatrix(controlQubit: number, targetQubit: number, numQubits: number, U: Complex[][]): Complex[][] {
+/**
+ * Build the full unitary matrix for a controlled-U gate with any number of control wires and one or more target wires.
+ * Controls ... indices of *qubits* that must be in state |1⟩.
+ * targets ... indices of *qubits* on which the 2x2 matric U acts.
+ * U ... a 2x2 single-qubit operator (e.g. X, Y, H, T, etc.)
+ * numQubits ... total number of qubits in the circuit
+ * 
+ * Returned matrix has dimensions 2^numQubits x 2^numQubits.
+ */
+
+export function buildMultiControlledUMatrix(controls: number[], targets: number[], U: Complex[][], numQubits: number): Complex[][] {
+
+    /* ---------- bit masks for fast tests ----------------- */
+    const controlMask = controls.reduce((m, q) => m | (1 << (numQubits - 1 - q)), 0);
+    const targetMask = targets.reduce((m, q) => m | (1 << (numQubits - 1 - q)), 0);
+
+    /* ---------- allocate identity ------------------------ */
     const dim = 1 << numQubits;
-    const zero = createComplex(0, 0);
-    const one = createComplex(1, 0);
+    const M: Complex[][] = Array.from({ length: dim }, () => Array.from({ length: dim }, () => createComplex(0, 0)));
 
-    const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(zero));
-    const bitPos = numQubits - 1 - targetQubit;
-    const bitMask = 1 << bitPos;
-
+    /* ---------- fill matrix row-by-row -------------------- */
     for (let src = 0; src < dim; src++) {
-        const ctrlBit = (src >> (numQubits - 1 - controlQubit)) & 1;
+        /* controls must all be 1 */
+        const controlsSatisfied = (src & controlMask) === controlMask;
 
-        if (ctrlBit === 0) {
-            matrix[src][src] = one; // Identity for control bit 0
+        if (!controlsSatisfied) {
+            /* acts as identity on this basis state */
+            M[src][src] = createComplex(1, 0);
             continue;
         }
 
-        const beforeBit = (src >> bitPos) & 1;
+        /* Build the 1- or n-target mapping.
+       We iterate over every possible combination of target-bit outcomes,
+       apply U on *each* target wire separately.*/
 
-        for (let rowBit = 0; rowBit < 2; rowBit++) {
-            const amp = U[rowBit][beforeBit];
+        let dest = src;
+        let amp = createComplex(1, 0);
 
-            if (amp.re === 0 && amp.im === 0) continue;
+        /* Apply U for every target qubit (one at a time) */
+        for (const tq of targets) {
+            const bitPos = numQubits - 1 - tq;
+            const bitIsOne = (dest >> bitPos) & 1;
 
-            const dest = (rowBit === beforeBit) ? src : (src ^ bitMask);
+            /* amplitude multiplier from U[row][col] */
+            const uAmp = U[bitIsOne][bitIsOne ^ 1];
 
-            matrix[dest][src] = amp;
+            /*flip the target bit if needed X^something */
+            if (uAmp.re !== 0 || uAmp.im !== 0) {
+                dest ^= (1 << bitPos);
+            }
+
+            amp = multiply(amp, uAmp);
+        }
+
+        if (amp.re !== 0 || amp.im !== 0) {
+            M[dest][src] = amp;
         }
     }
-    return matrix;
-}
+    return M;
 
+}

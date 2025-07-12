@@ -7,40 +7,33 @@ import {
     type GateType,
     type GateData,
     type GateInstance,
+    type MatrixGateType,
 } from "./stores";
 import {
     simulateMultipleQubits,
     simulateSingleQubit,
 } from "$lib/simulator";
+import { get } from "svelte/store";
 
 /*──────────────────────── helpers ───────────────────────*/
 
+/** schedule a re-simulation after any edit */
 function triggerSimulation(cs: CircuitState) {
     const r =
         cs.numQubits === 1 ? simulateSingleQubit(cs) : simulateMultipleQubits(cs);
     SimulationResults.set(r);
 }
 
-function findNextAvailableColumn(cs: CircuitState, q: number) {
-    const cols = cs.gates.filter(g => g.qubit === q).map(g => g.columnIndex);
-    return cols.length ? Math.max(...cols) + 1 : 0;
-}
+/**
+ * Find the left-most free column for a given wire.
+ * A column is free if **no gate touches that wire** in that column.
+ */
+function findNextAvailableColumn(cs: CircuitState, wire: number): number {
+    const occupied = cs.gates
+        .filter(g => g.qubits.includes(wire))
+        .map(g => g.columnIndex);
 
-/** Recompute every CONTROL→X pairing for a consistent circuit */
-function relinkControls(gates: GateInstance[]): GateInstance[] {
-    return gates.map(g =>
-        g.gateType === "CONTROL"
-            ? {
-                ...g,
-                targetQubit: gates.find(
-                    o =>
-                        (o.gateType === "X" || "Y" || "Z" || "H" || "S" || "T") &&
-                        o.columnIndex === g.columnIndex &&
-                        o.qubit !== g.qubit
-                )?.qubit,
-            }
-            : g
-    );
+    return occupied.length ? Math.max(...occupied) + 1 : 0;
 }
 
 /*──────────────────────── drag helpers ──────────────────*/
@@ -173,7 +166,7 @@ export function handleTouchEnd(event: TouchEvent) {
 
 /*──────────────────────── drop logic ────────────────────*/
 
-export function handleDrop(e: DragEvent, col: number, qubit: number) {
+export function handleDrop(e: DragEvent, col: number, wire: number) {
     e.preventDefault();
     const raw = e.dataTransfer?.getData("application/json");
     if (!raw) return;
@@ -186,42 +179,47 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
             const moving = current.gates.find(g => g.id === parsed.gateId);
             if (!moving) return current;
 
-            if (
-                current.gates.some(
-                    g => g.columnIndex === col && g.qubit === qubit && g.id !== moving.id
-                )
-            ) {
-                console.warn(`Cell (${col}, q=${qubit}) is occupied.`);
+            const occupied = current.gates.some(
+                g => g.columnIndex === col && g.qubits.includes(wire) && g.id !== moving.id
+            );
+
+            if (occupied) {
+                console.warn(`Cell (${col}, q=${wire}) is occupied.`);
                 return current;
             }
 
             const afterMove = current.gates.map(g =>
-                g.id === moving.id ? { ...g, columnIndex: col, qubit } : g
+                g.id === moving.id ? { ...g, columnIndex: col, qubits: [wire] } : g
             );
 
-            const relinked = relinkControls(afterMove);
-            const updated = { ...current, gates: relinked };
+            const draft = {...current, gates: afterMove}
+            const updated = mergeControlledGates(draft);
             triggerSimulation(updated);
             return updated;
         }
 
         /*─── 2. DROP from palette ───*/
         if (parsed.source === "palette" && parsed.gateType) {
-            const q = current.numQubits === 1 ? 0 : qubit;
-            if (current.gates.some(g => g.qubit === q && g.columnIndex === col)) {
-                console.warn(`Cell (${col}, q=${q}) is occupied.`);
+            const wireForNewGate = current.numQubits === 1 ? 0 : wire;
+
+            const occupied = current.gates.some(
+                g => g.columnIndex === col && g.qubits.includes(wireForNewGate)
+            );
+
+            if (occupied) {
+                console.warn(`Cell (${col}, q=${wireForNewGate}) is occupied.`);
                 return current;
             }
 
             const newGate: GateInstance = {
                 id: crypto.randomUUID(),
                 gateType: parsed.gateType as GateType,
-                qubit: q,
+                qubits: [wireForNewGate],
                 columnIndex: col,
             };
 
-            const relinked = relinkControls([...current.gates, newGate]);
-            const updated = { ...current, gates: relinked };
+            const draft = {...current, gates: [...current.gates, newGate]};
+            const updated = mergeControlledGates(draft);
             triggerSimulation(updated);
             return updated;
         }
@@ -230,14 +228,63 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
     });
 }
 
+/*──────────────── merge CONTROLLED stubs & base gates ───────────────*/
+
+/**
+ * Scan every column and, when exactly one 1-qubit gate and ≥1 CONTROLLED
+ * stubs share that column, collapse them into a single GateInstance that
+ * represents the multi-controlled-U gate the simulator expects.
+ */
+
+export function mergeControlledGates(cs: CircuitState): CircuitState {
+    const byColumn = new Map<number, GateInstance[]>();
+    cs.gates.forEach(g => {
+        const arr = byColumn.get(g.columnIndex) ?? [];
+        arr.push(g);
+        byColumn.set(g.columnIndex, arr);
+    });
+
+    const merged: GateInstance[] = [];
+
+    for (const [col, arr] of byColumn) {
+        const plain1Q = arr.filter(
+            g => g.gateType !== "CONTROLLED" && g.qubits.length === 1
+        );
+        const controls = arr.filter(g => g.gateType === "CONTROLLED");
+
+        // Need exactly one base gate and at least one control
+        if (plain1Q.length !== 1 || controls.length === 0) {
+            merged.push(...arr);
+            continue;
+        }
+
+        const base = plain1Q[0];
+        const qubits = [...controls.map(c => c.qubits[0]), base.qubits[0]];
+        const controlIdx = controls.map((_, i) => i);
+        const targetIdx = [qubits.length - 1];
+
+        merged.push({
+            id: crypto.randomUUID(),
+            gateType: "CONTROLLED",
+            qubits,
+            columnIndex: col,
+            baseGate: base.gateType as MatrixGateType,
+            controlQubits: controlIdx,
+            targetQubits: targetIdx,
+        });
+    }
+
+    return { ...cs, gates: merged };
+}
+
 /*──────────────────────── delete ────────────────────────*/
 
 export function removeGate(id?: string) {
     if (!id) return;
     circuit.update(current => {
         const afterDelete = current.gates.filter(g => g.id !== id);
-        const relinked = relinkControls(afterDelete);
-        const updated = { ...current, gates: relinked };
+
+        const updated = { ...current, gates: afterDelete };
         triggerSimulation(updated);
         return updated;
     });
@@ -256,7 +303,7 @@ export function handlePaletteDrop(e: DragEvent) {
 /*──────────────────────── double-click ──────────────────*/
 
 export function handleDoubleClick(data: GateData) {
-    const valid: GateType[] = ["X", "Y", "Z", "H", "S", "T", "CONTROL"];
+    const valid: GateType[] = ["X", "Y", "Z", "H", "S", "T", "CONTROLLED"];
     circuit.update(current => {
         let next = current;
 
@@ -270,7 +317,7 @@ export function handleDoubleClick(data: GateData) {
             const g: GateInstance = {
                 id: crypto.randomUUID(),
                 gateType: gt,
-                qubit: q,
+                qubits: [q],
                 columnIndex: col,
             };
             next = { ...current, gates: [...current.gates, g] };
@@ -278,9 +325,7 @@ export function handleDoubleClick(data: GateData) {
             next = { ...current, gates: current.gates.filter(g => g.id !== data.gateId) };
         }
 
-        const relinked = relinkControls(next.gates);
-        const updated = { ...next, gates: relinked };
-        triggerSimulation(updated);
-        return updated;
+        triggerSimulation(next);
+        return next;
     });
 }

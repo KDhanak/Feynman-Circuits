@@ -2,8 +2,7 @@ import type { CircuitState, SimulationResult, GateInstance, MatrixGateType } fro
 import { circuit, SimulationResults } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
-import { applyMatrix, extendGateMatrix, computeControlledUMatrix } from "./quantum/matrix";
-import { X_GATE, Y_GATE, Z_GATE, H_GATE, S_GATE, T_GATE } from "./quantum/gates";
+import { applyMatrix, extendGateMatrix, buildMultiControlledUMatrix } from "./quantum/matrix";
 import { GATE_MAP } from "./quantum/gates";
 import { get } from "svelte/store";
 
@@ -26,14 +25,17 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 
 	// Apply gates sequentially
 	for (const gate of gatesInColumnOrder) {
-		if (gate.gateType !== 'CONTROL') {
-			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
-			if (gateDef && gateDef.matrix.length > 0) {
-				state = applyMatrix(gateDef.matrix, state);
+		if (
+			gate.gateType === "CONTROLLED" ||   // skip multi-wire
+			gate.qubits.length !== 1 ||   // skip anything not 1-qubit
+			gate.qubits[0] !== 0                   // skip gates on other wires
+		) continue;
 
-			} else {
-				console.warn(`Skipping gate: ${gate.gateType} not supported`);
-			}
+		const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
+		if (gateDef && gateDef.matrix.length > 0) {
+			state = applyMatrix(gateDef.matrix, state);
+		} else {
+			console.warn(`Skipping gate: ${gate.gateType} not supported`);
 		}
 	}
 
@@ -51,75 +53,49 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 
 
 export function simulateMultipleQubits(circuit: CircuitState): SimulationResult {
+	/* ───── basic setup ───── */
 	const { numQubits, gates } = circuit;
-	if (numQubits < 2) {
-		throw new Error('Multi-Qubit simulator requires at least 2 qubits');
-	}
+	if (numQubits < 2) throw new Error("Multi-Qubit simulator requires ≥ 2 qubits");
 
 	const dim = 1 << numQubits;
 	let state: QuantumState = createState(Array(dim).fill(null).map(() => createComplex(0, 0)));
 	state[0] = createComplex(1, 0);
 
-	const maxColumn = gates.length ? Math.max(...gates.map(g => g.columnIndex)) + 1 : 0;
-	const columns = Array.from({ length: maxColumn }, (_, colIndex) =>
-		gates.filter(g => g.columnIndex === colIndex)
-	);
+	/* ───── iterate column by column ───── */
+	const maxCol = gates.length ? Math.max(...gates.map(g => g.columnIndex)) + 1 : 0;
+	const columns = Array.from({ length: maxCol }, (_, c) => gates.filter(g => g.columnIndex === c));
 
 	for (const colGates of columns) {
-		// Group CONTROL gates with their targets
-		const controlGates = colGates.filter(g => g.gateType === 'CONTROL');
-		const controlledPairs: { control: GateInstance; target: GateInstance }[] = [];
 
-		for (const controlGate of controlGates) {
-			const targetGate = colGates.find(g =>
-				g.qubit === controlGate.targetQubit && g.gateType !== 'CONTROL'
-			);
-			if (targetGate) {
-				controlledPairs.push({ control: controlGate, target: targetGate });
-			}
-		}
-
-		// Apply non-controlled gates that aren't part of a controlled pair
-		const controlledQubits = new Set(
-			controlledPairs.flatMap(pair => [pair.control.qubit, pair.target.qubit])
-		);
+		/** apply every plain 1-qubit gate in this column */
 		for (const gate of colGates) {
-			if (gate.gateType === 'CONTROL' || controlledQubits.has(gate.qubit)) continue;
+			if (gate.gateType === "CONTROLLED") continue;
+			if (gate.qubits.length !== 1) continue;
+			const q = gate.qubits[0];
 
-			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
-			if (gateDef && gateDef.matrix.length > 0) {
-				const matrix = extendGateMatrix(gateDef.matrix, gate.qubit, numQubits);
-				state = applyMatrix(matrix, state);
-			} else {
-				console.warn(`Invalid or unsupported gate type: ${gate.gateType}`);
-			}
+			const def = GATE_MAP[gate.gateType as MatrixGateType];
+			if (!def) { console.warn("Unsupported gate:", gate.gateType); continue; }
+
+			const U = extendGateMatrix(def.matrix, q, numQubits);
+			state = applyMatrix(U, state);
 		}
 
-		// Apply controlled gates
-		for (const { control, target } of controlledPairs) {
-			if (target.gateType === 'X') {
-				const cnotMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, X_GATE.matrix);
-				state = applyMatrix(cnotMatrix, state);
-			} else if (target.gateType === 'Y') {
-				const cyMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, Y_GATE.matrix);
-				state = applyMatrix(cyMatrix, state);
-			} else if (target.gateType === 'Z') {
-				const cyMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, Z_GATE.matrix);
-				state = applyMatrix(cyMatrix, state);
-			} else if (target.gateType === 'H') {
-				const chMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, H_GATE.matrix);
-				state = applyMatrix(chMatrix, state);
-			} else if (target.gateType === 'S') {
-				const csMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, S_GATE.matrix);
-				state = applyMatrix(csMatrix, state);
-			} else if (target.gateType === 'T') {
-				const ctMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, T_GATE.matrix);
-				state = applyMatrix(ctMatrix, state);
+		for (const gate of colGates) {
+			if (gate.gateType !== "CONTROLLED") continue;
+			if (!gate.controlQubits || !gate.targetQubits || gate.controlQubits.length === 0 || gate.targetQubits.length === 0) {
+				console.warn("CONTROLLED gate missing control/target qubits:", gate);
+				continue;
 			}
-			else {
-				console.warn(`Unsupported controlled gate type: ${target.gateType}`);
-				// Future: Add support for other controlled gates (e.g., controlled-Z)
-			}
+
+			const controls = gate.controlQubits!.map(i => gate.qubits[i]);
+			const targets = gate.targetQubits!.map(i => gate.qubits[i]);
+			const base = gate.baseGate as MatrixGateType;
+
+			const def = GATE_MAP[base];
+			if (!def) { console.warn("Unsupported base gate:", base); continue; }
+
+			const U = buildMultiControlledUMatrix(controls, targets, def.matrix, numQubits);
+			state = applyMatrix(U, state);
 		}
 	}
 

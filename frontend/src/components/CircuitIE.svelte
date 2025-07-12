@@ -5,7 +5,10 @@
 		type CircuitState,
 		type ErrorResponse,
 		type GateType,
-		type ImportedCircuit
+		type ExportCircuit,
+
+		type ExportGate
+
 	} from '$lib/stores';
 	import { simulateSingleQubit, simulateMultipleQubits } from '$lib/simulator';
 	import { importCircuit } from '$lib/IE';
@@ -13,7 +16,6 @@
 	import MessageDisplay from './MessageDisplay.svelte';
 	import Icon from '@iconify/svelte';
 	import { fade, scale } from 'svelte/transition';
-	import { onMount } from 'svelte';
 
 	let isEnlarged = false;
 	let circuitInputJson = '';
@@ -43,7 +45,7 @@
 	// This function is called when the user clicks the "Import Circuit" button
 	function loadCircuitInput() {
 		try {
-			const input: ImportedCircuit = JSON.parse(circuitInputJson);
+			const input: ExportCircuit = JSON.parse(circuitInputJson);
 			const result = importCircuit(input);
 			if ('detail' in result) {
 				errorMessage = (result as ErrorResponse).detail ?? 'Unknown error';
@@ -62,17 +64,17 @@
 	// This function is called when the user clicks the "Export Circuit" button
 	function exportCircuit() {
 		const { numQubits, gates, qubitLabels, mode } = $circuit;
-		const exported = {
+		const exported: ExportCircuit = {
 			mode: mode,
 			numQubits: numQubits,
 			qubitLabels: qubitLabels,
-			gates: gates.map(({ gateType, qubit, columnIndex, targetQubit }) => ({
-				gate: gateType as GateType,
-				qubit,
+			gates: gates.map(({ gateType, qubits, columnIndex, targetQubits, baseGate, controlQubits }) => ({
+				gateType: gateType as GateType,
+				qubits: qubits,
 				columnIndex,
-				...(gateType === 'CONTROL' && { targetQubit })
+				...(gateType === 'CONTROLLED' && { baseGate: baseGate, controlQubits: controlQubits, targetQubits: targetQubits })
 			}))
-		} as ImportedCircuit;
+		};
 
 		circuitInputJson = JSON.stringify(exported, null, 2);
 

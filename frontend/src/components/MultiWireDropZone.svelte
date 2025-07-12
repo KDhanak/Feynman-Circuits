@@ -29,13 +29,13 @@
 	class="w-[95%] relative space-y-1"
 >
 	<!-- Draw vertical connector lines for multiqubit gates -->
-	{#each $circuit.gates.filter((g) => g.gateType === 'CONTROL' && g.targetQubit !== undefined) as gate (gate.id + '-connector')}
+	{#each $circuit.gates.filter((g) => g.qubits.length > 1) as gate (gate.id + '-connector')}
 		<div
 			class="absolute bg-ternary-1 w-0.5 z-10"
 			style="
 			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 18}px;
-			top: {Math.min(gate.qubit, gate.targetQubit!) * 56 + 28}px;
-			height: {Math.abs(gate.qubit - gate.targetQubit!) * 56}px;
+			top: {Math.min(...gate.qubits) * 56 + 28}px;
+			height: {(Math.max(...gate.qubits) - Math.min(...gate.qubits)) * 56}px;
         "
 		></div>
 	{/each}
@@ -83,7 +83,7 @@
 
 			<!-- Show gates placed on the wire -->
 			{#each $circuit.gates as gate (gate.id)}
-				{#if gate.qubit === wire.qubit}
+				{#if gate.qubits.includes(wire.qubit)}
 					<div
 						role="button"
 						aria-label={`Remove ${gate.gateType} gate with double-click, Delete key, or drag back to palette`}
@@ -99,15 +99,26 @@
 						class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-secondary-1 text-secondary-4 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white shadow"
 						style="left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH}px;"
 					>
-						{#if gate.gateType === 'CONTROL'}
-							{#if gate.qubit === wire.qubit}
-								<!-- Render the CONTROL dot -->
-								<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
-							{:else if gate.targetQubit === wire.qubit}
-								<!-- Render the associated target (usually X) -->
-								<span class="gate-label">X</span>
-							{/if}
+						{#if gate.gateType === 'CONTROLLED'}
+							{#key wire.qubit}
+								{#each [gate.qubits.indexOf(wire.qubit)] as idx}
+									{#if !gate.baseGate}
+										<!-- Not yet merged: show dot as control stub -->
+										<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
+									{:else if gate.controlQubits?.includes(idx)}
+										<!-- Merged and this qubit is a control -->
+										<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
+									{:else if gate.targetQubits?.includes(idx)}
+										<!-- Merged and this qubit is a target -->
+										<span class="gate-label">{gate.baseGate}</span>
+									{:else}
+										<!-- Shouldn’t happen but fallback to label -->
+										<span class="gate-label">{gate.baseGate ?? gate.gateType}</span>
+									{/if}
+								{/each}
+							{/key}
 						{:else}
+							<!-- Normal gate -->
 							<span class="gate-label">{gate.gateType}</span>
 						{/if}
 					</div>

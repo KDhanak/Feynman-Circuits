@@ -6,7 +6,8 @@ import { writable } from 'svelte/store';
  * Used in GateInstance for internal state and simulation.
  */
 export type MatrixGateType = 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T';
-export type GateType = MatrixGateType | 'CONTROL';
+export type StructuralGateType = 'CONTROLLED' | 'SWAP' | 'MEASURE';
+export type GateType = MatrixGateType | StructuralGateType;
 export type QubitMode = 'single' | 'multi';
 
 /**
@@ -19,11 +20,18 @@ export interface GateInstance {
     /** Gate type, restricted to valid GateType values */
     gateType: GateType;
     /** Qubit index the gate acts on (e.g., 0 for single qubit) */
-    qubit: number;
-    /** Optional target qubit for gates like CNOT */
-    targetQubit?: number;
+    qubits: number[];
     /**The column of "time step" this gate belongs to */
     columnIndex: number;
+
+    /** The next three fields are used only when gateType === 'CONTROLLED */
+    /** The single-qubit U being controlled */
+    baseGate?: MatrixGateType;
+    /**indices into qubits[] (0, 1,...) that are controls */
+    controlQubits?: number[];
+    /** Optional target qubit for gates like CNOT */
+    targetQubits?: number[];
+
 };
 
 /**
@@ -64,20 +72,22 @@ export interface SimulationResult {
  * Represents a gate imported from an external source.
  * Used in the import functionality to convert to CircuitState.
  */
-export interface ImportedGate {
-    gate: GateType;
-    qubit: number;
+export interface ExportGate {
+    gateType: GateType;
+    qubits: number[];
     columnIndex: number;
-    targetQubit?: number;
-};
+    baseGate?: MatrixGateType;
+    controlQubits?: number[];
+    targetQubits?: number[];
+}
 
 /**
  * Represents a circuit imported from an external source.
  * Used in the import functionality to convert to CircuitState.
  */
-export interface ImportedCircuit {
-    qubitLabels?: [];
-    gates: ImportedGate[];
+export interface ExportCircuit {
+    qubitLabels?: string[];
+    gates: ExportGate[];
     numQubits: number;
     mode?: QubitMode;
 };

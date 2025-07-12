@@ -11,7 +11,7 @@
 		{ type: 'H', name: 'H Gate', category: 'single' },
 		{ type: 'S', name: 'S Gate', category: 'single' },
 		{ type: 'T', name: 'T Gate', category: 'single' },
-		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' }
+		{ type: 'CONTROLLED', name: 'Control', category: 'multi' }
 	];
 
 	$: isSingleMode = $circuit.numQubits === 1;

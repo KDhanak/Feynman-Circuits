@@ -61,7 +61,7 @@
 	/>
 
 	<!-- Show gates placed on the wire -->
-	{#each $circuit.gates.filter((g: GateInstance) => g.qubit === 0) as gate (gate.id)}
+	{#each $circuit.gates.filter((g: GateInstance) => g.qubits.length === 1 && g.qubits[0] === 0) as gate (gate.id)}
 		<div
 			role="button"
 			aria-label={`Remove ${gate.gateType} gate with double-click, Delete key, or drag back to palette`}
