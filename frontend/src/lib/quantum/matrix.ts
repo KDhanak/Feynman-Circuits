@@ -1,6 +1,7 @@
 import { createComplex, type Complex } from "./complex";
 import { type QuantumState } from "./vector";
 import { add, multiply } from "./complex";
+import { all } from "axios";
 
 export type QuantumMatrix = Complex[][];
 
@@ -111,3 +112,41 @@ export function computeControlledUMatrix(controlQubit: number, targetQubit: numb
     return matrix;
 }
 
+
+/**
+ * Generates a multi-qubit gate matrix for n control qubits and 1 target qubit
+ * @param controlQubits - Array of control qubit indices
+ * @param targetQubit - Target qubit index
+ * @param numQubits - Total qubits in the system
+ * @param U - The 2×2 unitary gate to apply conditionally
+ * @returns Full (2^numQubits × 2^numQubits) controlled matrix
+ */
+export function computeMultiControlledUMatrix(controlQubits: number[], targetQubit: number, numQubits: number, U: Complex[][]): Complex[][] {
+    const dim = 1 << numQubits;
+    const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(createComplex(0, 0)));
+    const zero = createComplex(0, 0);
+    const one = createComplex(1, 0);
+
+    for (let src = 0; src < dim; src++) {
+        // Check if all control qubits are active (set to 1)
+        const allControlsActive = controlQubits.every(ctrl => (src >> (numQubits - 1 - ctrl)) & 1)
+
+        if (!allControlsActive) {
+            matrix[src][src] = one; // Identity for inactive controls
+            continue;
+        }
+
+        //All controls are active, apply U to target qubit
+        const targetBit = (src >> (numQubits - 1 - targetQubit)) & 1;
+        const targetMask = 1 << (numQubits - 1 - targetQubit);
+
+        for (let rowBit = 0; rowBit < 2; rowBit++) {
+            const amp = U[rowBit][targetBit];
+            if (amp.re === 0 && amp.im === 0) continue;
+
+            const dest = (rowBit === targetBit) ? src : (src ^ targetMask);
+            matrix[dest][src] = amp;
+        }
+    }
+    return matrix;
+}

@@ -13,7 +13,6 @@
 	import MessageDisplay from './MessageDisplay.svelte';
 	import Icon from '@iconify/svelte';
 	import { fade, scale } from 'svelte/transition';
-	import { onMount } from 'svelte';
 
 	let isEnlarged = false;
 	let circuitInputJson = '';

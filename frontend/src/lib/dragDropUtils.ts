@@ -34,9 +34,11 @@ function relinkControls(gates: GateInstance[]): GateInstance[] {
                 ...g,
                 targetQubit: gates.find(
                     o =>
-                        (o.gateType === "X" || "Y" || "Z" || "H" || "S" || "T") &&
-                        o.columnIndex === g.columnIndex &&
-                        o.qubit !== g.qubit
+                        // ✅ CORRECT BOOLEAN LOGIC
+                        (o.gateType === "X" || o.gateType === "Y" || o.gateType === "Z" ||
+                            o.gateType === "H" || o.gateType === "S" || o.gateType === "T") &&
+                        //  ↑ Each comparison returns boolean, OR combines them correctly
+                        o.columnIndex === g.columnIndex
                 )?.qubit,
             }
             : g

@@ -6,7 +6,6 @@
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import ToggleUI from '../components/ToggleUI.svelte';
 	import { circuit } from '$lib/stores';
-	import { get } from 'svelte/store';
 
 </script>
 

@@ -2,7 +2,7 @@ import type { CircuitState, SimulationResult, GateInstance, MatrixGateType } fro
 import { circuit, SimulationResults } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
-import { applyMatrix, extendGateMatrix, computeControlledUMatrix } from "./quantum/matrix";
+import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix } from "./quantum/matrix";
 import { X_GATE, Y_GATE, Z_GATE, H_GATE, S_GATE, T_GATE } from "./quantum/gates";
 import { GATE_MAP } from "./quantum/gates";
 import { get } from "svelte/store";
@@ -52,6 +52,7 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 
 export function simulateMultipleQubits(circuit: CircuitState): SimulationResult {
 	const { numQubits, gates } = circuit;
+	console.log('[simulateMultipleQubits] numQubits=', numQubits, 'gates=', JSON.parse(JSON.stringify(gates)));
 	if (numQubits < 2) {
 		throw new Error('Multi-Qubit simulator requires at least 2 qubits');
 	}
@@ -61,66 +62,90 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 	state[0] = createComplex(1, 0);
 
 	const maxColumn = gates.length ? Math.max(...gates.map(g => g.columnIndex)) + 1 : 0;
+	console.log('[simulateMultipleQubits] maxColumn=', maxColumn);
 	const columns = Array.from({ length: maxColumn }, (_, colIndex) =>
 		gates.filter(g => g.columnIndex === colIndex)
 	);
 
 	for (const colGates of columns) {
-		// Group CONTROL gates with their targets
+		// Step 1: Extract CONTROL gates
 		const controlGates = colGates.filter(g => g.gateType === 'CONTROL');
-		const controlledPairs: { control: GateInstance; target: GateInstance }[] = [];
 
-		for (const controlGate of controlGates) {
-			const targetGate = colGates.find(g =>
-				g.qubit === controlGate.targetQubit && g.gateType !== 'CONTROL'
-			);
-			if (targetGate) {
-				controlledPairs.push({ control: controlGate, target: targetGate });
-			}
+
+		// Step 2: Aggregate CONTROLs by targetQubit (NOT create pairs!)
+		const controlsByTarget = new Map<number, number[]>();
+		for (const ctrl of controlGates) {
+			if (ctrl.targetQubit === undefined) continue;
+			const arr = controlsByTarget.get(ctrl.targetQubit) ?? [];
+			arr.push(ctrl.qubit);  // ✅ Add THIS control qubit to array
+			controlsByTarget.set(ctrl.targetQubit, arr);
 		}
 
-		// Apply non-controlled gates that aren't part of a controlled pair
-		const controlledQubits = new Set(
-			controlledPairs.flatMap(pair => [pair.control.qubit, pair.target.qubit])
-		);
+		// Example: If you have:
+		//   CONTROL(qubit=0, targetQubit=2)
+		//   CONTROL(qubit=1, targetQubit=2)
+		//   X(qubit=2)
+		//
+		// After aggregation, controlsByTarget = {
+		//   2: [0, 1]  ← ALL controls targeting qubit 2, collected in array
+		// }
+
+		// Step 3: Build set of involved qubits (for skipping independent gates)
+		const controlledQubits = new Set<number>();
+		for (const [t, ctrls] of controlsByTarget) {
+			controlledQubits.add(t);              // Add target qubit
+			ctrls.forEach(c => controlledQubits.add(c));  // Add ALL control qubits
+		}
+
+		// Step 4: Apply independent gates (unchanged)
 		for (const gate of colGates) {
 			if (gate.gateType === 'CONTROL' || controlledQubits.has(gate.qubit)) continue;
 
 			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
 			if (gateDef && gateDef.matrix.length > 0) {
+				// Build full-system matrix that applies gateDef.matrix to gate.qubit
 				const matrix = extendGateMatrix(gateDef.matrix, gate.qubit, numQubits);
+				console.debug(`[simulateMultipleQubits] Applying ${gate.gateType} on qubit ${gate.qubit}`);
 				state = applyMatrix(matrix, state);
 			} else {
 				console.warn(`Invalid or unsupported gate type: ${gate.gateType}`);
 			}
 		}
 
-		// Apply controlled gates
-		for (const { control, target } of controlledPairs) {
-			if (target.gateType === 'X') {
-				const cnotMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, X_GATE.matrix);
-				state = applyMatrix(cnotMatrix, state);
-			} else if (target.gateType === 'Y') {
-				const cyMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, Y_GATE.matrix);
-				state = applyMatrix(cyMatrix, state);
-			} else if (target.gateType === 'Z') {
-				const cyMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, Z_GATE.matrix);
-				state = applyMatrix(cyMatrix, state);
-			} else if (target.gateType === 'H') {
-				const chMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, H_GATE.matrix);
-				state = applyMatrix(chMatrix, state);
-			} else if (target.gateType === 'S') {
-				const csMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, S_GATE.matrix);
-				state = applyMatrix(csMatrix, state);
-			} else if (target.gateType === 'T') {
-				const ctMatrix = computeControlledUMatrix(control.qubit, target.qubit, numQubits, T_GATE.matrix);
-				state = applyMatrix(ctMatrix, state);
+		// Step 5: Apply controlled gates (ONE per target, with ALL controls)
+		for (const [targetQubit, controlQubits] of controlsByTarget) {
+			// Find the target gate (X, Y, H, etc. on this qubit)
+			const targetGate = colGates.find(g => g.qubit === targetQubit && g.gateType !== 'CONTROL');
+			if (!targetGate) {
+				console.warn(`No target gate found for CONTROL(s) on qubit ${targetQubit}`);
+				continue;
 			}
-			else {
-				console.warn(`Unsupported controlled gate type: ${target.gateType}`);
-				// Future: Add support for other controlled gates (e.g., controlled-Z)
+
+			// Get the gate definition from GATE_MAP (no hardcoding!)
+			const gateDef = GATE_MAP[targetGate.gateType as MatrixGateType];
+			if (!gateDef || gateDef.matrix.length === 0) {
+				console.warn(`Unsupported target gate: ${targetGate.gateType}`);
+				continue;
 			}
+
+			// ✅ Build ONE multi-control matrix with ALL controls
+			//    Instead of:    computeControlledUMatrix(0, 2, ...)  [1 control]
+			//    We now call:   computeMultiControlledUMatrix([0, 1], 2, ...)  [2+ controls]
+			const matrix = computeMultiControlledUMatrix(controlQubits, targetQubit, numQubits, gateDef.matrix);
+			state = applyMatrix(matrix, state);
+			console.log(state);
 		}
+
+		// CONSEQUENCE:
+		// For the same example:
+		//   CONTROL(qubit=0, targetQubit=2)
+		//   CONTROL(qubit=1, targetQubit=2)
+		//   X(qubit=2)
+		//
+		// Now applies ONE Toffoli operation:
+		// computeMultiControlledUMatrix([0, 1], 2, 3, X_GATE.matrix)
+		//
+		// ✅ CORRECT! X flips ONLY IF both qubits 0 AND 1 are |1⟩
 	}
 
 	const probabilities = Object.fromEntries(
