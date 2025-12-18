@@ -65,11 +65,12 @@
 			mode: mode,
 			numQubits: numQubits,
 			qubitLabels: qubitLabels,
-			gates: gates.map(({ gateType, qubit, columnIndex, targetQubit }) => ({
+			gates: gates.map(({ gateType, qubit, columnIndex, targetQubit, targetQubits }) => ({
 				gate: gateType as GateType,
 				qubit,
 				columnIndex,
-				...(gateType === 'CONTROL' && { targetQubit })
+				...(gateType === 'CONTROL' && targetQubits && { targetQubits }),
+				...(gateType === "CONTROL" && !targetQubits && targetQubit !== undefined && {targetQubit})
 			}))
 		} as ImportedCircuit;
 

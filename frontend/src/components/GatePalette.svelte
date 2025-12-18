@@ -5,12 +5,12 @@
 	import { resetCircuit } from '$lib/simulator';
 
 	export const gates: { type: GateType; name: string; category: string }[] = [
-		{ type: 'X', name: 'X Gate', category: 'single' },
-		{ type: 'Y', name: 'Y Gate', category: 'single' },
-		{ type: 'Z', name: 'Z Gate', category: 'single' },
-		{ type: 'H', name: 'H Gate', category: 'single' },
-		{ type: 'S', name: 'S Gate', category: 'single' },
-		{ type: 'T', name: 'T Gate', category: 'single' },
+		{ type: 'X', name: 'X', category: 'single' },
+		{ type: 'Y', name: 'Y', category: 'single' },
+		{ type: 'Z', name: 'Z', category: 'single' },
+		{ type: 'H', name: 'H', category: 'single' },
+		{ type: 'S', name: 'S', category: 'single' },
+		{ type: 'T', name: 'T', category: 'single' },
 		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' }
 	];
 
@@ -40,7 +40,7 @@
 				on:touchstart={(e) => handleTouchStart(e, {source: 'palette', gateType: gate.type})}
 				on:touchmove={handleTouchMove} 
 				on:touchend={(e) => handleTouchEnd(e)}
-				class="cursor-grab select-none rounded-md border px-4 py-2 bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white"
+				class="cursor-grab font-medium text-md select-none rounded-md border px-4.5 py-2.5 bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white"
 			>
 				{gate.name}
 			</div>

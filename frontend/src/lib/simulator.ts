@@ -3,7 +3,6 @@ import { circuit, SimulationResults } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
 import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix } from "./quantum/matrix";
-import { X_GATE, Y_GATE, Z_GATE, H_GATE, S_GATE, T_GATE } from "./quantum/gates";
 import { GATE_MAP } from "./quantum/gates";
 import { get } from "svelte/store";
 
@@ -75,10 +74,12 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 		// Step 2: Aggregate CONTROLs by targetQubit (NOT create pairs!)
 		const controlsByTarget = new Map<number, number[]>();
 		for (const ctrl of controlGates) {
-			if (ctrl.targetQubit === undefined) continue;
-			const arr = controlsByTarget.get(ctrl.targetQubit) ?? [];
-			arr.push(ctrl.qubit);  // ✅ Add THIS control qubit to array
-			controlsByTarget.set(ctrl.targetQubit, arr);
+			const targets = ctrl.targetQubits ?? (ctrl.targetQubit !== undefined ? [ctrl.targetQubit] : []);
+			for (const targetQubit of targets) {
+				const arr = controlsByTarget.get(targetQubit) ?? [];
+				arr.push(ctrl.qubit);
+				controlsByTarget.set(targetQubit, arr);
+			}
 		}
 
 		// Example: If you have:

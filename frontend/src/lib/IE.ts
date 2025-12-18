@@ -26,16 +26,24 @@ export function importCircuit(input: ImportedCircuit): CircuitState | ErrorRespo
 		}
 
 		if (gateInput.gate === 'CONTROL') {
-			if (
-				typeof gateInput.targetQubit !== 'number' ||
-				gateInput.targetQubit < 0 ||
-				gateInput.targetQubit >= input.numQubits
-			) {
-				return { detail: `Invalid or missing targetQubit for CONTROL gate` };
+			const hasLegacy = typeof gateInput.targetQubit === 'number';
+			const hasNew = Array.isArray(gateInput.targetQubits) && gateInput.targetQubits.length > 0;
+
+			if (!hasLegacy && !hasNew) {
+				return { detail: `Invalid or missing targetQubit(s) for CONTROL gate` };
 			}
-			if (gateInput.targetQubit === gateInput.qubit) {
-				return { detail: `CONTROL gate's control and target cannot be the same` };
+
+			const targetsList = hasNew ? gateInput.targetQubits! : [gateInput.targetQubit!];
+
+			for (const target of targetsList) {
+				if (typeof target !== 'number' || target < 0 || target >= input.numQubits) {
+					return { detail: `Invalid target qubit: ${target}` };
+				}
+				if (target === gateInput.qubit) {
+					return { detail: `CONTROL gate's control and target cannot be the same` };
+				}
 			}
+
 		}
 
 		gates.push({

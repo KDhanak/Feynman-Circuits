@@ -28,21 +28,19 @@ function findNextAvailableColumn(cs: CircuitState, q: number) {
 
 /** Recompute every CONTROL→X pairing for a consistent circuit */
 function relinkControls(gates: GateInstance[]): GateInstance[] {
-    return gates.map(g =>
-        g.gateType === "CONTROL"
-            ? {
-                ...g,
-                targetQubit: gates.find(
-                    o =>
-                        // ✅ CORRECT BOOLEAN LOGIC
-                        (o.gateType === "X" || o.gateType === "Y" || o.gateType === "Z" ||
-                            o.gateType === "H" || o.gateType === "S" || o.gateType === "T") &&
-                        //  ↑ Each comparison returns boolean, OR combines them correctly
-                        o.columnIndex === g.columnIndex
-                )?.qubit,
-            }
-            : g
-    );
+    return gates.map(g => {
+        if (g.gateType !== "CONTROL") return g;
+
+        const targets = gates
+        .filter(o => o.gateType !== "CONTROL" && o.columnIndex === g.columnIndex && o.qubit !== g.qubit)
+        .map(o => o.qubit);
+
+        return {
+            ...g,
+            targetQubits: targets.length > 0 ? targets : undefined,
+            targetQubit: targets.length > 0 ? targets[0] : undefined,
+        } as GateInstance;
+    });
 }
 
 /*──────────────────────── drag helpers ──────────────────*/

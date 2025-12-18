@@ -29,15 +29,18 @@
 	class="w-[95%] relative space-y-1"
 >
 	<!-- Draw vertical connector lines for multiqubit gates -->
-	{#each $circuit.gates.filter((g) => g.gateType === 'CONTROL' && g.targetQubit !== undefined) as gate (gate.id + '-connector')}
+	{#each $circuit.gates.filter((g) => g.gateType === 'CONTROL' && (g.targetQubits?.length || g.targetQubit !== undefined)) as gate (gate.id + '-connector')}
+		{#each (gate.targetQubits ?? (gate.targetQubit !== undefined ? [gate.targetQubit] : [])) as t}
 		<div
 			class="absolute bg-ternary-1 w-0.5 z-10"
 			style="
 			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 18}px;
 			top: {Math.min(gate.qubit, gate.targetQubit!) * 56 + 28}px;
-			height: {Math.abs(gate.qubit - gate.targetQubit!) * 56}px;
+			height: {Math.abs(gate.qubit - t) * 56}px;
         "
 		></div>
+
+		{/each}
 	{/each}
 	{#each wires as wire (wire.id)}
 		<div
@@ -103,7 +106,7 @@
 							{#if gate.qubit === wire.qubit}
 								<!-- Render the CONTROL dot -->
 								<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
-							{:else if gate.targetQubit === wire.qubit}
+							{:else if gate.targetQubits ?? (gate.targetQubit !== undefined ? [gate.targetQubit] : []).includes(wire.qubit)}
 								<!-- Render the associated target (usually X) -->
 								<span class="gate-label">X</span>
 							{/if}

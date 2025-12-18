@@ -22,6 +22,8 @@ export interface GateInstance {
     qubit: number;
     /** Optional target qubit for gates like CNOT */
     targetQubit?: number;
+    /** Optional array of target qubits for multi-controlled gates */
+    targetQubits?: number[];
     /**The column of "time step" this gate belongs to */
     columnIndex: number;
 };
@@ -69,6 +71,7 @@ export interface ImportedGate {
     qubit: number;
     columnIndex: number;
     targetQubit?: number;
+    targetQubits?: number[];
 };
 
 /**
