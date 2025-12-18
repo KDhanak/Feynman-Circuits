@@ -70,7 +70,7 @@
 				qubit,
 				columnIndex,
 				...(gateType === 'CONTROL' && targetQubits && { targetQubits }),
-				...(gateType === "CONTROL" && !targetQubits && targetQubit !== undefined && {targetQubit})
+				...(gateType === 'CONTROL' && !targetQubits && targetQubit !== undefined && { targetQubit })
 			}))
 		} as ImportedCircuit;
 
@@ -87,22 +87,28 @@
 			if (timeoutId) clearTimeout(timeoutId);
 			timeoutId = setTimeout(() => {
 				message = '';
-			}, 500);
+			}, 1000);
 		} catch (error) {
 			errorMessage = 'Failed to copy text. Please try selecting and copying manually.';
 			if (timeoutId) clearTimeout(timeoutId);
 			timeoutId = setTimeout(() => {
 				errorMessage = '';
-			}, 500);
+			}, 1000);
 		}
 	}
 
 	function toggleEnlarge() {
 		isEnlarged = !isEnlarged;
 	}
+
 	function focusOnMount(node: HTMLElement) {
+		// Focus the element when it is mounted
 		node.focus();
-		return;
+		return {
+			destroy() {
+				// No cleanup needed
+			}
+		};
 	}
 </script>
 
@@ -151,7 +157,7 @@
 			}}
 		>
 			<div
-				class="bg-background border border-success-1 p-4 rounded-md max-w-3xl w-full max-h-[80vh] flex flex-col"
+				class="bg-background border border-primary-1 p-4 rounded-md max-w-3xl w-full max-h-[80vh] flex flex-col"
 				transition:scale={{ duration: 200, start: 0.8 }}
 				role="dialog"
 				aria-modal="true"
@@ -179,7 +185,7 @@
 				</div>
 				<textarea
 					bind:value={circuitInputJson}
-					class="rounded border bg-transparent border-success-1 w-full h-[50vh] text-white p-2 resize-none"
+					class="rounded border bg-transparent border-white w-full h-[50vh] text-white p-2 resize-none"
 				></textarea>
 			</div>
 		</div>
@@ -199,7 +205,7 @@
 			>Export Circuit</button
 		>
 	</div>
-	<div class="absolute -bottom-12">
+	<div class="absolute bottom-45">
 		{#if errorMessage}
 			<ErrorDisplay {errorMessage} />
 		{:else if message}
