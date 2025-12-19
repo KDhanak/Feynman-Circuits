@@ -35,7 +35,7 @@
 			class="absolute bg-ternary-1 w-0.5 z-10"
 			style="
 			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 18}px;
-			top: {Math.min(gate.qubit, gate.targetQubit!) * 56 + 28}px;
+			top: {Math.min(gate.qubit, t) * 56 + 28}px;
 			height: {Math.abs(gate.qubit - t) * 56}px;
         "
 		></div>

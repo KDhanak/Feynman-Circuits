@@ -31,14 +31,24 @@ function relinkControls(gates: GateInstance[]): GateInstance[] {
     return gates.map(g => {
         if (g.gateType !== "CONTROL") return g;
 
-        const targets = gates
-        .filter(o => o.gateType !== "CONTROL" && o.columnIndex === g.columnIndex && o.qubit !== g.qubit)
-        .map(o => o.qubit);
+        const targets = gates.filter(
+            o => o.gateType !== "CONTROL" &&
+                o.columnIndex === g.columnIndex &&
+                o.qubit !== g.qubit
+        );
+
+        // Separate targets above and below the control
+        const below = targets.filter(t => t.qubit > g.qubit);
+        const above = targets.filter(t => t.qubit < g.qubit);
+
+        // Prefer targets in the direction we have them
+        // If no targets below, try above
+        const targetList = below.length > 0 ? below : above;
 
         return {
             ...g,
-            targetQubits: targets.length > 0 ? targets : undefined,
-            targetQubit: targets.length > 0 ? targets[0] : undefined,
+            targetQubits: targetList.length > 0 ? targetList.map(t => t.qubit) : undefined,
+            targetQubit: targetList.length > 0 ? targetList[0].qubit : undefined,
         } as GateInstance;
     });
 }
