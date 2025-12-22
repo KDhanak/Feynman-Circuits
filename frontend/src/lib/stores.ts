@@ -113,6 +113,12 @@ export const SimulationResults = writable<SimulationResult>({
     formattedState: '1.00|0⟩',
 });
 
+/**
+ * Store to track if a gate is currently being dragged.
+ * Used to display ghost qubit wires for dynamic qubit expansion.
+ */
+export const isDragging = writable<boolean>(false);
+
 /** function for switch between single and multi qubit mode. */
 export function toggleMode(backToCount: number = 2) {
     circuit.update(c => {

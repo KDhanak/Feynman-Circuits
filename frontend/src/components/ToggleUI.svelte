@@ -5,11 +5,12 @@
 	let id = 'toggle';
 	let labelOn = "|𝛙<sub class='text-ternary-1'>n</sub>⟩";
 	let labelOff = '|𝛙⟩';
+	let initialQubitCount = 2;
 
 	$: checked = $circuit.numQubits > 1;
 
 	function handleToggle() {
-		toggleMode(4);
+		toggleMode(initialQubitCount);
 		resetCircuit();
 	}
 </script>

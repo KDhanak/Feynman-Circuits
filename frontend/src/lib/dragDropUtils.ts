@@ -3,6 +3,7 @@
 import {
     circuit,
     SimulationResults,
+    isDragging,
     type CircuitState,
     type GateType,
     type GateData,
@@ -63,6 +64,7 @@ export function handleGateDragStart(e: DragEvent, id: string) {
         "application/json",
         JSON.stringify({ source: "wire", gateId: id } satisfies GateData)
     );
+    isDragging.set(true);
 }
 export function handleDragOver(e: DragEvent) {
     e.preventDefault();
@@ -106,6 +108,7 @@ export function handleTouchMove(event: TouchEvent) {
 export function handleTouchEnd(event: TouchEvent) {
     event.preventDefault();
     event.stopPropagation();
+    isDragging.set(false);
     if (!touchData) {
         console.warn('No touchData available in handleTouchEnd. Exiting.'); // DEBUG
         if (ghostElement) {
@@ -185,12 +188,61 @@ export function handleTouchEnd(event: TouchEvent) {
 
 export function handleDrop(e: DragEvent, col: number, qubit: number) {
     e.preventDefault();
+    isDragging.set(false);
     const raw = e.dataTransfer?.getData("application/json");
     if (!raw) return;
 
     const parsed = JSON.parse(raw) as GateData;
 
     circuit.update(current => {
+        /*─── 0. Handle ghost qubit drop (expand qubits) ───*/
+        if (qubit === current.numQubits && current.numQubits < 8) {
+            // Dropping on the ghost wire: expand the circuit
+            if (parsed.source === "palette" && parsed.gateType) {
+                const newQubit = current.numQubits;
+                const newNumQubits = current.numQubits + 1;
+
+                const newGate: GateInstance = {
+                    id: crypto.randomUUID(),
+                    gateType: parsed.gateType as GateType,
+                    qubit: newQubit,
+                    columnIndex: col,
+                };
+
+                const relinked = relinkControls([...current.gates, newGate]);
+                const updated = {
+                    ...current,
+                    numQubits: newNumQubits,
+                    gates: relinked,
+                    qubitLabels: Array.from({ length: newNumQubits }, (_, i) => `Qubit ${i}`)
+                };
+                triggerSimulation(updated);
+                return updated;
+            } else if (parsed.source === "wire" && parsed.gateId) {
+                // Moving a gate to the ghost qubit also expands
+                const moving = current.gates.find(g => g.id === parsed.gateId);
+                if (!moving) return current;
+
+                const newQubit = current.numQubits;
+                const newNumQubits = current.numQubits + 1;
+
+                const afterMove = current.gates.map(g =>
+                    g.id === moving.id ? { ...g, columnIndex: col, qubit: newQubit } : g
+                );
+
+                const relinked = relinkControls(afterMove);
+                const updated = {
+                    ...current,
+                    numQubits: newNumQubits,
+                    gates: relinked,
+                    qubitLabels: Array.from({ length: newNumQubits }, (_, i) => `Qubit ${i}`)
+                };
+                triggerSimulation(updated);
+                return updated;
+            }
+            return current;
+        }
+
         /*─── 1. MOVE an existing gate ───*/
         if (parsed.source === "wire" && parsed.gateId) {
             const moving = current.gates.find(g => g.id === parsed.gateId);

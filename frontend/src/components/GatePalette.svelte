@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { handlePaletteDrop, handleDoubleClick, handleTouchStart, handleTouchEnd, handleTouchMove } from '$lib/dragDropUtils';
 	import type { GateData, GateType } from '$lib/stores';
-	import { circuit } from '$lib/stores';
+	import { circuit, isDragging } from '$lib/stores';
 	import { resetCircuit } from '$lib/simulator';
 
 	export const gates: { type: GateType; name: string; category: string }[] = [
@@ -35,7 +35,9 @@
 				on:dragstart={(e) => {
 					const dragData: GateData = { source: 'palette', gateType: gate.type };
 					e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
+					isDragging.set(true);
 				}}
+				on:dragend={() => isDragging.set(false)}
 				on:dblclick={() => handleDoubleClick({ source: 'palette', gateType: gate.type })}
 				on:touchstart={(e) => handleTouchStart(e, {source: 'palette', gateType: gate.type})}
 				on:touchmove={handleTouchMove} 

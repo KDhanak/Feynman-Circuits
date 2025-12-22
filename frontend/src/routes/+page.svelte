@@ -33,7 +33,7 @@
 
 	<div class="absolute z-10 flex flex-row bottom-5 w-11/12 justify-between">
 		<!-- Simulation result -->
-		<div class="flex flex-col justify-center border-2 border-ternary-1 rounded-md p-6 w-1/4 ">
+		<div class="flex flex-col justify-center border-2 border-ternary-1 rounded-md p-2 w-1/6 h-1/2">
 			<SimulationResult />
 		</div>
 

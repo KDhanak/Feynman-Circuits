@@ -167,7 +167,7 @@
 <style>
 	.prob-columns {
 		display: flex;
-		gap: 1rem;
+		gap: 6rem;
 		overflow-x: auto;
 		padding: 0.5rem 0;
 		align-items: flex-start;
@@ -176,7 +176,7 @@
 	.prob-column {
 		display: flex;
 		flex-direction: column;
-		min-width: 8rem; 
+		min-width: 7rem; 
 		background: var(--bg-muted, transparent);
 		padding: 0.25rem;
 		border-radius: 6px;
@@ -186,7 +186,7 @@
 	.prob-row {
 		display: flex;
 		justify-content: space-between;
-		gap: 1rem;
+		gap: 0.01rem;
 		padding: 0.12rem 0;
 		border-bottom: 1px solid rgba(174, 0, 255, 0.281);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { circuit } from '../lib/stores';
+	import { circuit, isDragging } from '../lib/stores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -16,11 +16,14 @@
 	const COLUMN_WIDTH = 58;
 	const LABEL_WIDTH = 80;
 	const GATE_OFFSET = LABEL_WIDTH + 44;
+	const MAX_QUBITS = 8;
 
 	$: wires = Array.from({ length: $circuit.numQubits }, (_, i) => ({
 		id: `wire-${i}`,
 		qubit: i
 	}));
+
+	$: showGhostWire = $isDragging && $circuit.numQubits < MAX_QUBITS;
 </script>
 
 <div
@@ -118,9 +121,58 @@
 			{/each}
 		</div>
 	{/each}
+
+	<!-- Ghost qubit wire for dynamic expansion -->
+	{#if showGhostWire}
+		<div
+			role="region"
+			aria-label="Ghost qubit wire for dynamic expansion"
+			class="wire-container-upper ghost-wire relative flex h-14 items-center"
+			data-qubit={$circuit.numQubits}
+		>
+			<!-- Wire -->
+			<div
+				class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-primary-1 opacity-30"
+			>
+				{#each Array(MAX_COLUMNS) as _, colIndex}
+					<div
+						class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
+						on:drop={(e) => handleDrop(e, colIndex, $circuit.numQubits)}
+						on:dragover={handleDragOver}
+						role="button"
+						aria-label={`Add qubit and drop gate at column ${colIndex + 1}`}
+						tabindex="0"
+						style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
+					></div>
+				{/each}
+			</div>
+
+			<!-- Ghost qubit circle -->
+			<div
+				class="z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-md text-white shadow-lg opacity-50"
+			>
+				|0⟩
+			</div>
+
+			<input
+				type="text"
+				value="Qubit {$circuit.numQubits}"
+				disabled
+				placeholder="New Qubit"
+				class="z-10 w-15 h-7.5 px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-md bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
+			/>
+		</div>
+	{/if}
 </div>
 
 <style>
+	.ghost-wire {
+		opacity: 0.6;
+	}
+
+	.ghost-wire :global(.dropzone:hover) {
+		background-color: rgba(100, 200, 255, 0.15);
+	}
 	.dropzone {
 		position: absolute;
 		top: 0;
