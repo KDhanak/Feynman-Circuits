@@ -6,10 +6,11 @@
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import ToggleUI from '../components/ToggleUI.svelte';
 	import { circuit } from '$lib/stores';
-
 </script>
 
-<main class="flex min-h-screen flex-col overflow-y-hidden overflow-x-hidden items-center bg-background text-gray-800">
+<main
+	class="flex min-h-screen flex-col overflow-y-hidden overflow-x-hidden items-center bg-background text-gray-800"
+>
 	<div class="flex flex-row my-8">
 		<img src="/logo.png" alt="Logo" class="w-20 h-14" />
 		<h1 class="mb-6 text-2xl font-bold text-secondary-2">Feynman</h1>
@@ -31,9 +32,9 @@
 		<MultiWireDropZone />
 	{/if}
 
-	<div class="absolute z-10 flex flex-row bottom-5 w-11/12 justify-between">
+	<div class="absolute z-10 flex flex-row bottom-2 w-11/12 justify-between">
 		<!-- Simulation result -->
-		<div class="flex flex-col justify-center border-2 border-ternary-1 rounded-md p-2 w-1/6 h-1/2">
+		<div class="flex items-end pb-2">
 			<SimulationResult />
 		</div>
 

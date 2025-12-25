@@ -47,7 +47,7 @@
 
 	<!-- Qubit circle -->
 	<div
-		class="z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-ternary-3 bg-ternary-2 text-md text-white shadow-lg"
+		class="qubit-circle mr-2 z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg"
 	>
 		|0⟩
 	</div>
@@ -57,7 +57,7 @@
 		bind:value={label}
 		on:input={(e) => updateQubitLabel(qubit, label)}
 		placeholder="Label"
-		class="z-10 w-15 h-7.5 px-1.5 cursor-text hover:scale-110 transition-transform duration-300 ease-in-out text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
+		class="qubit-label z-10 w-15 h-7.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
 	/>
 
 	<!-- Show gates placed on the wire -->
@@ -111,20 +111,9 @@
 		z-index: 10;
 	}
 
-	/* Qubit circle styles (optional to isolate and adjust) */
-	.wire-container-upper > div:first-child + div {
-		z-index: 10;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		height: 2.75rem;
-		width: 2.75rem;
-		border: 2px solid var(--color-ternary-3);
-		background-color: var(--color-ternary-2);
-		color: white;
-		font-size: 1rem;
-		border-radius: 9999px;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-		margin-right: 0.5rem;
+	/* Qubit label input hover effect */
+	.qubit-label:hover {
+		transform: scale(1.05);
+		transition: transform 300ms ease-in-out;
 	}
 </style>

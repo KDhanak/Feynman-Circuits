@@ -24,6 +24,26 @@
 	}));
 
 	$: showGhostWire = $isDragging && $circuit.numQubits < MAX_QUBITS;
+
+	function removeQubitWire(qubitIndex: number) {
+		const currentCircuit = $circuit;
+		if (currentCircuit.numQubits <=2) return; // Prevent removing below 2 qubits
+
+		if (currentCircuit.gates.some(gate => gate.qubit === qubitIndex || (gate.targetQubits?.includes(qubitIndex))))
+
+		return;
+
+		const newQubitLabels = currentCircuit.qubitLabels
+			? currentCircuit.qubitLabels.filter((_, idx) => idx !== qubitIndex)
+			: [];
+
+		circuit.set({
+			...currentCircuit,
+			numQubits: currentCircuit.numQubits - 1,
+			qubitLabels: newQubitLabels
+		});
+
+	}
 </script>
 
 <div
@@ -38,8 +58,8 @@
 			class="absolute bg-ternary-1 w-0.5 z-10"
 			style="
 			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 18}px;
-			top: {Math.min(gate.qubit, t) * 56 + 28}px;
-			height: {Math.abs(gate.qubit - t) * 56}px;
+			top: {Math.min(gate.qubit, t) * 60 + 28}px;
+			height: {Math.abs(gate.qubit - t) * 60}px;
         "
 		></div>
 
@@ -71,7 +91,11 @@
 
 			<!-- Qubit circle -->
 			<div
-				class="z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-ternary-3 bg-ternary-2 text-md text-white shadow-lg"
+				class={`qubit-circle mr-2 z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg ${wire.qubit >= 2 ? 'cursor-pointer border-dotted active:border-solid active:border-amber-700 select-none' : 'cursor-default'}`}
+				aria-label={`Qubit ${wire.qubit} - double click to remove wire`}
+				role="button"
+				tabindex="0"
+				on:dblclick={() => removeQubitWire(wire.qubit)}
 			>
 				|0⟩
 			</div>
@@ -84,7 +108,7 @@
 					if (target) updateQubitLabel(wire.qubit, target.value);
 				}}
 				placeholder="Label"
-				class="z-10 w-15 h-7.5 px-1.5 cursor-text hover:scale-110 transition-transform duration-300 ease-in-out text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
+				class="qubit-label z-10 w-15 h-7.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
 			/>
 
 			<!-- Show gates placed on the wire -->
@@ -149,7 +173,7 @@
 
 			<!-- Ghost qubit circle -->
 			<div
-				class="z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-md text-white shadow-lg opacity-50"
+				class="z-10 mr-2 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-md text-white shadow-lg opacity-50"
 			>
 				|0⟩
 			</div>
@@ -192,20 +216,9 @@
 		z-index: 10;
 	}
 
-	/* Qubit circle styles (optional to isolate and adjust) */
-	.wire-container-upper > div:first-child + div {
-		z-index: 10;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		height: 2.75rem;
-		width: 2.75rem;
-		border: 2px solid var(--color-ternary-3);
-		background-color: var(--color-ternary-2);
-		color: white;
-		font-size: 1rem;
-		border-radius: 9999px;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-		margin-right: 0.5rem;
+	/* Qubit label input hover effect */
+	.qubit-label:hover {
+		transform: scale(1.05);
+		transition: transform 400ms ease-in-out;
 	}
 </style>

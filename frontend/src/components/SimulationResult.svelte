@@ -48,7 +48,7 @@
 <div class="text-secondary-1">
 	<!-- If the number of qubits exceeds our limit, show a message -->
 	{#if $circuit.numQubits > DISPLAY_LIMIT}
-		<div class="p-4 border border-secondary-3 rounded-md bg-secondary-4/20 text-center">
+		<div class="p-4 border w-3/4 border-secondary-3 rounded-md bg-secondary-4/20 text-center">
 			<p class="text-md font-medium">Display Limit Reached</p>
 			<button
 				type="button"
@@ -75,7 +75,7 @@
 				}}
 			>
 				<div
-					class="bg-background border border-ternary-0 p-4 rounded-md max-w-3xl w-full max-h-[80vh] flex flex-col"
+					class="bg-background border border-secondary-3 p-4 rounded-md max-w-3xl w-full max-h-[80vh] flex flex-col"
 					transition:scale={{ duration: 200, start: 0.8 }}
 					role="dialog"
 					aria-modal="true"
