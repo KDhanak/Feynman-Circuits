@@ -11,7 +11,7 @@
 <main
 	class="flex min-h-screen flex-col overflow-y-hidden overflow-x-hidden items-center bg-background text-gray-800"
 >
-	<div class="flex flex-row my-8">
+	<div class="flex flex-row my-4">
 		<img src="/logo.png" alt="Logo" class="w-20 h-14" />
 		<h1 class="mb-6 text-2xl font-bold text-secondary-2">Feynman</h1>
 		<h1 class="mb-6 text-2xl font-bold text-primary-1">Circuits</h1>

@@ -24,7 +24,7 @@
 	on:dragover={(e) => e.preventDefault()}
 	on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
 	on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
-	class="mb-4 w-14/15 h-auto py-10 flex items-center justify-center gap-4 rounded-md border-2 border-secondary-3"
+	class="mb-2 w-14/15 h-auto py-4 flex items-center justify-center gap-4 rounded-md border-2 border-secondary-3"
 >
 	{#each gates as gate}
 		{#if isSingleMode ? gate.category === 'single' : true}

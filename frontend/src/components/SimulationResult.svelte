@@ -5,7 +5,7 @@
 	import Icon from '@iconify/svelte';
 
 	// Define the display limit as a constant for easy configuration
-	const DISPLAY_LIMIT = 3;
+	const DISPLAY_LIMIT = 2;
 	const MAX_COLUMNS = 16;
 	let isEnlarged = false;
 

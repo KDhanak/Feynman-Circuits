@@ -44,7 +44,7 @@ function relinkControls(gates: GateInstance[]): GateInstance[] {
 
         // Prefer targets in the direction we have them
         // If no targets below, try above
-        const targetList = below.length > 0 ? below : above;
+        const targetList = [...below, ...above];
 
         return {
             ...g,
@@ -300,6 +300,7 @@ export function removeGate(id?: string) {
         const afterDelete = current.gates.filter(g => g.id !== id);
         const relinked = relinkControls(afterDelete);
         const updated = { ...current, gates: relinked };
+        isDragging.set(false);
         triggerSimulation(updated);
         return updated;
     });

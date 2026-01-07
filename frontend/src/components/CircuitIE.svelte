@@ -137,7 +137,7 @@
 		</div>
 		<textarea
 			bind:value={circuitInputJson}
-			class={`rounded border bg-transparent ${message ? 'border-success-1' : errorMessage ? 'border-ternary-1' : 'border-primary-2'} w-xs h-20 resize-none text-white`}
+			class={`rounded border bg-transparent ${message ? 'border-success-1' : errorMessage ? 'border-ternary-1' : 'border-primary-2'} w-[248px] h-16 resize-none text-white`}
 		>
 		</textarea>
 	</div>
