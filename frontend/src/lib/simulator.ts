@@ -1,10 +1,11 @@
-import type { CircuitState, SimulationResult, GateInstance, MatrixGateType } from "./stores";
+import type { CircuitState, SimulationResult, MatrixGateType } from "./stores";
 import { circuit, SimulationResults } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
 import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix } from "./quantum/matrix";
 import { GATE_MAP } from "./quantum/gates";
 import { get } from "svelte/store";
+import { computeBlochVectorsFromState } from './quantum/bloch';
 
 /**
  * Simulates a quantum circuit with a single qubit.
@@ -45,7 +46,8 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 	const formattedState = formatQuantumState(state);
 	const formattedStatePolar = formatQuantumStatePolar(state);
 
-	return { probabilities, formattedState, formattedStatePolar };
+	const blochVectors = computeBlochVectorsFromState(state, 1);
+	return { probabilities, formattedState, formattedStatePolar, blochVectors };
 }
 
 
@@ -159,7 +161,9 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 
 	const formattedState = formatQuantumState(state);
 	const formattedStatePolar = formatQuantumStatePolar(state);
-	return { probabilities, formattedState, formattedStatePolar };
+	const blochVectors = computeBlochVectorsFromState(state, numQubits);
+	return { probabilities, formattedState, formattedStatePolar, blochVectors };
+
 }
 
 export function resetCircuit() {
@@ -175,8 +179,18 @@ export function resetCircuit() {
 		probabilities[i.toString(2).padStart(qubits, '0')] = i === 0 ? 1 : 0;
 	}
 
+	const blochVectors = Array.from({ length: qubits }, (_, qubit) => ({
+		qubit,
+		x: 0,
+		y: 0,
+		z: 1,
+		magnitude: 1
+	}));
+
+
 	SimulationResults.set({
 		probabilities,
-		formattedState: `1.00|${'0'.repeat(qubits)}⟩`
+		formattedState: `1.00|${'0'.repeat(qubits)}⟩`,
+		blochVectors
 	});
 }

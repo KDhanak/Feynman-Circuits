@@ -24,7 +24,7 @@
 	on:dragover={(e) => e.preventDefault()}
 	on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
 	on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
-	class="mb-2 w-14/15 h-auto py-4 flex items-center justify-center gap-4 rounded-md border-2 border-secondary-3"
+	class="mb-2 w-14/15 h-auto py-4 flex items-center justify-center gap-3 rounded-md border-2 border-secondary-3"
 >
 	{#each gates as gate}
 		{#if isSingleMode ? gate.category === 'single' : true}
@@ -42,7 +42,7 @@
 				on:touchstart={(e) => handleTouchStart(e, {source: 'palette', gateType: gate.type})}
 				on:touchmove={handleTouchMove} 
 				on:touchend={(e) => handleTouchEnd(e)}
-				class="cursor-grab font-medium text-md select-none rounded-md border px-4.5 py-2.5 bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white"
+				class="cursor-grab font-medium text-md select-none rounded-md border px-3.5 py-2 bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white"
 			>
 				{gate.name}
 			</div>

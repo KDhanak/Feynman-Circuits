@@ -1,5 +1,7 @@
 // src/lib/stores.ts
 import { writable } from 'svelte/store';
+import type { BlochVector } from './quantum/bloch';
+
 
 /**
  * Valid gate types for the quantum circuit.
@@ -60,6 +62,8 @@ export interface SimulationResult {
     formattedState?: string;
     formattedQuantumStateApproximate?: string;
     formattedStatePolar?: string;
+    blochVectors?: BlochVector[];
+
 };
 
 /**
@@ -111,7 +115,9 @@ export const circuit = writable<CircuitState>({
 export const SimulationResults = writable<SimulationResult>({
     probabilities: { '0': 1, '1': 0 },
     formattedState: '1.00|0⟩',
+    blochVectors: [{ qubit: 0, x: 0, y: 0, z: 1, magnitude: 1 }]
 });
+
 
 /**
  * Store to track if a gate is currently being dragged.

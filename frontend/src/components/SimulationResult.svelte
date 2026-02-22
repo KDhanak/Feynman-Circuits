@@ -176,7 +176,7 @@
 	.prob-column {
 		display: flex;
 		flex-direction: column;
-		min-width: 7rem; 
+		min-width: 7rem;
 		background: var(--bg-muted, transparent);
 		padding: 0.25rem;
 		border-radius: 6px;
@@ -204,13 +204,13 @@
 		text-align: right;
 	}
 
-	[role="dialog"] .flex.mb-2.justify-center {
+	[role='dialog'] .flex.mb-2.justify-center {
 		position: relative;
 		justify-content: center;
 		padding-right: 2.5rem;
 	}
 
-	[role="dialog"] .flex.mb-2.justify-center > button {
+	[role='dialog'] .flex.mb-2.justify-center > button {
 		position: absolute;
 		right: 0.5rem;
 		top: 50%;

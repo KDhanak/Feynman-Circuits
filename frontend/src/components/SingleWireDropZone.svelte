@@ -12,6 +12,7 @@
 	} from '../lib/dragDropUtils';
 	import { get } from 'svelte/store';
 	import { updateQubitLabel } from '$lib/qubitLables';
+	import WireBloch from './BlochSphere/WireBloch.svelte'
 
 	let qubit = 0;
 	let label = get(circuit).qubitLabels?.[qubit] ?? `Qubit ${qubit}`;
@@ -43,6 +44,9 @@
 				style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
 			></div>
 		{/each}
+		<div class="wire-bloch-anchor">
+			<WireBloch {qubit} />
+		</div>
 	</div>
 
 	<!-- Qubit circle -->
@@ -115,5 +119,13 @@
 	.qubit-label:hover {
 		transform: scale(1.05);
 		transition: transform 300ms ease-in-out;
+	}
+
+	.wire-bloch-anchor {
+		position: absolute;
+		right: 0.5rem;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 20;
 	}
 </style>

@@ -6,6 +6,7 @@
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import ToggleUI from '../components/ToggleUI.svelte';
 	import { circuit } from '$lib/stores';
+	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
 </script>
 
 <main
@@ -32,14 +33,16 @@
 		<MultiWireDropZone />
 	{/if}
 
-	<div class="absolute z-10 flex flex-row bottom-2 w-11/12 justify-between">
-		<!-- Simulation result -->
-		<div class="flex items-end pb-2">
+	<div class="absolute z-10 bottom-2 w-11/12 grid grid-cols-[1fr_auto_1fr] items-end">
+		<div class="justify-self-start flex items-end pb-2">
 			<SimulationResult />
 		</div>
 
-		<div class="flex flex-col items-center justify-center">
-			<!-- Circuit Import/Export -->
+		<div class="justify-self-center">
+			<OverallBlochSphere />
+		</div>
+
+		<div class="justify-self-end flex flex-col items-center justify-center">
 			<CircuitIE />
 		</div>
 	</div>

@@ -11,6 +11,7 @@
 		handleTouchEnd
 	} from '../lib/dragDropUtils';
 	import { updateQubitLabel } from '$lib/qubitLables';
+	import WireBloch from './BlochSphere/WireBloch.svelte';
 
 	const MAX_COLUMNS = 29;
 	const COLUMN_WIDTH = 58;
@@ -27,11 +28,14 @@
 
 	function removeQubitWire(qubitIndex: number) {
 		const currentCircuit = $circuit;
-		if (currentCircuit.numQubits <=2) return; // Prevent removing below 2 qubits
+		if (currentCircuit.numQubits <= 2) return; // Prevent removing below 2 qubits
 
-		if (currentCircuit.gates.some(gate => gate.qubit === qubitIndex || (gate.targetQubits?.includes(qubitIndex))))
-
-		return;
+		if (
+			currentCircuit.gates.some(
+				(gate) => gate.qubit === qubitIndex || gate.targetQubits?.includes(qubitIndex)
+			)
+		)
+			return;
 
 		const newQubitLabels = currentCircuit.qubitLabels
 			? currentCircuit.qubitLabels.filter((_, idx) => idx !== qubitIndex)
@@ -42,27 +46,25 @@
 			numQubits: currentCircuit.numQubits - 1,
 			qubitLabels: newQubitLabels
 		});
-
 	}
 </script>
 
 <div
 	role="region"
 	aria-label="Quantum Circuit Multi-Wire Drop Zone"
-	class="w-[95%] relative space-y-1"
+	class="w-[95%] relative space-y-4"
 >
 	<!-- Draw vertical connector lines for multiqubit gates -->
 	{#each $circuit.gates.filter((g) => g.gateType === 'CONTROL' && (g.targetQubits?.length || g.targetQubit !== undefined)) as gate (gate.id + '-connector')}
 		{#each (gate.targetQubits ?? (gate.targetQubit !== undefined ? [gate.targetQubit] : [])) as t}
-		<div
-			class="absolute bg-ternary-1 w-0.5 z-10"
-			style="
+			<div
+				class="absolute bg-ternary-1 w-0.5 z-10"
+				style="
 			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 18}px;
 			top: {Math.min(gate.qubit, t) * 60 + 28}px;
 			height: {Math.abs(gate.qubit - t) * 60}px;
         "
-		></div>
-
+			></div>
 		{/each}
 	{/each}
 	{#each wires as wire (wire.id)}
@@ -87,11 +89,14 @@
 						style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
 					></div>
 				{/each}
+				<div class="wire-bloch-anchor">
+					<WireBloch qubit={wire.qubit} />
+				</div>
 			</div>
 
 			<!-- Qubit circle -->
 			<div
-				class={`qubit-circle mr-2 z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg ${wire.qubit >= 2 ? 'cursor-pointer border-dotted active:border-solid active:border-amber-700 select-none' : 'cursor-default'}`}
+				class={`qubit-circle mr-2 z-10 flex h-10 w-10 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg ${wire.qubit >= 2 ? 'cursor-pointer border-dotted active:border-solid active:border-amber-700 select-none' : 'cursor-default'}`}
 				aria-label={`Qubit ${wire.qubit} - double click to remove wire`}
 				role="button"
 				tabindex="0"
@@ -108,7 +113,7 @@
 					if (target) updateQubitLabel(wire.qubit, target.value);
 				}}
 				placeholder="Label"
-				class="qubit-label z-10 w-15 h-7.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
+				class="qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
 			/>
 
 			<!-- Show gates placed on the wire -->
@@ -220,5 +225,13 @@
 	.qubit-label:hover {
 		transform: scale(1.05);
 		transition: transform 400ms ease-in-out;
+	}
+
+	.wire-bloch-anchor {
+		position: absolute;
+		right: 0.5rem;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 20;
 	}
 </style>
