@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, tick } from 'svelte';
 	import { circuit, isDragging } from '../lib/stores';
 	import {
 		handleDrop,
@@ -12,6 +13,84 @@
 	} from '../lib/dragDropUtils';
 	import { updateQubitLabel } from '$lib/qubitLables';
 	import WireBloch from './BlochSphere/WireBloch.svelte';
+
+	type Connector = { key: string; left: number; top: number; height: number };
+	let connectors: Connector[] = [];
+	let boardEl: HTMLDivElement | null = null;
+	let rafId: number | null = null;
+
+	function getCenter(el: Element, boardRect: DOMRect) {
+		const r = (el as HTMLElement).getBoundingClientRect();
+		return {
+			x: r.left - boardRect.left + r.width / 2,
+			y: r.top - boardRect.top + r.height / 2
+		};
+	}
+
+	async function recomputeConnectors() {
+		await tick();
+		if (!boardEl) return;
+
+		const boardRect = boardEl.getBoundingClientRect();
+		const next: Connector[] = [];
+
+		for (const control of $circuit.gates.filter((g) => g.gateType === 'CONTROL')) {
+			const targets =
+				control.targetQubits ?? (control.targetQubit !== undefined ? [control.targetQubit] : []);
+			if (!targets.length) continue;
+
+			const controlEl = boardEl.querySelector(
+				`[data-col="${control.columnIndex}"][data-qubit="${control.qubit}"][data-type="CONTROL"]`
+			);
+			if (!controlEl) continue;
+
+			const c = getCenter(controlEl, boardRect);
+
+			for (const tq of targets) {
+				const targetEl = boardEl.querySelector(
+					`[data-col="${control.columnIndex}"][data-qubit="${tq}"]:not([data-type="CONTROL"])`
+				);
+				if (!targetEl) continue;
+
+				const t = getCenter(targetEl, boardRect);
+				next.push({
+					key: `${control.id}-${tq}`,
+					left: c.x,
+					top: Math.min(c.y, t.y),
+					height: Math.abs(c.y - t.y)
+				});
+			}
+		}
+
+		connectors = next;
+	}
+
+	function scheduleConnectorRecompute() {
+		if (rafId !== null) cancelAnimationFrame(rafId);
+		rafId = requestAnimationFrame(() => {
+			recomputeConnectors();
+			rafId = null;
+		});
+	}
+
+	onMount(() => {
+		const ro = new ResizeObserver(() => scheduleConnectorRecompute());
+		if (boardEl) ro.observe(boardEl);
+
+		window.addEventListener('resize', scheduleConnectorRecompute);
+		window.addEventListener('scroll', scheduleConnectorRecompute, true);
+
+		scheduleConnectorRecompute();
+
+		return () => {
+			ro.disconnect();
+			window.removeEventListener('resize', scheduleConnectorRecompute);
+			window.removeEventListener('scroll', scheduleConnectorRecompute, true);
+			if (rafId !== null) cancelAnimationFrame(rafId);
+		};
+	});
+
+	$: $circuit.gates, scheduleConnectorRecompute();
 
 	const MAX_COLUMNS = 29;
 	const COLUMN_WIDTH = 58;
@@ -53,19 +132,19 @@
 	role="region"
 	aria-label="Quantum Circuit Multi-Wire Drop Zone"
 	class="w-[95%] relative space-y-4"
+	bind:this={boardEl}
 >
 	<!-- Draw vertical connector lines for multiqubit gates -->
-	{#each $circuit.gates.filter((g) => g.gateType === 'CONTROL' && (g.targetQubits?.length || g.targetQubit !== undefined)) as gate (gate.id + '-connector')}
-		{#each (gate.targetQubits ?? (gate.targetQubit !== undefined ? [gate.targetQubit] : [])) as t}
-			<div
-				class="absolute bg-ternary-1 w-0.5 z-10"
-				style="
-			left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH + 18}px;
-			top: {Math.min(gate.qubit, t) * 60 + 28}px;
-			height: {Math.abs(gate.qubit - t) * 60}px;
-        "
-			></div>
-		{/each}
+	{#each connectors as line (line.key)}
+		<div
+			class="absolute w-0.5 z-10 bg-ternary-1 pointer-events-none"
+			style="
+			left: {line.left}px;
+			top: {line.top}px;
+			height: {line.height}px;
+			transform: translateX(-50%);
+		"
+		></div>
 	{/each}
 	{#each wires as wire (wire.id)}
 		<div
@@ -120,6 +199,9 @@
 			{#each $circuit.gates as gate (gate.id)}
 				{#if gate.qubit === wire.qubit}
 					<div
+						data-col={gate.columnIndex}
+						data-qubit={gate.qubit}
+						data-type={gate.gateType}
 						role="button"
 						aria-label={`Remove ${gate.gateType} gate with double-click, Delete key, or drag back to palette`}
 						tabindex="0"
@@ -138,9 +220,6 @@
 							{#if gate.qubit === wire.qubit}
 								<!-- Render the CONTROL dot -->
 								<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
-							{:else if gate.targetQubits ?? (gate.targetQubit !== undefined ? [gate.targetQubit] : []).includes(wire.qubit)}
-								<!-- Render the associated target (usually X) -->
-								<span class="gate-label">X</span>
 							{/if}
 						{:else}
 							<span class="gate-label">{gate.gateType}</span>
