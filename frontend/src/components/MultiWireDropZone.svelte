@@ -213,7 +213,7 @@
 							handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
 						on:touchmove={handleTouchMove}
 						on:touchend={(e) => handleTouchEnd(e)}
-						class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-secondary-1 text-secondary-4 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white shadow"
+						class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-secondary-1 text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
 						style="left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH}px;"
 					>
 						{#if gate.gateType === 'CONTROL'}

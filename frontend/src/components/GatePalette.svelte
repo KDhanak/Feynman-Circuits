@@ -42,7 +42,7 @@
 				on:touchstart={(e) => handleTouchStart(e, {source: 'palette', gateType: gate.type})}
 				on:touchmove={handleTouchMove} 
 				on:touchend={(e) => handleTouchEnd(e)}
-				class="cursor-grab font-medium text-md select-none rounded-md border px-3.5 py-2 bg-secondary-1 text-secondary-2 hover:bg-secondary-3 border-secondary-4 hover:text-white hover:border-white"
+				class="cursor-grab font-medium text-md select-none rounded-md border px-3.5 py-2 bg-secondary-1 text-secondary-2 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white"
 			>
 				{gate.name}
 			</div>
@@ -53,7 +53,7 @@
 		on:click={() => resetCircuit()}
 		type="button"
 		aria-label="reset circuit"
-		class="cursor-pointer rounded border px-4 py-2 bg-ternary-2 text-white hover:bg-ternary-2 border-white hover:text-ternary-3 hover:border-ternary-3"
+		class="cursor-pointer rounded border px-4 py-2 bg-ternary-2 text-white active:bg-ternary-2 border-white active:text-ternary-3 active:border-ternary-3"
 	>
 		Reset Circuit
 	</button>
