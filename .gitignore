@@ -30,3 +30,46 @@ obj/
 frontend/settings.json
 
 venv
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# Django stuff
+*.log
+local_settings.py
+db.sqlite3
+/media/
+staticfiles/
+
+# Testing, coverage
+.pytest_cache/
+.coverage
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+
+# Environment files
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
