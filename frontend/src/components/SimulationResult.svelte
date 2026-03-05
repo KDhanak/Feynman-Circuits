@@ -45,7 +45,7 @@
 	$: columns = chunkArray(probabilitiesArray, MAX_COLUMNS);
 </script>
 
-<div class="text-secondary-1">
+<div class="text-white">
 	<!-- If the number of qubits exceeds our limit, show a message -->
 	{#if $circuit.numQubits > DISPLAY_LIMIT}
 		<div class="p-4 border w-3/4 border-secondary-3 rounded-md bg-secondary-4/20 text-center">
@@ -188,7 +188,7 @@
 		justify-content: space-between;
 		gap: 0.01rem;
 		padding: 0.12rem 0;
-		border-bottom: 1px solid rgba(174, 0, 255, 0.281);
+		border-bottom: 1.5px solid rgb(174, 0, 255);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;
 		font-size: 0.95rem;
 	}

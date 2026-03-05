@@ -42,7 +42,7 @@
 				on:touchstart={(e) => handleTouchStart(e, {source: 'palette', gateType: gate.type})}
 				on:touchmove={handleTouchMove} 
 				on:touchend={(e) => handleTouchEnd(e)}
-				class="cursor-grab font-medium text-md select-none rounded-md border px-3.5 py-2 bg-secondary-1 text-secondary-2 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white"
+				class="cursor-grab font-medium text-md select-none rounded-md border px-3.5 py-2 bg-white text-secondary-2 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white"
 			>
 				{gate.name}
 			</div>

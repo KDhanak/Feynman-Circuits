@@ -195,13 +195,13 @@
 		<button
 			on:click={loadCircuitInput}
 			type="button"
-			class="rounded-md px-3 py-1.5 text-sm border bg-secondary-1 text-secondary-2 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white cursor-pointer"
+			class="rounded-md px-3 py-1.5 text-sm border bg-white text-secondary-2 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white cursor-pointer"
 			>Import Circuit</button
 		>
 		<button
 			on:click={exportCircuit}
 			type="button"
-			class="rounded-md px-3 py-1.5 border text-sm bg-secondary-1 text-secondary-2 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white cursor-pointer"
+			class="rounded-md px-3 py-1.5 border text-sm bg-white text-secondary-2 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white cursor-pointer"
 			>Export Circuit</button
 		>
 	</div>
