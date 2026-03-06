@@ -42,3 +42,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         # This automatically hashes the password
         user = User.objects.create_user(password=password, **validated_data)
         return user
+
+User = get_user_model()
+
+class MeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "email", "first_name", "last_name"]
