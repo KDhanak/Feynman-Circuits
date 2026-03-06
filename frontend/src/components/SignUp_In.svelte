@@ -147,7 +147,7 @@
 {#if $session.status === 'loading'}
 	<!-- optional skeleton -->
 	<button
-		class="cursor-pointer rounded-md border px-4 py-1 text-secondary-3 border-secondary-3 bg-secondary-1 active:border-white active:text-white active:bg-secondary-4"
+		class="cursor-pointer rounded-md border px-4 py-1 text-secondary-3 border-secondary-3 bg-white active:border-white active:text-white active:bg-secondary-4"
 		disabled>Loading…</button
 	>
 {:else if $session.status === 'anonymous'}
