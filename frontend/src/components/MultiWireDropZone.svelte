@@ -131,146 +131,148 @@
 <div
 	role="region"
 	aria-label="Quantum Circuit Multi-Wire Drop Zone"
-	class="w-[95%] relative space-y-4"
+	class="w-[95%] relative"
 	bind:this={boardEl}
 >
-	<!-- Draw vertical connector lines for multiqubit gates -->
-	{#each connectors as line (line.key)}
-		<div
-			class="absolute w-0.5 z-10 bg-ternary-1 pointer-events-none"
-			style="
+	<div class="max-h-[50vh] overflow-y-auto space-y-2 pr-2 mb-auto pb-8 border-b border-gray-800">
+		<!-- Draw vertical connector lines for multiqubit gates -->
+		{#each connectors as line (line.key)}
+			<div
+				class="absolute w-0.5 z-10 bg-ternary-1 pointer-events-none"
+				style="
 			left: {line.left}px;
 			top: {line.top}px;
 			height: {line.height}px;
 			transform: translateX(-50%);
 		"
-		></div>
-	{/each}
-	{#each wires as wire (wire.id)}
-		<div
-			role="region"
-			aria-label="Qubit ${wire.qubit} Wire Drop Zone"
-			class="wire-container-upper relative flex h-14 items-center"
-			data-qubit={wire.qubit}
-		>
-			<!-- Wire -->
+			></div>
+		{/each}
+		{#each wires as wire (wire.id)}
 			<div
-				class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-primary-1"
+				role="region"
+				aria-label="Qubit ${wire.qubit} Wire Drop Zone"
+				class="wire-container-upper relative flex h-14 items-center"
+				data-qubit={wire.qubit}
 			>
-				{#each Array(MAX_COLUMNS) as _, colIndex}
-					<div
-						class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
-						on:drop={(e) => handleDrop(e, colIndex, wire.qubit)}
-						on:dragover={handleDragOver}
-						role="button"
-						aria-label={`Drop gate here at column ${colIndex + 1}`}
-						tabindex="0"
-						style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
-					></div>
-				{/each}
-				<div class="wire-bloch-anchor">
-					<WireBloch qubit={wire.qubit} />
-				</div>
-			</div>
-
-			<!-- Qubit circle -->
-			<div
-				class={`qubit-circle mr-2 z-10 flex h-10 w-10 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg ${wire.qubit >= 2 ? 'cursor-pointer border-dotted active:border-solid active:border-amber-700 select-none' : 'cursor-default'}`}
-				aria-label={`Qubit ${wire.qubit} - double click to remove wire`}
-				role="button"
-				tabindex="0"
-				on:dblclick={() => removeQubitWire(wire.qubit)}
-			>
-				|0⟩
-			</div>
-
-			<input
-				type="text"
-				value={$circuit.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
-				on:input={(e) => {
-					const target = e.target as HTMLInputElement | null;
-					if (target) updateQubitLabel(wire.qubit, target.value);
-				}}
-				placeholder="Label"
-				class="qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
-			/>
-
-			<!-- Show gates placed on the wire -->
-			{#each $circuit.gates as gate (gate.id)}
-				{#if gate.qubit === wire.qubit}
-					<div
-						data-col={gate.columnIndex}
-						data-qubit={gate.qubit}
-						data-type={gate.gateType}
-						role="button"
-						aria-label={`Remove ${gate.gateType} gate with double-click, Delete key, or drag back to palette`}
-						tabindex="0"
-						draggable="true"
-						on:dragstart={(e) => handleGateDragStart(e, gate.id)}
-						on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
-						on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
-						on:touchstart={(e) =>
-							handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
-						on:touchmove={handleTouchMove}
-						on:touchend={(e) => handleTouchEnd(e)}
-						class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
-						style="left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH}px;"
-					>
-						{#if gate.gateType === 'CONTROL'}
-							{#if gate.qubit === wire.qubit}
-								<!-- Render the CONTROL dot -->
-								<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
-							{/if}
-						{:else}
-							<span class="gate-label">{gate.gateType}</span>
-						{/if}
+				<!-- Wire -->
+				<div
+					class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-gray-300"
+				>
+					{#each Array(MAX_COLUMNS) as _, colIndex}
+						<div
+							class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
+							on:drop={(e) => handleDrop(e, colIndex, wire.qubit)}
+							on:dragover={handleDragOver}
+							role="button"
+							aria-label={`Drop gate here at column ${colIndex + 1}`}
+							tabindex="0"
+							style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
+						></div>
+					{/each}
+					<div class="wire-bloch-anchor">
+						<WireBloch qubit={wire.qubit} />
 					</div>
-				{/if}
-			{/each}
-		</div>
-	{/each}
+				</div>
 
-	<!-- Ghost qubit wire for dynamic expansion -->
-	{#if showGhostWire}
-		<div
-			role="region"
-			aria-label="Ghost qubit wire for dynamic expansion"
-			class="wire-container-upper ghost-wire relative flex h-14 items-center"
-			data-qubit={$circuit.numQubits}
-		>
-			<!-- Wire -->
-			<div
-				class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-primary-1 opacity-30"
-			>
-				{#each Array(MAX_COLUMNS) as _, colIndex}
-					<div
-						class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
-						on:drop={(e) => handleDrop(e, colIndex, $circuit.numQubits)}
-						on:dragover={handleDragOver}
-						role="button"
-						aria-label={`Add qubit and drop gate at column ${colIndex + 1}`}
-						tabindex="0"
-						style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
-					></div>
+				<!-- Qubit circle -->
+				<div
+					class={`qubit-circle mr-2 z-10 flex h-10 w-10 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg ${wire.qubit >= 2 ? 'cursor-pointer border-dotted active:border-solid active:border-amber-700 select-none' : 'cursor-default'}`}
+					aria-label={`Qubit ${wire.qubit} - double click to remove wire`}
+					role="button"
+					tabindex="0"
+					on:dblclick={() => removeQubitWire(wire.qubit)}
+				>
+					|0⟩
+				</div>
+
+				<input
+					type="text"
+					value={$circuit.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
+					on:input={(e) => {
+						const target = e.target as HTMLInputElement | null;
+						if (target) updateQubitLabel(wire.qubit, target.value);
+					}}
+					placeholder="Label"
+					class="qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
+				/>
+
+				<!-- Show gates placed on the wire -->
+				{#each $circuit.gates as gate (gate.id)}
+					{#if gate.qubit === wire.qubit}
+						<div
+							data-col={gate.columnIndex}
+							data-qubit={gate.qubit}
+							data-type={gate.gateType}
+							role="button"
+							aria-label={`Remove ${gate.gateType} gate with double-click, Delete key, or drag back to palette`}
+							tabindex="0"
+							draggable="true"
+							on:dragstart={(e) => handleGateDragStart(e, gate.id)}
+							on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
+							on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
+							on:touchstart={(e) =>
+								handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
+							on:touchmove={handleTouchMove}
+							on:touchend={(e) => handleTouchEnd(e)}
+							class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
+							style="left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH}px;"
+						>
+							{#if gate.gateType === 'CONTROL'}
+								{#if gate.qubit === wire.qubit}
+									<!-- Render the CONTROL dot -->
+									<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
+								{/if}
+							{:else}
+								<span class="gate-label">{gate.gateType}</span>
+							{/if}
+						</div>
+					{/if}
 				{/each}
 			</div>
+		{/each}
 
-			<!-- Ghost qubit circle -->
+		<!-- Ghost qubit wire for dynamic expansion -->
+		{#if showGhostWire}
 			<div
-				class="z-10 mr-2 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-md text-white shadow-lg opacity-50"
+				role="region"
+				aria-label="Ghost qubit wire for dynamic expansion"
+				class="wire-container-upper ghost-wire relative flex h-14 items-center"
+				data-qubit={$circuit.numQubits}
 			>
-				|0⟩
-			</div>
+				<!-- Wire -->
+				<div
+					class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-gray-300 opacity-30"
+				>
+					{#each Array(MAX_COLUMNS) as _, colIndex}
+						<div
+							class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
+							on:drop={(e) => handleDrop(e, colIndex, $circuit.numQubits)}
+							on:dragover={handleDragOver}
+							role="button"
+							aria-label={`Add qubit and drop gate at column ${colIndex + 1}`}
+							tabindex="0"
+							style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
+						></div>
+					{/each}
+				</div>
 
-			<input
-				type="text"
-				value="Qubit {$circuit.numQubits}"
-				disabled
-				placeholder="New Qubit"
-				class="z-10 w-15 h-7.5 px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-md bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
-			/>
-		</div>
-	{/if}
+				<!-- Ghost qubit circle -->
+				<div
+					class="z-10 mr-2 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-md text-white shadow-lg opacity-50"
+				>
+					|0⟩
+				</div>
+
+				<input
+					type="text"
+					value="Qubit {$circuit.numQubits}"
+					disabled
+					placeholder="New Qubit"
+					class="z-10 w-15 h-7.5 px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-md bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
+				/>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>

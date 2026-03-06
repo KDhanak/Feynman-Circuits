@@ -8,7 +8,7 @@
 </script>
 
 <div class="overall-bloch">
-	<BlochSphere vector={overall} label="Overall State" size={225} showAxisLabels={true} />
+	<BlochSphere vector={overall} label="Overall State" size={200} showAxisLabels={true} />
 	<p class="note">Average of per-qubit Bloch vectors</p>
 </div>
 
@@ -21,7 +21,6 @@
 	.note {
 		font-size: 0.72rem;
 		opacity: 0.75;
-		margin-top: 0.1rem;
         color: white;
 	}
 </style>

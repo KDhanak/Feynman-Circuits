@@ -52,7 +52,7 @@
 			<p class="text-md font-medium">Display Limit Reached</p>
 			<button
 				type="button"
-				class="text-sm mt-2 underline cursor-pointer"
+				class="text-sm mt-2 underline underline-offset-4 cursor-pointer active:text-ternary-2"
 				on:click={toggleEnlarge}
 				aria-label="Enlarge the display to view full simulation results"
 			>
@@ -89,7 +89,7 @@
 					}}
 				>
 					<div class="flex mb-2 justify-center">
-						<h3 class="text-primary-1">Simulation Results</h3>
+						<h3 class="text-white text-lg font-bold underline underline-offset-4">Simulation Results</h3>
 						<button type="button" aria-label="Close dialog" on:click={toggleEnlarge}>
 							<Icon
 								icon="material-symbols:close"
@@ -101,9 +101,9 @@
 							/>
 						</button>
 					</div>
-					<p class="text-md font-medium">
+					<p class="text-md font-bold">
 						Quantum State:
-						<span class="text-sm font-normal">
+						<span class="text-sm font-medium text-ternary-1">
 							<!-- Ensure formattedState exists before displaying -->
 							{$SimulationResults.formattedState ?? 'Calculating...'}
 						</span>

@@ -30,7 +30,7 @@
 <div role="region" aria-label="Quantum Circuit Wire Drop Zone" class="wire-container-upper">
 	<!-- Wire -->
 	<div
-		class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-primary-1"
+		class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-gray-300"
 		data-qubit={qubit}
 	>
 		{#each Array(MAX_COLUMNS) as _, colIndex}

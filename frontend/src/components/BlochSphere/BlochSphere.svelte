@@ -44,7 +44,7 @@
 			class="axis"
 		/>
 		<line x1={CENTER} y1={CENTER} x2={tip.x} y2={tip.y} class="vector" />
-		<circle cx={tip.x} cy={tip.y} r={Math.max(2.5, size * 0.03)} class="tip" />
+		<circle cx={tip.x} cy={tip.y} r={Math.max(2.5, size * 0.02)} class="tip" />
 		<circle cx={CENTER} cy={CENTER} r={Math.max(1.5, size * 0.016)} class="origin" />
 	</svg>
 
@@ -66,17 +66,17 @@
 		fill: #152238;
 		border-color: #7e22ce;
 		stroke: #7e22ce;
-		stroke-width: 3;
+		stroke-width: 2;
 	}
 	.equator {
 		fill: none;
 		stroke: rgba(255, 255, 255, 1);
-		stroke-width: 1.5;
+		stroke-width: 1;
 		stroke-dasharray: 3 3;
 	}
 	.axis {
 		stroke: rgba(255, 255, 255, 1);
-		stroke-width: 1.5;
+		stroke-width: 1;
 	}
 	.vector {
 		stroke: #ff204e;
@@ -92,7 +92,7 @@
 	.purity {
 		font-size: 0.75rem;
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-		opacity: 0.9;
+		opacity: 0.75;
 		color: white;
 	}
 	.axis-label {

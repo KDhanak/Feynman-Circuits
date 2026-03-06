@@ -115,29 +115,29 @@
 <div class="input">
 	<div class="flex flex-col justify-end gap-2 mb-1 text-sm">
 		<div class="flex justify-between">
-			<h3 class="text-primary-1">Import/Export Circuit (JSON)</h3>
-			<div class="flex gap-2">
+			<h3 class="text-secondary-2 font-bold">Import/Export Circuit (JSON)</h3>
+			<div class="flex gap-1">
 				<Icon
 					icon="mage:copy"
 					role="button"
 					class="text-white cursor-pointer"
-					width="24"
-					height="24"
+					width="18"
+					height="18"
 					onclick={copyToClipboard}
 				/>
 				<Icon
 					icon="iconoir:enlarge"
 					role="button"
 					class="text-white cursor-pointer"
-					width="24"
-					height="24"
+					width="18"
+					height="18"
 					onclick={toggleEnlarge}
 				></Icon>
 			</div>
 		</div>
 		<textarea
 			bind:value={circuitInputJson}
-			class={`rounded border bg-transparent ${message ? 'border-success-1' : errorMessage ? 'border-ternary-1' : 'border-primary-2'} w-[248px] h-16 resize-none text-white`}
+			class={`rounded border bg-transparent ${message ? 'border-success-1' : errorMessage ? 'border-ternary-1' : 'border-gray-500'} w-[248px] h-16 resize-none text-white`}
 		>
 		</textarea>
 	</div>
@@ -157,7 +157,7 @@
 			}}
 		>
 			<div
-				class="bg-background border border-primary-1 p-4 rounded-md max-w-3xl w-full max-h-[80vh] flex flex-col"
+				class="bg-background border border-gray-500 p-4 rounded-md shadow-md max-w-3xl w-full max-h-[80vh] flex flex-col"
 				transition:scale={{ duration: 200, start: 0.8 }}
 				role="dialog"
 				aria-modal="true"
@@ -170,8 +170,7 @@
 					}
 				}}
 			>
-				<div class="flex justify-between mb-2">
-					<h3 class="text-primary-1">Edit Circuit</h3>
+				<div class="flex mb-2 justify-end">
 					<button type="button" aria-label="Close dialog" on:click={toggleEnlarge}>
 						<Icon
 							icon="material-symbols:close"
@@ -185,7 +184,7 @@
 				</div>
 				<textarea
 					bind:value={circuitInputJson}
-					class="rounded border bg-transparent border-white w-full h-[50vh] text-white p-2 resize-none"
+					class="rounded-md bg-transparent border-white w-full h-[50vh] text-white p-2 resize-none active:outline-none focus:outline-none"
 				></textarea>
 			</div>
 		</div>
@@ -205,7 +204,7 @@
 			>Export Circuit</button
 		>
 	</div>
-	<div class="absolute bottom-45">
+	<div class="absolute bottom-40">
 		{#if errorMessage}
 			<ErrorDisplay {errorMessage} />
 		{:else if message}
