@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from backend.config import settings
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -39,8 +40,8 @@ class LoginView(APIView):
             key=ACCESS_COOKIE,
             value=access,
             httponly=True,
-            secure=False,     # True in production (HTTPS)
-            samesite="Lax",
+            secure=False if settings.DEBUG else True,     # True in production (HTTPS)
+            samesite="Lax" if settings.DEBUG else "None",  # "None" in production
             max_age=60 * 30,
         )
 
@@ -49,8 +50,8 @@ class LoginView(APIView):
             key=REFRESH_COOKIE,
             value=str(refresh),
             httponly=True,
-            secure=False,     # True in production (HTTPS)
-            samesite="Lax",
+            secure=False if settings.DEBUG else True,     # True in production (HTTPS)
+            samesite="Lax" if settings.DEBUG else "None",  # "None" in production
             max_age=60 * 60 * 24 * 7,
         )
 
@@ -90,8 +91,8 @@ class RefreshView(APIView):
             key="access_token",
             value=access,
             httponly=True,
-            secure=False,
-            samesite="Lax",
+            secure=False if settings.DEBUG else True,     # True in production (HTTPS)
+            samesite="Lax" if settings.DEBUG else "None",  # "None" in production
             max_age=60 * 30,
         )
         return resp

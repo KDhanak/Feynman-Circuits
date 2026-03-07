@@ -32,17 +32,21 @@ if DEBUG:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
     CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
     CSRF_TRUSTED_ORIGINS = ["http://localhost:5173"]
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 else:
     ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
     CORS_ALLOWED_ORIGINS = os.environ.get("FRONTEND_URL", "").split(",")
     CSRF_TRUSTED_ORIGINS = os.environ.get("FRONTEND_URL", "").split(",")
+    SESSION_COOKIE_SAMESITE = "None"
+    CSRF_COOKIE_SAMESITE = "None"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 CORS_ALLOW_CREDENTIALS = True
 
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SECURE = False   # True in production
-CSRF_COOKIE_SECURE = False # True in production
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
