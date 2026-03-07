@@ -1,5 +1,5 @@
 from django.contrib.auth import authenticate
-from backend.config import settings
+from django.conf import settings
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -88,7 +88,7 @@ class RefreshView(APIView):
 
         resp = Response({"message": "refreshed"}, status=status.HTTP_200_OK)
         resp.set_cookie(
-            key="access_token",
+            key=ACCESS_COOKIE,
             value=access,
             httponly=True,
             secure=False if settings.DEBUG else True,     # True in production (HTTPS)
