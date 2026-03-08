@@ -7,7 +7,13 @@
 	import ToggleUI from '../components/ToggleUI.svelte';
 	import SignUp_In from '../components/SignUp_In.svelte';
 	import { circuit } from '$lib/stores';
+	import { onMount } from 'svelte';
+	import { loadSession } from '$lib/session';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
+
+	onMount(() => {
+		loadSession();
+	});
 </script>
 
 <main
