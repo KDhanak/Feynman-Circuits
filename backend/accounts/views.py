@@ -8,6 +8,31 @@ from .serializers import RegisterSerializer, MeSerializer
 
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
+COOKIE_SECURE = False if settings.DEBUG else True
+COOKIE_SAMESITE = "Lax" if settings.DEBUG else "None"
+COOKIE_PATH = "/"
+COOKIE_DOMAIN = None   # set this only if you actually need a shared domain cookie
+
+def set_token_cookie(response, key, value, max_age):
+    response.set_cookie(
+        key=key,
+        value=value,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        path=COOKIE_PATH,
+        domain=COOKIE_DOMAIN,
+        max_age=max_age,
+    )
+
+
+def clear_token_cookie(response, key):
+    response.delete_cookie(
+        key=key,
+        path=COOKIE_PATH,
+        domain=COOKIE_DOMAIN,
+        samesite=COOKIE_SAMESITE,
+    )
 
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -35,28 +60,10 @@ class LoginView(APIView):
 
         resp = Response({"message": "Login successful"}, status=status.HTTP_200_OK)
 
-        # 30 min access token cookie
-        resp.set_cookie(
-            key=ACCESS_COOKIE,
-            value=access,
-            httponly=True,
-            secure=False if settings.DEBUG else True,     # True in production (HTTPS)
-            samesite="Lax" if settings.DEBUG else "None",  # "None" in production
-            max_age=60 * 30,
-        )
-
-        # 7 day refresh token cookie
-        resp.set_cookie(
-            key=REFRESH_COOKIE,
-            value=str(refresh),
-            httponly=True,
-            secure=False if settings.DEBUG else True,     # True in production (HTTPS)
-            samesite="Lax" if settings.DEBUG else "None",  # "None" in production
-            max_age=60 * 60 * 24 * 7,
-        )
+        set_token_cookie(resp, ACCESS_COOKIE, access, 60 * 30)
+        set_token_cookie(resp, REFRESH_COOKIE, str(refresh), 60 * 60 * 24 * 7)
 
         return resp
-
 
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -78,55 +85,38 @@ class LogoutView(APIView):
                 pass
 
         resp = Response({"message": "Logged out"}, status=status.HTTP_200_OK)
-        resp.delete_cookie(ACCESS_COOKIE)
-        resp.delete_cookie(REFRESH_COOKIE)
+        clear_token_cookie(resp, ACCESS_COOKIE)
+        clear_token_cookie(resp, REFRESH_COOKIE)
         return resp
     
 class RefreshView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        refresh_token = request.COOKIES.get("refresh_token")
+        refresh_token = request.COOKIES.get(REFRESH_COOKIE)
         if not refresh_token:
             return Response({"detail": "No refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
 
         try:
             old_refresh = RefreshToken(refresh_token)
-            
-            # create rotated tokens
+
             user_id = old_refresh["user_id"]
-            from django.contrib.auth import get_user_model
             User = get_user_model()
             user = User.objects.get(id=user_id)
-            
+
             new_refresh = RefreshToken.for_user(user)
             new_access = str(new_refresh.access_token)
-            
+
             try:
                 old_refresh.blacklist()
             except Exception:
                 pass
+
             resp = Response({"message": "Token refreshed"}, status=status.HTTP_200_OK)
-            
-            resp.set_cookie(
-                key=ACCESS_COOKIE,
-                value=new_access,
-                httponly=True,
-                secure=False if settings.DEBUG else True,     # True in production (HTTPS)
-                samesite="Lax" if settings.DEBUG else "None",  # "None" in production
-                max_age=60 * 30,
-            )
-            
-            resp.set_cookie(
-                key=REFRESH_COOKIE,
-                value=str(new_refresh),
-                httponly=True,
-                secure=False if settings.DEBUG else True,
-                samesite="Lax" if settings.DEBUG else "None",
-                max_age=60 * 60 * 24 * 7,
-            )
-            
+            set_token_cookie(resp, ACCESS_COOKIE, new_access, 60 * 30)
+            set_token_cookie(resp, REFRESH_COOKIE, str(new_refresh), 60 * 60 * 24 * 7)
             return resp
+
         except TokenError:
             return Response({"detail": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
         except Exception:
