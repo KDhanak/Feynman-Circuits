@@ -1,13 +1,46 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/axios';
-	import { session, logout, loadSession } from '$lib/session';
+	import { session, signOut, loadSession, signIn, signUp } from '$lib/session';
 	import Icon from '@iconify/svelte';
 	import { fly, fade } from 'svelte/transition';
 
 	let isOpen = false;
 	let activeTab: 'signin' | 'signup' = 'signin';
 	let dropdownOpen = false;
+
+	let signinEmail = '';
+	let signinPassword = '';
+
+	let firstName = '';
+	let lastName = '';
+	let signupEmail = '';
+	let signupPassword = '';
+	let signupPassword2 = '';
+
+	let loading = false;
+	let generalErrorMsg = '';
+	let successMsg = '';
+
+	let signoutMessage = '';
+
+	type SignInErrors = {
+		email?: string;
+		password?: string;
+		detail?: string;
+	};
+
+	type SignUpErrors = {
+		first_name?: string;
+		last_name?: string;
+		email?: string;
+		password?: string;
+		password2?: string;
+		non_field_errors?: string;
+	};
+
+	let signinErrors: SignInErrors = {};
+	let signupErrors: SignUpErrors = {};
 
 	onMount(() => {
 		const handleClick = (event: MouseEvent) => {
@@ -25,7 +58,7 @@
 
 	function closeDrawer() {
 		isOpen = false;
-		errorMsg = '';
+		generalErrorMsg = '';
 		successMsg = '';
 		signinEmail = '';
 		signinPassword = '';
@@ -42,66 +75,56 @@
 		}
 	}
 
-	let signinEmail = '';
-	let signinPassword = '';
+	function normalizeBackendErrors(data: any): Record<string, string> {
+		if (!data || typeof data !== 'object') return {};
 
-	let firstName = '';
-	let lastName = '';
-	let signupEmail = '';
-	let signupPassword = '';
-	let signupPassword2 = '';
-
-	let loading = false;
-	let errorMsg = '';
-	let successMsg = '';
-
-	let signoutMessage = '';
-
-	function getAxiosErrorMessage(err: any): string {
-		// Axios error shape: err.response?.data
-		const data = err?.response?.data;
-		if (!data) return err?.message ?? 'Request failed';
-
-		if (typeof data === 'string') return data;
-		if (data.detail) return data.detail;
-
-		// DRF validation errors: {field: ["msg"]}
-		const first = Object.values(data)?.flat?.()?.[0];
-		return typeof first === 'string' && first ? first : 'Request failed';
+		return Object.fromEntries(
+			Object.entries(data).map(([key, value]) => [
+				key,
+				Array.isArray(value) ? String(value[0]) : String(value)
+			])
+		);
 	}
 
 	async function handleSignIn() {
-		errorMsg = '';
+		generalErrorMsg = '';
 		successMsg = '';
+		signinErrors = {};
 		loading = true;
 
 		try {
-			await api.post('accounts/api/auth/login/', {
-				email: signinEmail,
-				password: signinPassword
-			});
+			await signIn(signinEmail, signinPassword);
 
 			successMsg = 'Signed in.';
-
-			await loadSession();
-
 			setTimeout(() => {
 				closeDrawer();
 			}, 1000);
 		} catch (err: any) {
-			errorMsg = getAxiosErrorMessage(err) || 'Sign in failed';
+			const data = err?.response?.data;
+			const errors = normalizeBackendErrors(data);
+
+			signinErrors = {
+				email: errors.email,
+				password: errors.password,
+				detail: errors.detail
+			};
+
+			if (!signinErrors.email && !signinErrors.password && !signinErrors.detail) {
+				generalErrorMsg = 'Sign in failed';
+			}
 		} finally {
 			loading = false;
 		}
 	}
 
 	async function handleSignUp() {
-		errorMsg = '';
+		generalErrorMsg = '';
 		successMsg = '';
+		signupErrors = {};
 		loading = true;
 
 		try {
-			await api.post('accounts/api/auth/register/', {
+			await signUp({
 				email: signupEmail,
 				first_name: firstName,
 				last_name: lastName,
@@ -116,15 +139,37 @@
 			signinPassword = '';
 			signupPassword = '';
 			signupPassword2 = '';
+			signupErrors = {};
 		} catch (err: any) {
-			errorMsg = getAxiosErrorMessage(err) || 'Sign up failed';
+			const data = err?.response?.data;
+			const errors = normalizeBackendErrors(data);
+
+			signupErrors = {
+				first_name: errors.first_name,
+				last_name: errors.last_name,
+				email: errors.email,
+				password: errors.password,
+				password2: errors.password2,
+				non_field_errors: errors.non_field_errors
+			};
+
+			if (
+				!signupErrors.first_name &&
+				!signupErrors.last_name &&
+				!signupErrors.email &&
+				!signupErrors.password &&
+				!signupErrors.password2 &&
+				!signupErrors.non_field_errors
+			) {
+				generalErrorMsg = 'Sign up failed';
+			}
 		} finally {
 			loading = false;
 		}
 	}
 
 	async function logoutAndClose() {
-		await logout();
+		await signOut();
 		signoutMessage = '';
 		loading = true;
 
@@ -136,7 +181,9 @@
 				signoutMessage = '';
 			}, 2000);
 		} catch (err: any) {
-			signoutMessage = getAxiosErrorMessage(err) || 'Sign out failed';
+			const data = err?.response?.data;
+			const errors = normalizeBackendErrors(data);
+			signoutMessage = errors.detail || 'Sign out failed';
 		} finally {
 			loading = false;
 			dropdownOpen = false;
@@ -163,7 +210,7 @@
 			class="flex items-center gap-2 cursor-pointer"
 			on:click={() => (dropdownOpen = !dropdownOpen)}
 		>
-			<span class="text=md text-white">
+			<span class="text=md text-white font-semibold text-sm">
 				{$session.user?.first_name}
 			</span>
 			<Icon
@@ -178,14 +225,14 @@
 		</button>
 		{#if dropdownOpen}
 			<div
-				class="absolute top-full right-1.5 mt-1 bg-ternary-2 border rounded-md shadow-md border-white z-50"
+				class="absolute top-full w-[130%] right-0 mt-1 bg-ternary-2 border rounded-md shadow-md border-white z-50"
 			>
 				<button
 					on:click={() => {
 						logoutAndClose();
 						dropdownOpen = false;
 					}}
-					class="block px-2 py-1 w-full text-white cursor-pointer rounded-md active:text-ternary-2 active:bg-white"
+					class="px-2 py-1 items-center w-full text-white cursor-pointer rounded-md active:text-ternary-2 active:bg-white"
 					>Sign out</button
 				>
 			</div>
@@ -259,8 +306,15 @@
 								type="email"
 								placeholder="you@example.com"
 								bind:value={signinEmail}
+								on:input={() => {
+									const { email, detail, ...rest } = signinErrors;
+									signinErrors = rest;
+								}}
 								class="w-full rounded-md border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
 							/>
+							{#if signinErrors.email}
+								<p class="mt-1 text-sm text-red-400 font-bold">{signinErrors.email}</p>
+							{/if}
 						</div>
 						<div>
 							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signin-password"
@@ -271,8 +325,15 @@
 								type="password"
 								placeholder="********"
 								bind:value={signinPassword}
+								on:input={() => {
+									const { password, detail, ...rest } = signinErrors;
+									signinErrors = rest;
+								}}
 								class="w-full rounded-md border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
 							/>
+							{#if signinErrors.password}
+								<p class="mt-1 text-sm text-red-400 font-bold">{signinErrors.password}</p>
+							{/if}
 						</div>
 						<button
 							type="submit"
@@ -280,32 +341,49 @@
 						>
 							{loading ? 'Signing in...' : 'Sign In'}
 						</button>
+						{#if signinErrors.detail}
+							<p class="mt-2 text-sm text-red-400 font-bold">{signinErrors.detail}</p>
+						{/if}
 					</form>
 				{:else}
 					<form class="space-y-4" on:submit|preventDefault={handleSignUp}>
 						<div>
-							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-name"
+							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-first-name"
 								>First Name</label
 							>
 							<input
-								id="signup-name"
+								id="signup-first-name"
 								type="text"
 								placeholder="First Name"
 								bind:value={firstName}
+								on:input={() => {
+									const { first_name, ...rest } = signupErrors;
+									signupErrors = rest;
+								}}
 								class="w-full rounded-md border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
 							/>
+							{#if signupErrors.first_name}
+								<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.first_name}</p>
+							{/if}
 						</div>
 						<div>
-							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-name"
+							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-last-name"
 								>Last Name</label
 							>
 							<input
-								id="signup-name"
+								id="signup-last-name"
 								type="text"
 								placeholder="Last Name"
 								bind:value={lastName}
+								on:input={() => {
+									const { last_name, ...rest } = signupErrors;
+									signupErrors = rest;
+								}}
 								class="w-full rounded-md border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
 							/>
+							{#if signupErrors.last_name}
+								<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.last_name}</p>
+							{/if}
 						</div>
 						<div>
 							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-email"
@@ -316,8 +394,15 @@
 								type="email"
 								placeholder="you@example.com"
 								bind:value={signupEmail}
+								on:input={() => {
+									const { email, ...rest } = signupErrors;
+									signupErrors = rest;
+								}}
 								class="w-full rounded-md border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
 							/>
+							{#if signupErrors.email}
+								<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.email}</p>
+							{/if}
 						</div>
 						<div>
 							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-password"
@@ -328,20 +413,34 @@
 								type="password"
 								placeholder="At least 8 characters"
 								bind:value={signupPassword}
+								on:input={() => {
+									const { password, ...rest } = signupErrors;
+									signupErrors = rest;
+								}}
 								class="w-full rounded-md border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
 							/>
+							{#if signupErrors.password}
+								<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.password}</p>
+							{/if}
 						</div>
 						<div>
-							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-password"
+							<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-password2"
 								>Confirm Password</label
 							>
 							<input
-								id="signup-password"
+								id="signup-password2"
 								type="password"
 								placeholder="At least 8 characters"
 								bind:value={signupPassword2}
+								on:input={() => {
+									const { password2, ...rest } = signupErrors;
+									signupErrors = rest;
+								}}
 								class="w-full rounded-md border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
 							/>
+							{#if signupErrors.password2}
+								<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.password2}</p>
+							{/if}
 						</div>
 						<button
 							type="submit"
@@ -349,10 +448,13 @@
 						>
 							{loading ? 'Creating...' : 'Create Account'}
 						</button>
+						{#if signupErrors.non_field_errors}
+							<p class="mt-2 text-sm text-red-400 font-bold">{signupErrors.non_field_errors}</p>
+						{/if}
 					</form>
 				{/if}
-				{#if errorMsg}
-					<p class="mt-2 text-sm text-red-400 font-bold">{errorMsg}</p>
+				{#if generalErrorMsg}
+					<p class="mt-2 text-sm text-red-400 font-bold">{generalErrorMsg}</p>
 				{/if}
 				{#if successMsg}
 					<p class="mt-2 text-sm text-green-400 font-bold">{successMsg}</p>

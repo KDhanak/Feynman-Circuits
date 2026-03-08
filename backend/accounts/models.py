@@ -43,8 +43,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Email field - unique identifier for login
     email = models.EmailField(unique=True)
     # Optional user name fields
-    first_name = models.CharField(max_length=150, blank=True)
-    last_name = models.CharField(max_length=150, blank=True)
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
 
     # Account status fields
     is_active = models.BooleanField(default=True)  # Can user log in?

@@ -39,11 +39,11 @@ export async function loadSession() {
   return sessionPromise;
 }
 
-export async function login(email: string, password: string) {
+export async function signIn(email: string, password: string) {
   session.set({ status: "loading", user: null });
 
   try {
-    await api.post("/accounts/api/auth/login/", { email, password });
+    await api.post("/accounts/api/auth/signin/", { email, password });
     await loadSession();
   } catch (error) {
     session.set({ status: "anonymous", user: null });
@@ -51,11 +51,21 @@ export async function login(email: string, password: string) {
   }
 }
 
-export async function logout() {
+export async function signUp(payload: {
+  email: string;
+  password: string;
+  password2: string;
+  first_name: string;
+  last_name: string;
+}) {
+  await api.post("/accounts/api/auth/signup/", payload);
+}
+
+export async function signOut() {
   session.set({ status: "loading", user: null });
 
   try {
-    await api.post("/accounts/api/auth/logout/");
+    await api.post("/accounts/api/auth/signout/");
   } catch {
     // ignore, session still needs clearing
   }

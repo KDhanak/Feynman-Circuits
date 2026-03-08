@@ -4,7 +4,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from .serializers import RegisterSerializer, MeSerializer
+from .serializers import SignUpSerializer, MeSerializer, SignInSerializer
 
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
@@ -34,22 +34,25 @@ def clear_token_cookie(response, key):
         samesite=COOKIE_SAMESITE,
     )
 
-class RegisterView(APIView):
+class SignUpView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        s = RegisterSerializer(data=request.data)
+        s = SignUpSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         user = s.save()
         return Response({"id": user.id, "email": user.email}, status=status.HTTP_201_CREATED)
 
 
-class LoginView(APIView):
+class SignInView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
-        password = request.data.get("password")
+        serializer = SignInSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
 
         user = authenticate(request, email=email, password=password)
         if user is None:
@@ -58,7 +61,7 @@ class LoginView(APIView):
         refresh = RefreshToken.for_user(user)
         access = str(refresh.access_token)
 
-        resp = Response({"message": "Login successful"}, status=status.HTTP_200_OK)
+        resp = Response({"message": "Sign in successful"}, status=status.HTTP_200_OK)
 
         set_token_cookie(resp, ACCESS_COOKIE, access, 60 * 30)
         set_token_cookie(resp, REFRESH_COOKIE, str(refresh), 60 * 60 * 24 * 7)
@@ -72,7 +75,7 @@ class MeView(APIView):
         return Response(MeSerializer(request.user).data, status=status.HTTP_200_OK)
 
 
-class LogoutView(APIView):
+class SignOutView(APIView):
     def post(self, request):
         token = request.COOKIES.get(REFRESH_COOKIE)
 
@@ -84,7 +87,7 @@ class LogoutView(APIView):
             except Exception:
                 pass
 
-        resp = Response({"message": "Logged out"}, status=status.HTTP_200_OK)
+        resp = Response({"message": "Signed out"}, status=status.HTTP_200_OK)
         clear_token_cookie(resp, ACCESS_COOKIE)
         clear_token_cookie(resp, REFRESH_COOKIE)
         return resp
