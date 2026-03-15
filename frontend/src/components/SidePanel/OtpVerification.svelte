@@ -117,7 +117,6 @@
 	function handleInput(index: number, event: Event) {
 		const target = event.currentTarget as HTMLInputElement;
 		const value = target.value.replace(/\D/g, '');
-		loading = true;
 
 		generalErrorMsg = '';
 		successMsg = '';
@@ -136,6 +135,7 @@
 		}
 
 		if (otpValue().length === 6) {
+			loading = true;
 			setTimeout(() => {
 				void verifyOtp();
 			}, 1500);
