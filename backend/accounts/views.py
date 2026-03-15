@@ -272,7 +272,7 @@ class PasswordResetConfirmView(APIView):
             .order_by("-created_at")
             .first()
         )
-        
+
         if not otp_record:
             return Response(
                 {"detail": "Invalid or expired reset token."},
