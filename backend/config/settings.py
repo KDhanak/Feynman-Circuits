@@ -33,6 +33,9 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply.feynman.circuits@gmail.com")
 
+def env_bool(name: str, default: str = "False") -> bool:
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
 if DEBUG:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
     CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
@@ -62,10 +65,6 @@ else:
     DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER).strip()
 
 CORS_ALLOW_CREDENTIALS = True
-
-
-def env_bool(name: str, default: str = "False") -> bool:
-    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
