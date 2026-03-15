@@ -1,8 +1,5 @@
-import secrets
-
 from django.contrib.auth import authenticate, get_user_model
 from django.conf import settings
-from django.utils import timezone
 from .models import PasswordResetOTP
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -17,7 +14,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
 )
 import random
-from django.core.mail import send_mail
+from .services import send_password_reset_otp_email
 
 User = get_user_model()
 
@@ -183,13 +180,7 @@ class PasswordResetRequestView(APIView):
             user=user, otp=otp, expires_at=PasswordResetOTP.get_expiry_time()
         )
 
-        send_mail(
-            subject="Your password reset OTP",
-            message=f"Your password reset OTP is: {otp}",
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[email],
-            fail_silently=False,
-        )
+        send_password_reset_otp_email(email, otp, expiry_minutes=10)
 
         return Response(success_response, status=status.HTTP_200_OK)
 
