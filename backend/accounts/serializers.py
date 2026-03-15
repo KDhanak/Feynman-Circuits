@@ -28,11 +28,37 @@ class SignUpSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(password=password, **validated_data)
         return user
 
+
 class SignInSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, allow_blank=False)
     password = serializers.CharField(required=True, allow_blank=False, write_only=True)
+
 
 class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "email", "first_name", "last_name"]
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, allow_blank=False)
+
+
+class PasswordResetOTPVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, allow_blank=False)
+    otp = serializers.CharField(
+        required=True, allow_blank=False, min_length=6, max_length=6
+    )
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    reset_token = serializers.CharField(required=True, allow_blank=False)
+    password = serializers.CharField(required=True, allow_blank=False, write_only=True)
+    password2 = serializers.CharField(required=True, allow_blank=False, write_only=True)
+
+    def validate(self, attrs):
+        if attrs["password"] != attrs["password2"]:
+            raise serializers.ValidationError({"password2": "Passwords do not match."})
+
+        validate_password(attrs["password"])
+        return attrs

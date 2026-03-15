@@ -5,7 +5,7 @@
 	import MultiWireDropZone from '../components/MultiWireDropZone.svelte';
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import ToggleUI from '../components/ToggleUI.svelte';
-	import SignUp_In from '../components/SignUp_In.svelte';
+	import SignUp_In from '../components/SidePanel/AuthPanel.svelte';
 	import { circuit } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { loadSession } from '$lib/session';

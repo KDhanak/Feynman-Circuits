@@ -1,17 +1,33 @@
-from django.contrib.auth import authenticate
+import secrets
+
+from django.contrib.auth import authenticate, get_user_model
 from django.conf import settings
+from django.utils import timezone
+from .models import PasswordResetOTP
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from .serializers import SignUpSerializer, MeSerializer, SignInSerializer
+from .serializers import (
+    SignUpSerializer,
+    SignInSerializer,
+    MeSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetOTPVerifySerializer,
+    PasswordResetConfirmSerializer,
+)
+import random
+from django.core.mail import send_mail
+
+User = get_user_model()
 
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
 COOKIE_SECURE = False if settings.DEBUG else True
 COOKIE_SAMESITE = "Lax" if settings.DEBUG else "None"
 COOKIE_PATH = "/"
-COOKIE_DOMAIN = None   # set this only if you actually need a shared domain cookie
+COOKIE_DOMAIN = None  # set this only if you actually need a shared domain cookie
+
 
 def set_token_cookie(response, key, value, max_age):
     response.set_cookie(
@@ -34,6 +50,7 @@ def clear_token_cookie(response, key):
         samesite=COOKIE_SAMESITE,
     )
 
+
 class SignUpView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -41,7 +58,9 @@ class SignUpView(APIView):
         s = SignUpSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         user = s.save()
-        return Response({"id": user.id, "email": user.email}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"id": user.id, "email": user.email}, status=status.HTTP_201_CREATED
+        )
 
 
 class SignInView(APIView):
@@ -56,7 +75,9 @@ class SignInView(APIView):
 
         user = authenticate(request, email=email, password=password)
         if user is None:
-            return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
+            )
 
         refresh = RefreshToken.for_user(user)
         access = str(refresh.access_token)
@@ -67,6 +88,7 @@ class SignInView(APIView):
         set_token_cookie(resp, REFRESH_COOKIE, str(refresh), 60 * 60 * 24 * 7)
 
         return resp
+
 
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -91,14 +113,17 @@ class SignOutView(APIView):
         clear_token_cookie(resp, ACCESS_COOKIE)
         clear_token_cookie(resp, REFRESH_COOKIE)
         return resp
-    
+
+
 class RefreshView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         refresh_token = request.COOKIES.get(REFRESH_COOKIE)
         if not refresh_token:
-            return Response({"detail": "No refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "No refresh token"}, status=status.HTTP_401_UNAUTHORIZED
+            )
 
         try:
             old_refresh = RefreshToken(refresh_token)
@@ -121,6 +146,155 @@ class RefreshView(APIView):
             return resp
 
         except TokenError:
-            return Response({"detail": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED
+            )
         except Exception:
-            return Response({"detail": "Error refreshing token"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": "Error refreshing token"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"]
+        user = User.objects.filter(email=email, is_active=True).first()
+
+        # Always return the same response, whether user exists or not
+        success_response = {
+            "detail": "If an account exists for this email, an OTP has been sent."
+        }
+
+        if not user:
+            return Response(success_response, status=status.HTTP_200_OK)
+
+        # Invalidate previous unused OTP records for this user
+        PasswordResetOTP.objects.filter(user=user, is_used=False).update(is_used=True)
+
+        otp = f"{random.randint(0, 999999):06d}"
+
+        PasswordResetOTP.objects.create(
+            user=user, otp=otp, expires_at=PasswordResetOTP.get_expiry_time()
+        )
+
+        send_mail(
+            subject="Your password reset OTP",
+            message=f"Your password reset OTP is: {otp}",
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[email],
+            fail_silently=False,
+        )
+
+        return Response(success_response, status=status.HTTP_200_OK)
+
+
+class PasswordResetOTPVerifyView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetOTPVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"]
+        otp = serializer.validated_data["otp"]
+
+        user = User.objects.filter(email=email, is_active=True).first()
+        if not user:
+            return Response(
+                {"detail": "Invalid email or OTP."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        otp_record = (
+            PasswordResetOTP.objects.filter(user=user, is_used=False)
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not otp_record:
+            return Response(
+                {"detail": "Invalid email or OTP."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if otp_record.is_expired():
+            otp_record.is_used = True
+            otp_record.save(update_fields=["is_used"])
+            return Response(
+                {"detail": "OTP has expired."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if otp_record.otp != otp:
+            otp_record.attempts += 1
+
+            if otp_record.attempts >= 5:
+                otp_record.is_used = True
+                otp_record.save(update_fields=["attempts", "is_used"])
+                return Response(
+                    {"detail": "OTP has expired or is no longer valid."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            otp_record.save(update_fields=["attempts"])
+            return Response(
+                {"detail": "Invalid email or OTP."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        otp_record.reset_token = PasswordResetOTP.generate_reset_token()
+        otp_record.expires_at = PasswordResetOTP.get_expiry_time()
+        otp_record.save(update_fields=["reset_token", "expires_at"])
+
+        return Response(
+            {
+                "detail": "OTP verified successfully.",
+                "reset_token": otp_record.reset_token,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reset_token = serializer.validated_data["reset_token"]
+        password = serializer.validated_data["password"]
+
+        otp_record = (
+            PasswordResetOTP.objects.filter(reset_token=reset_token, is_used=False)
+            .order_by("-created_at")
+            .first()
+        )
+        
+        if not otp_record:
+            return Response(
+                {"detail": "Invalid or expired reset token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if otp_record.is_expired():
+            otp_record.is_used = True
+            otp_record.save(update_fields=["is_used"])
+            return Response(
+                {"detail": "Reset token has expired."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = otp_record.user
+        user.set_password(password)
+        user.save(update_fields=["password"])
+
+        otp_record.is_used = True
+        otp_record.reset_token = None
+        otp_record.save(update_fields=["is_used", "reset_token"])
+
+        return Response(
+            {"detail": "Password reset successful."}, status=status.HTTP_200_OK
+        )
