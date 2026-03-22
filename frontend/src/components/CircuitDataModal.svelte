@@ -75,26 +75,26 @@
 					<button
 						type="button"
 						on:click={onCopy}
-						class="rounded-md px-3 py-1.5 text-sm border bg-white text-secondary-2 cursor-pointer"
+						class="rounded-md text-sm text-white"
 					>
-						Copy
+						<Icon icon="solar:copy-bold" width="24" height="24" class="active:text-green-400 cursor-pointer" />
 					</button>
 
 					<button
 						type="button"
 						on:click={onExport}
-						class="rounded-md px-3 py-1.5 text-sm border bg-white text-secondary-2 cursor-pointer"
+						class="rounded-md text-sm text-white"
 					>
-						Download
+						<Icon icon="mingcute:download-fill" width="24" height="24" class="active:text-green-400 cursor-pointer" />
 					</button>
 
 					{#if activeView === 'json'}
 						<button
 							type="button"
 							on:click={onImport}
-							class="rounded-md px-3 py-1.5 text-sm border bg-white text-secondary-2 cursor-pointer"
+							class="rounded-md text-sm text-white"
 						>
-							Import
+							<Icon icon="mdi:file-import" width="24" height="24" class="active:text-green-400 cursor-pointer" />
 						</button>
 					{/if}
 

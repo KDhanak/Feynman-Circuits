@@ -13,7 +13,7 @@
 	import { onMount } from 'svelte';
 	import Icon from '@iconify/svelte';
 
-	import CircuitDataModal from './CircuitDataModel.svelte';
+	import CircuitDataModal from './CircuitDataModal.svelte';
 	import { buildJsonString, buildQirString, type DataViewMode } from '$lib/circuitData';
 
 	export const gates: { type: GateType; name: string; category: string }[] = [
@@ -205,12 +205,12 @@
 
 		{#if dropdownOpen}
 			<div
-				class="absolute top-full right-0 mt-1 bg-white border rounded-md shadow-md z-50 min-w-[120px]"
+				class="absolute top-full right-0 mt-1 bg-white border rounded-lg shadow-md z-50 min-w-[120px]"
 			>
 				<button
 					type="button"
 					on:click={openCircuitDataModal}
-					class="whitespace-nowrap py-2 w-full text-center text-ternary-2 cursor-pointer active:text-white active:bg-ternary-2"
+					class="whitespace-nowrap py-2 w-full text-center border border-b-gray-400 rounded-t-md border-white text-secondary-2 cursor-pointer active:text-secondary-3 active:border-secondary-3"
 				>
 					Circuit Data
 				</button>
@@ -218,7 +218,7 @@
 				<button
 					type="button"
 					on:click={() => resetCircuit()}
-					class="whitespace-nowrap w-full py-2 text-center font-semibold bg-ternary-2 border active:border-ternary-2 text-white cursor-pointer active:text-ternary-2 active:bg-white"
+					class="whitespace-nowrap w-full py-2 text-center font-semibold rounded-b-md bg-white border border-white active:border-ternary-2 text-ternary-2 cursor-pointer active:text-ternary-2"
 				>
 					Reset Circuit
 				</button>
