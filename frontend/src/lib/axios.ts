@@ -36,10 +36,6 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        console.log("Interceptor hit");
-        console.log("URL:", originalRequest?.url);
-        console.log("Status:", error.response?.status);
-
         if (!originalRequest) {
             return Promise.reject(error);
         }

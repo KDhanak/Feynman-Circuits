@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { circuit, type GateInstance } from '../lib/stores';
+	import { circuit, circuitLayout, type GateInstance } from '$lib/stores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -9,26 +9,28 @@
 		handleTouchEnd,
 		handleTouchMove,
 		handleTouchStart
-	} from '../lib/dragDropUtils';
+	} from '$lib/dragDropUtils';
 	import { get } from 'svelte/store';
 	import { updateQubitLabel } from '$lib/qubitLables';
-	import WireBloch from './BlochSphere/WireBloch.svelte'
+	import WireBloch from '../BlochSphere/WireBloch.svelte';
 
-	let qubit = 0;
+	export let qubit: number;
+
 	let label = get(circuit).qubitLabels?.[qubit] ?? `Qubit ${qubit}`;
 
-	// Subscribe and sync label
-	$circuit; // reactive trigger
+	$circuit;
 	$: label = $circuit.qubitLabels?.[qubit] ?? `Qubit ${qubit}`;
 
 	const MAX_COLUMNS = 29;
-	const COLUMN_WIDTH = 58;
-	const LABEL_WIDTH = 80;
-	const GATE_OFFSET = LABEL_WIDTH + 44;
+
+	let columnWidth = 58;
+	let gateOffset = 120;
+
+	$circuitLayout;
+	$: ({ columnWidth, gateOffset } = $circuitLayout);
 </script>
 
 <div role="region" aria-label="Quantum Circuit Wire Drop Zone" class="wire-container-upper">
-	<!-- Wire -->
 	<div
 		class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-gray-300"
 		data-qubit={qubit}
@@ -36,20 +38,20 @@
 		{#each Array(MAX_COLUMNS) as _, colIndex}
 			<div
 				class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
-				on:drop={(e) => handleDrop(e, colIndex, 0)}
+				on:drop={(e) => handleDrop(e, colIndex, qubit)}
 				on:dragover={handleDragOver}
 				role="button"
 				aria-label={`Drop gate here at column ${colIndex + 1}`}
 				tabindex="0"
-				style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
+				style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px;"
 			></div>
 		{/each}
+
 		<div class="wire-bloch-anchor">
 			<WireBloch {qubit} />
 		</div>
 	</div>
 
-	<!-- Qubit circle -->
 	<div
 		class="qubit-circle mr-2 z-10 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg"
 	>
@@ -59,19 +61,18 @@
 	<input
 		type="text"
 		bind:value={label}
-		on:input={(e) => updateQubitLabel(qubit, label)}
+		on:input={() => updateQubitLabel(qubit, label)}
 		placeholder="Label"
 		class="qubit-label z-10 w-15 h-7.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
 	/>
 
-	<!-- Show gates placed on the wire -->
-	{#each $circuit.gates.filter((g: GateInstance) => g.qubit === 0) as gate (gate.id)}
+	{#each $circuit.gates.filter((g: GateInstance) => g.qubit === qubit) as gate (gate.id)}
 		<div
 			role="button"
 			aria-label={`Remove ${gate.gateType} gate with double-click, Delete key, or drag back to palette`}
 			tabindex="0"
 			draggable="true"
-			style="left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH}px;"
+			style="left: {gateOffset + (gate.columnIndex + 0.5) * columnWidth}px;"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 			on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 			on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
@@ -79,7 +80,7 @@
 				handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
 			on:touchmove={handleTouchMove}
 			on:touchend={(e) => handleTouchEnd(e)}
-			class="gate z-10 cursor-grab select-none rounded px-4 py-2 border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
+			class="gate z-10 cursor-grab select-none rounded px-2 py-1.5 text-sm border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
 		>
 			{gate.gateType}
 		</div>
@@ -91,7 +92,7 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		height: 6rem; /* ~96px */
+		height: 6rem;
 		width: 95%;
 		margin: 0 auto;
 	}
@@ -100,7 +101,6 @@
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		width: 3.5rem; /* ~56px, a bit more fluid than 50px */
 		background-color: transparent;
 		transition: background-color 0.2s ease;
 	}
@@ -108,11 +108,11 @@
 	.gate {
 		position: absolute;
 		top: 50%;
-		transform: translateY(-50%);
+		transform: translate(-50%, -50%);
 		z-index: 10;
+		white-space: nowrap;
 	}
 
-	/* Qubit label input hover effect */
 	.qubit-label:hover {
 		transform: scale(1.05);
 		transition: transform 300ms ease-in-out;

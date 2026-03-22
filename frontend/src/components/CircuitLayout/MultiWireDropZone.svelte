@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { circuit, isDragging } from '../lib/stores';
+	import { circuit, circuitLayout, isDragging } from '$lib/stores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -10,9 +10,18 @@
 		handleTouchStart,
 		handleTouchMove,
 		handleTouchEnd
-	} from '../lib/dragDropUtils';
+	} from '$lib/dragDropUtils';
 	import { updateQubitLabel } from '$lib/qubitLables';
-	import WireBloch from './BlochSphere/WireBloch.svelte';
+	import WireBloch from '../BlochSphere/WireBloch.svelte';
+
+	let columnWidth = 58;
+	let gateOffset = 120;
+
+	const MAX_COLUMNS = 29;
+	const MAX_QUBITS = 8;
+
+	$circuitLayout;
+	$: ({ columnWidth, gateOffset } = $circuitLayout);
 
 	type Connector = { key: string; left: number; top: number; height: number };
 	let connectors: Connector[] = [];
@@ -92,12 +101,6 @@
 
 	$: $circuit.gates, scheduleConnectorRecompute();
 
-	const MAX_COLUMNS = 29;
-	const COLUMN_WIDTH = 58;
-	const LABEL_WIDTH = 80;
-	const GATE_OFFSET = LABEL_WIDTH + 44;
-	const MAX_QUBITS = 8;
-
 	$: wires = Array.from({ length: $circuit.numQubits }, (_, i) => ({
 		id: `wire-${i}`,
 		qubit: i
@@ -111,7 +114,10 @@
 
 		if (
 			currentCircuit.gates.some(
-				(gate) => gate.qubit === qubitIndex || gate.targetQubits?.includes(qubitIndex)
+				(gate) =>
+					gate.qubit === qubitIndex ||
+					gate.targetQubits?.includes(qubitIndex) ||
+					gate.targetQubit === qubitIndex
 			)
 		)
 			return;
@@ -131,7 +137,7 @@
 <div
 	role="region"
 	aria-label="Quantum Circuit Multi-Wire Drop Zone"
-	class="w-[95%] relative"
+	class="w-[95%] relative mx-auto"
 	bind:this={boardEl}
 >
 	<div class="max-h-[50vh] overflow-y-auto space-y-2 pr-2 mb-auto pb-8 border-b border-gray-800">
@@ -166,7 +172,7 @@
 							role="button"
 							aria-label={`Drop gate here at column ${colIndex + 1}`}
 							tabindex="0"
-							style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
+							style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
 						></div>
 					{/each}
 					<div class="wire-bloch-anchor">
@@ -215,7 +221,7 @@
 							on:touchmove={handleTouchMove}
 							on:touchend={(e) => handleTouchEnd(e)}
 							class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
-							style="left: {GATE_OFFSET + gate.columnIndex * COLUMN_WIDTH}px;"
+							style="left: {gateOffset + (gate.columnIndex + 0.5) * columnWidth}px;"
 						>
 							{#if gate.gateType === 'CONTROL'}
 								{#if gate.qubit === wire.qubit}
@@ -251,7 +257,7 @@
 							role="button"
 							aria-label={`Add qubit and drop gate at column ${colIndex + 1}`}
 							tabindex="0"
-							style="left: {GATE_OFFSET + colIndex * COLUMN_WIDTH}px;"
+							style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
 						></div>
 					{/each}
 				</div>
@@ -287,10 +293,10 @@
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		width: 3.5rem; /* ~56px, a bit more fluid than 50px */
 		background-color: transparent;
 		transition: background-color 0.2s ease;
 	}
+
 	.dropzone:hover {
 		background-color: rgba(255, 255, 255, 0.05);
 	}
@@ -298,8 +304,9 @@
 	.gate {
 		position: absolute;
 		top: 50%;
-		transform: translateY(-50%);
+		transform: translate(-50%, -50%);
 		z-index: 10;
+		white-space: nowrap;
 	}
 
 	/* Qubit label input hover effect */

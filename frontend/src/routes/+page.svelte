@@ -1,15 +1,12 @@
 <script lang="ts">
-	import CircuitIE from '../components/CircuitIE.svelte';
 	import GatePalette from '../components/GatePalette.svelte';
-	import SingleWireDropZone from '../components/SingleWireDropZone.svelte';
-	import MultiWireDropZone from '../components/MultiWireDropZone.svelte';
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import ToggleUI from '../components/ToggleUI.svelte';
 	import SignUp_In from '../components/SidePanel/AuthPanel.svelte';
-	import { circuit } from '$lib/stores';
 	import { onMount } from 'svelte';
 	import { loadSession } from '$lib/session';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
+	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 
 	onMount(() => {
 		loadSession();
@@ -37,23 +34,18 @@
 	<GatePalette />
 
 	<!-- Wire/s with Drop Zone -->
-	{#if $circuit.mode === 'single'}
-		<SingleWireDropZone />
-	{:else}
-		<MultiWireDropZone />
-	{/if}
+	<CircuitLayout />
 
-	<div class="absolute z-10 bottom-2 w-11/12 grid grid-cols-[1fr_auto_1fr] items-end">
-		<div class="justify-self-start flex items-end pb-2">
+	<div class="absolute z-10 bottom-2 w-11/12 grid grid-cols-3">
+		<div class="justify-self-start mt-auto">
 			<SimulationResult />
 		</div>
 
-		<div class="justify-self-center">
-			<OverallBlochSphere />
-		</div>
+		<div></div>
+		<!-- empty center -->
 
-		<div class="justify-self-end flex flex-col items-center justify-center">
-			<CircuitIE />
+		<div class="justify-self-end mt-auto">
+			<OverallBlochSphere />
 		</div>
 	</div>
 </main>

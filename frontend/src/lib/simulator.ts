@@ -53,7 +53,6 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 
 export function simulateMultipleQubits(circuit: CircuitState): SimulationResult {
 	const { numQubits, gates } = circuit;
-	console.log('[simulateMultipleQubits] numQubits=', numQubits, 'gates=', JSON.parse(JSON.stringify(gates)));
 	if (numQubits < 2) {
 		throw new Error('Multi-Qubit simulator requires at least 2 qubits');
 	}
@@ -63,7 +62,6 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 	state[0] = createComplex(1, 0);
 
 	const maxColumn = gates.length ? Math.max(...gates.map(g => g.columnIndex)) + 1 : 0;
-	console.log('[simulateMultipleQubits] maxColumn=', maxColumn);
 	const columns = Array.from({ length: maxColumn }, (_, colIndex) =>
 		gates.filter(g => g.columnIndex === colIndex)
 	);
@@ -136,7 +134,6 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 			//    We now call:   computeMultiControlledUMatrix([0, 1], 2, ...)  [2+ controls]
 			const matrix = computeMultiControlledUMatrix(controlQubits, targetQubit, numQubits, gateDef.matrix);
 			state = applyMatrix(matrix, state);
-			console.log(state);
 		}
 
 		// CONSEQUENCE:

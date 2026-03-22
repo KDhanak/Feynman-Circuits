@@ -148,3 +148,8 @@ export function setNumQubits(n: number) {
     }));
 };
 
+export const circuitLayout = writable({
+	columnWidth: 58,
+	gateOffset: 120,
+	usableWidth: 1000,
+});
