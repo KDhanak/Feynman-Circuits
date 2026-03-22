@@ -1,10 +1,10 @@
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
 
 def send_password_reset_otp_email(user_email, otp_code, expiry_minutes=10):
-    subject = "Reset Your Feynman Circuits Password"
+    subject = "Feynman Circuits - Password Reset OTP"
 
     context = {
         "otp_code": otp_code,
@@ -14,11 +14,11 @@ def send_password_reset_otp_email(user_email, otp_code, expiry_minutes=10):
     text_body = render_to_string("emails/password_reset_otp.txt", context)
     html_body = render_to_string("emails/password_reset_otp.html", context)
 
-    email = EmailMultiAlternatives(
+    send_mail(
         subject=subject,
-        body=text_body,
+        message=text_body, 
         from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[user_email],
+        recipient_list=[user_email],
+        html_message=html_body,
+        fail_silently=False,
     )
-    email.attach_alternative(html_body, "text/html")
-    email.send(fail_silently=False)
