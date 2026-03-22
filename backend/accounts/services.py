@@ -17,7 +17,25 @@ def send_password_reset_otp_email(user_email, otp_code, expiry_minutes=10):
     send_mail(
         subject=subject,
         message=text_body, 
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=settings.AUTH_FROM_EMAIL,
+        recipient_list=[user_email],
+        html_message=html_body,
+        fail_silently=False,
+    )
+
+
+def send_password_reset_confirmation_email(user_email):
+    subject = "Feynman Circuits - Your password was reset"
+
+    context = {}
+
+    text_body = render_to_string("emails/password_reset_confirmation.txt", context)
+    html_body = render_to_string("emails/password_reset_confirmation.html", context)
+
+    send_mail(
+        subject=subject,
+        message=text_body,
+        from_email=settings.AUTH_FROM_EMAIL,
         recipient_list=[user_email],
         html_message=html_body,
         fail_silently=False,

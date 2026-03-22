@@ -57,6 +57,7 @@ else:
 
     EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
     DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL").strip()
+    AUTH_FROM_EMAIL = os.getenv("AUTH_FROM_EMAIL", "").strip()
     ANYMAIL = {
     "RESEND_API_KEY": os.getenv("RESEND_API_KEY"),
 }

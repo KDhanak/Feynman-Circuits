@@ -14,7 +14,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
 )
 import random
-from .services import send_password_reset_otp_email
+from .services import send_password_reset_otp_email, send_password_reset_confirmation_email
 
 User = get_user_model()
 
@@ -285,6 +285,8 @@ class PasswordResetConfirmView(APIView):
         otp_record.is_used = True
         otp_record.reset_token = None
         otp_record.save(update_fields=["is_used", "reset_token"])
+        
+        send_password_reset_confirmation_email(user.email)
 
         return Response(
             {"detail": "Password reset successful."}, status=status.HTTP_200_OK
