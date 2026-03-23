@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
-	import type { DataViewMode } from '$lib/circuitData';
+	import type { DataViewMode } from '$lib/circuitDataModal';
 	import { fade, scale } from 'svelte/transition';
 
 	export let open = false;
@@ -12,7 +12,7 @@
 	export let onClose: () => void;
 	export let onTabChange: (mode: DataViewMode) => void;
 	export let onCopy: () => void;
-	export let onExport: () => void;
+	export let onDownload: () => void;
 	export let onImport: () => void;
 	export let shake = false;
 
@@ -62,42 +62,49 @@
 
 					<button
 						type="button"
-						on:click={() => onTabChange('qir')}
-						class:!bg-white={activeView === 'qir'}
-						class:!text-secondary-2={activeView === 'qir'}
+						on:click={() => onTabChange('cir')}
+						class:!bg-white={activeView === 'cir'}
+						class:!text-secondary-2={activeView === 'cir'}
 						class="rounded-md px-3 py-1.5 text-sm border border-white text-white cursor-pointer"
 					>
-						QIR
+						Canonical IR
 					</button>
 				</div>
 
 				<div class="flex items-center gap-2">
-					<button
-						type="button"
-						on:click={onCopy}
-						class="rounded-md text-sm text-white"
-					>
-						<Icon icon="solar:copy-bold" width="24" height="24" class="active:text-green-400 cursor-pointer" />
-					</button>
-
-					<button
-						type="button"
-						on:click={onExport}
-						class="rounded-md text-sm text-white"
-					>
-						<Icon icon="mingcute:download-fill" width="24" height="24" class="active:text-green-400 cursor-pointer" />
-					</button>
-
-					{#if activeView === 'json'}
-						<button
-							type="button"
-							on:click={onImport}
-							class="rounded-md text-sm text-white"
-						>
-							<Icon icon="mdi:file-import" width="24" height="24" class="active:text-green-400 cursor-pointer" />
+					<div class="flex flex-col justify-center items-center">
+						<button type="button" on:click={onCopy} class="rounded-md text-sm text-white">
+							<Icon
+								icon="solar:copy-bold"
+								width="24"
+								height="24"
+								class="active:text-green-400 cursor-pointer"
+							/>
 						</button>
-					{/if}
-
+						<span class="font-extralight text-gray-300 text-[10px]">Copy</span>
+					</div>
+					<div class="flex flex-col justify-center items-center">
+						<button type="button" on:click={onDownload} class="rounded-md text-sm text-white">
+							<Icon
+								icon="mingcute:download-fill"
+								width="24"
+								height="24"
+								class="active:text-green-400 cursor-pointer"
+							/>
+						</button>
+						<span class="font-extralight text-gray-300 text-[10px]">Download</span>
+					</div>
+					<div class="flex flex-col">
+						<button type="button" on:click={onImport} class="rounded-md text-sm text-white">
+							<Icon
+								icon="mdi:file-import"
+								width="24"
+								height="24"
+								class="active:text-green-400 cursor-pointer"
+							/>
+						</button>
+						<span class="font-extralight text-gray-300 text-[10px]">Import</span>
+					</div>
 					<button type="button" aria-label="Close dialog" on:click={onClose}>
 						<Icon
 							icon="material-symbols:close"

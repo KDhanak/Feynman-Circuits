@@ -14,7 +14,10 @@
 	import Icon from '@iconify/svelte';
 
 	import CircuitDataModal from './CircuitDataModal.svelte';
-	import { buildJsonString, buildQirString, type DataViewMode } from '$lib/circuitData';
+	import { buildJsonString, buildCanonicalString, type DataViewMode } from '$lib/circuitDataModal';
+	import type { CircuitIR } from '$lib/IR/schema';
+	import { validateCanonicalIR } from '$lib/IR/validate';
+	import { toCircuitState } from '$lib/IR/toCircuitState';
 
 	export const gates: { type: GateType; name: string; category: string }[] = [
 		{ type: 'X', name: 'X', category: 'single' },
@@ -77,26 +80,51 @@
 			return;
 		}
 
-		if (mode === 'qir') {
-			editorContent = buildQirString($circuit);
+		if (mode === 'cir') {
+			editorContent = buildCanonicalString($circuit);
 		}
 	}
 
 	function importJson() {
-		try {
-			const input: ImportedCircuit = JSON.parse(editorContent);
-			const result = importCircuit(input);
+		if (activeView === 'json') {
+			try {
+				const input: ImportedCircuit = JSON.parse(editorContent);
+				const result = importCircuit(input);
 
-			if ('detail' in result) {
-				flash({ text: result.detail ?? 'Unknown error', isError: true });
-				return;
+				if ('detail' in result) {
+					flash({ text: result.detail ?? 'Unknown error', isError: true });
+					return;
+				}
+
+				circuit.set(result as CircuitState);
+				editorContent = buildJsonString(result as CircuitState);
+				flash({ text: 'Circuit loaded successfully!' });
+			} catch {
+				flash({ text: 'Invalid JSON format', isError: true });
 			}
+		}
 
-			circuit.set(result as CircuitState);
-			editorContent = buildJsonString(result as CircuitState);
-			flash({ text: 'Circuit loaded successfully!' });
-		} catch {
-			flash({ text: 'Invalid JSON format', isError: true });
+		if (activeView === 'cir') {
+			try {
+				const input: unknown = JSON.parse(editorContent);
+				const validationResult = validateCanonicalIR(input);
+				if (!validationResult.valid) {
+					flash({
+						text: validationResult.errors.join('\n'),
+						isError: true
+					});
+					return
+				}
+
+				const legacyCircuit = toCircuitState(input as CircuitIR);
+
+				circuit.set(legacyCircuit);
+				editorContent = JSON.stringify(input, null, 2);
+
+				flash ({text: 'Canonical IR loaded successfully!'});
+			} catch {
+				flash ({text: 'Invalid Canonical IR JSON format', isError: true});
+			}
 		}
 	}
 
@@ -123,11 +151,11 @@
 			return;
 		}
 
-		if (activeView === 'qir') {
-			const content = buildQirString($circuit);
+		if (activeView === 'cir') {
+			const content = buildCanonicalString($circuit);
 			editorContent = content;
-			downloadFile('circuit.qir', content, 'text/plain');
-			flash({ text: 'QIR downloaded!' });
+			downloadFile('circuit.json', content, 'text/plain');
+			flash({ text: 'Canonical IR downloaded!' });
 		}
 	}
 
@@ -244,7 +272,7 @@
 	onClose={closeModal}
 	onTabChange={handleTabChange}
 	onCopy={copyToClipboard}
-	onExport={exportCurrentView}
+	onDownload={exportCurrentView}
 	onImport={importJson}
 	{shake}
 />

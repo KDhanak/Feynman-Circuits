@@ -11,6 +11,7 @@ export interface BaseOperation {
 
 export interface UnitaryOperation extends BaseOperation {
     kind: 'unitary';
+    gate: CanonicalUnitaryGate;
     targets: number[];
     controls: number[];
     params: number[];

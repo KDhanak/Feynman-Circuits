@@ -1,4 +1,4 @@
-import type { CircuitState, GateInstance, MatrixGateType } from '../stores';
+import type { CircuitState, MatrixGateType } from '../stores';
 import type { CanonicalUnitaryGate, CircuitIR, CircuitOperation, UnitaryOperation } from './schema';
 
 const MATRIX_GATE_MAP: Record<MatrixGateType, CanonicalUnitaryGate> = {
