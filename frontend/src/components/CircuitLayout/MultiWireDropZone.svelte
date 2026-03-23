@@ -9,7 +9,8 @@
 		removeGate,
 		handleTouchStart,
 		handleTouchMove,
-		handleTouchEnd
+		handleTouchEnd,
+		triggerSimulation
 	} from '$lib/dragDropUtils';
 	import { updateQubitLabel } from '$lib/qubitLables';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
@@ -131,6 +132,8 @@
 			numQubits: currentCircuit.numQubits - 1,
 			qubitLabels: newQubitLabels
 		});
+
+		triggerSimulation($circuit);
 	}
 </script>
 

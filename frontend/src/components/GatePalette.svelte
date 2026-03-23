@@ -179,9 +179,17 @@
 				on:touchstart={(e) => handleTouchStart(e, { source: 'palette', gateType: gate.type })}
 				on:touchmove={handleTouchMove}
 				on:touchend={(e) => handleTouchEnd(e)}
-				class="cursor-grab font-medium text-md select-none rounded-md border px-3.5 py-2 bg-white text-secondary-2 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white"
+				class={`cursor-grab select-none border bg-white active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center ${
+					gate.type === 'CONTROL'
+						? 'h-11 w-10 rounded-md border-secondary-4'
+						: 'rounded-md border-secondary-4 px-3.5 py-2 text-md font-medium text-secondary-2'
+				}`}
 			>
-				{gate.name}
+				{#if gate.type === 'CONTROL'}
+					<span class="h-3 w-3 rounded-full bg-secondary-4"></span>
+				{:else}
+					{gate.name}
+				{/if}
 			</div>
 		{/if}
 	{/each}
@@ -238,7 +246,7 @@
 	onCopy={copyToClipboard}
 	onExport={exportCurrentView}
 	onImport={importJson}
-	shake={shake}
+	{shake}
 />
 
 <style>

@@ -16,7 +16,7 @@ import {
 
 /*──────────────────────── helpers ───────────────────────*/
 
-function triggerSimulation(cs: CircuitState) {
+export function triggerSimulation(cs: CircuitState) {
     const r =
         cs.numQubits === 1 ? simulateSingleQubit(cs) : simulateMultipleQubits(cs);
     SimulationResults.set(r);
