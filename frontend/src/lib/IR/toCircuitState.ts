@@ -1,7 +1,7 @@
 // src/lib/IR/toCircuitState.ts
 
 import type { CircuitIR, CircuitOperation, CanonicalUnitaryGate } from './schema';
-import type { CircuitState, GateInstance, MatrixGateType } from '$lib/stores';
+import type { CircuitState, GateInstance, MatrixGateType, QubitMode } from '$lib/stores';
 
 // Map canonical IR gate names back to your legacy gate names
 const IR_TO_LEGACY_GATE: Record<CanonicalUnitaryGate, MatrixGateType> = {
@@ -88,6 +88,8 @@ export function toCircuitState(ir: CircuitIR): CircuitState {
 		}
 	}
 
+	const mode: QubitMode = ir.registers.q > 1 ? 'multi' : 'single';
+
 	return {
 		numQubits: ir.registers.q,
 		qubitLabels:
@@ -95,6 +97,6 @@ export function toCircuitState(ir: CircuitIR): CircuitState {
 				? [...ir.qubitLabels]
 				: defaultQubitLabels(ir.registers.q),
 		gates,
-		mode: 'single'
+		mode: mode
 	};
 }

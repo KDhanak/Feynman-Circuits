@@ -143,7 +143,7 @@
 	class="w-[95%] relative mx-auto"
 	bind:this={boardEl}
 >
-	<div class="max-h-[50vh] overflow-y-auto space-y-2 pr-2 mb-auto pb-8 border-b border-gray-800">
+	<div class="max-h-[50vh] space-y-2 pr-2 mb-auto pb-8 border-b border-gray-800">
 		<!-- Draw vertical connector lines for multiqubit gates -->
 		{#each connectors as line (line.key)}
 			<div
