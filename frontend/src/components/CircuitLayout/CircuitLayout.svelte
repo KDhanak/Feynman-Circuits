@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { circuitLayout, circuit } from '$lib/stores';
 	import SingleWireDropZone from './SingleWireDropZone.svelte';
 	import MultiWireDropZone from './MultiWireDropZone.svelte';
@@ -12,10 +12,12 @@
 	const LEFT_EXTRA = 44;
 	const BLOCH_SPACE = 90;
 
-	const MIN_COLUMN_WIDTH = 36;
-	const MAX_COLUMN_WIDTH = 58;
+	const MIN_COLUMN_WIDTH = 44;
+	const MAX_COLUMN_WIDTH = 72;
 
 	function updateLayout() {
+		containerWidth = containerEl?.clientWidth ?? 0;
+
 		const usableWidth = Math.max(
 			0,
 			containerWidth - LABEL_WIDTH - LEFT_EXTRA - BLOCH_SPACE
@@ -33,30 +35,38 @@
 		});
 	}
 
+	async function refreshLayout() {
+		await tick();
+		updateLayout();
+	}
+
 	onMount(() => {
-		const update = () => {
-			containerWidth = containerEl?.clientWidth ?? 0;
+		refreshLayout();
+
+		const resizeObserver = new ResizeObserver(() => {
 			updateLayout();
-		};
+		});
 
-		update();
-
-		const resizeObserver = new ResizeObserver(update);
 		if (containerEl) resizeObserver.observe(containerEl);
-
-		window.addEventListener('resize', update);
+		window.addEventListener('resize', updateLayout);
 
 		return () => {
 			resizeObserver.disconnect();
-			window.removeEventListener('resize', update);
+			window.removeEventListener('resize', updateLayout);
 		};
 	});
+
+	$: if ($circuit.mode) {
+		refreshLayout();
+	}
 </script>
 
 <div bind:this={containerEl} class="w-full flex justify-center">
-	{#if $circuit.mode === 'single'}
-		<SingleWireDropZone qubit={0} />
-	{:else}
-		<MultiWireDropZone />
-	{/if}
+	{#key $circuit.mode}
+		{#if $circuit.mode === 'single'}
+			<SingleWireDropZone qubit={0} />
+		{:else}
+			<MultiWireDropZone />
+		{/if}
+	{/key}
 </div>

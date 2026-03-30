@@ -160,7 +160,7 @@
 			<div
 				role="region"
 				aria-label="Qubit ${wire.qubit} Wire Drop Zone"
-				class="wire-container-upper relative flex h-14 items-center"
+				class="wire-container-upper relative flex h-16 items-center"
 				data-qubit={wire.qubit}
 			>
 				<!-- Wire -->
@@ -223,7 +223,7 @@
 								handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
 							on:touchmove={handleTouchMove}
 							on:touchend={(e) => handleTouchEnd(e)}
-							class="gate z-10 cursor-grab select-none rounded px-3 py-1.5 border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
+							class="gate z-10 cursor-grab select-none rounded px-3 py-2 text-base border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
 							style="left: {gateOffset + (gate.columnIndex + 0.5) * columnWidth}px;"
 						>
 							{#if gate.gateType === 'CONTROL'}

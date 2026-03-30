@@ -80,7 +80,7 @@
 				handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
 			on:touchmove={handleTouchMove}
 			on:touchend={(e) => handleTouchEnd(e)}
-			class="gate z-10 cursor-grab select-none rounded px-2 py-1.5 text-sm border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
+			class="gate z-10 cursor-grab select-none rounded px-3 py-2 text-base border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
 		>
 			{gate.gateType}
 		</div>
@@ -92,7 +92,7 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		height: 6rem;
+		height: 4rem;
 		width: 95%;
 		margin: 0 auto;
 	}
