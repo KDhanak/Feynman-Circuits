@@ -13,6 +13,7 @@
 		triggerSimulation
 	} from '$lib/dragDropUtils';
 	import { updateQubitLabel } from '$lib/qubitLables';
+	import Icon from '@iconify/svelte';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 
 	let columnWidth = 58;
@@ -231,6 +232,10 @@
 									<!-- Render the CONTROL dot -->
 									<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
 								{/if}
+							{:else if gate.gateType === 'MEASURE'}
+								<span class="text-secondary-4">
+									<Icon icon="si:meter-fill" width="20" height="20" />
+								</span>
 							{:else}
 								<span class="gate-label">{gate.gateType}</span>
 							{/if}

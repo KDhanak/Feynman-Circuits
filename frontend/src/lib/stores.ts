@@ -8,7 +8,7 @@ import type { BlochVector } from './quantum/bloch';
  * Used in GateInstance for internal state and simulation.
  */
 export type MatrixGateType = 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T';
-export type GateType = MatrixGateType | 'CONTROL';
+export type GateType = MatrixGateType | 'CONTROL' | 'MEASURE';
 export type QubitMode = 'single' | 'multi';
 
 /**

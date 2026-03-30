@@ -24,16 +24,22 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 		(a, b) => a.columnIndex - b.columnIndex
 	);
 
+	const measuredQubits = new Set<number>();
+
 	// Apply gates sequentially
 	for (const gate of gatesInColumnOrder) {
-		if (gate.gateType !== 'CONTROL') {
-			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
-			if (gateDef && gateDef.matrix.length > 0) {
-				state = applyMatrix(gateDef.matrix, state);
+		if (gate.gateType === 'CONTROL') continue;
 
-			} else {
-				console.warn(`Skipping gate: ${gate.gateType} not supported`);
-			}
+		if (gate.gateType === 'MEASURE') {
+			measuredQubits.add(gate.qubit);
+			continue;
+		}
+
+		const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
+		if (gateDef && gateDef.matrix.length > 0) {
+			state = applyMatrix(gateDef.matrix, state);
+		} else {
+			console.warn(`Skipping gate: ${gate.gateType} not supported`);
 		}
 	}
 
@@ -99,14 +105,18 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 		}
 
 		// Step 4: Apply independent gates (unchanged)
+		const measuredQubits = new Set<number>();
 		for (const gate of colGates) {
 			if (gate.gateType === 'CONTROL' || controlledQubits.has(gate.qubit)) continue;
 
+			if (gate.gateType === 'MEASURE') {
+				measuredQubits.add(gate.qubit);
+				continue;
+			}
+
 			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
 			if (gateDef && gateDef.matrix.length > 0) {
-				// Build full-system matrix that applies gateDef.matrix to gate.qubit
 				const matrix = extendGateMatrix(gateDef.matrix, gate.qubit, numQubits);
-				console.debug(`[simulateMultipleQubits] Applying ${gate.gateType} on qubit ${gate.qubit}`);
 				state = applyMatrix(matrix, state);
 			} else {
 				console.warn(`Invalid or unsupported gate type: ${gate.gateType}`);
@@ -116,7 +126,7 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 		// Step 5: Apply controlled gates (ONE per target, with ALL controls)
 		for (const [targetQubit, controlQubits] of controlsByTarget) {
 			// Find the target gate (X, Y, H, etc. on this qubit)
-			const targetGate = colGates.find(g => g.qubit === targetQubit && g.gateType !== 'CONTROL');
+			const targetGate = colGates.find(g => g.qubit === targetQubit && g.gateType !== 'CONTROL' && g.gateType !== 'MEASURE');
 			if (!targetGate) {
 				console.warn(`No target gate found for CONTROL(s) on qubit ${targetQubit}`);
 				continue;

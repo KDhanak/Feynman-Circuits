@@ -26,7 +26,8 @@
 		{ type: 'H', name: 'H', category: 'single' },
 		{ type: 'S', name: 'S', category: 'single' },
 		{ type: 'T', name: 'T', category: 'single' },
-		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' }
+		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' },
+		{ type: 'MEASURE', name: 'MEASURE', category: 'single' }
 	];
 
 	let dropdownOpen = false;
@@ -113,7 +114,7 @@
 						text: validationResult.errors.join('\n'),
 						isError: true
 					});
-					return
+					return;
 				}
 
 				const legacyCircuit = toCircuitState(input as CircuitIR);
@@ -121,9 +122,9 @@
 				circuit.set(legacyCircuit);
 				editorContent = JSON.stringify(input, null, 2);
 
-				flash ({text: 'Canonical IR loaded successfully!'});
+				flash({ text: 'Canonical IR loaded successfully!' });
 			} catch {
-				flash ({text: 'Invalid Canonical IR JSON format', isError: true});
+				flash({ text: 'Invalid Canonical IR JSON format', isError: true });
 			}
 		}
 	}
@@ -208,13 +209,17 @@
 				on:touchmove={handleTouchMove}
 				on:touchend={(e) => handleTouchEnd(e)}
 				class={`cursor-grab select-none border bg-white active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center ${
-					gate.type === 'CONTROL'
+					['CONTROL', 'MEASURE'].includes(gate.type)
 						? 'h-11 w-10 rounded-md border-secondary-4'
 						: 'rounded-md border-secondary-4 px-3.5 py-2 text-md font-medium text-secondary-2'
 				}`}
 			>
 				{#if gate.type === 'CONTROL'}
 					<span class="h-3 w-3 rounded-full bg-secondary-4"></span>
+				{:else if gate.type === 'MEASURE'}
+					<span class="text-secondary-4">
+						<Icon icon="si:meter-fill" width="20" height="20" />
+					</span>
 				{:else}
 					{gate.name}
 				{/if}

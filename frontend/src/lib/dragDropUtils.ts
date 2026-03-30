@@ -319,7 +319,7 @@ export function handlePaletteDrop(e: DragEvent) {
 /*──────────────────────── double-click ──────────────────*/
 
 export function handleDoubleClick(data: GateData) {
-    const valid: GateType[] = ["X", "Y", "Z", "H", "S", "T", "CONTROL"];
+    const valid: GateType[] = ["X", "Y", "Z", "H", "S", "T", "CONTROL", "MEASURE"];
     circuit.update(current => {
         let next = current;
 
