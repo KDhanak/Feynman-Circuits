@@ -1,6 +1,6 @@
 import type { CircuitState, SimulationResult, MatrixGateType } from "./stores";
 import { circuit, SimulationResults } from '../lib/stores';
-import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared } from "./quantum/complex";
+import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
 import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix } from "./quantum/matrix";
 import { GATE_MAP } from "./quantum/gates";
@@ -8,11 +8,43 @@ import { get } from "svelte/store";
 import { computeBlochVectorsFromState } from './quantum/bloch';
 
 /**
- * Simulates a quantum circuit with a single qubit.
- * Applies the gates in the circuit to the initial state |0⟩.
- * @param circuit - The CircuitState object representing the circuit.
- * @returns The simulation result containing probabilities of measuring |0⟩ and |1⟩.
+ * Collapses ONE qubit to a random 0 or 1 (according to Born's rule).
+ * This is how every quantum simulator (Quirk, IBM, Qiskit) does it.
  */
+export function collapseQubit(
+	state: QuantumState,
+	qubit: number,
+	numQubits: number
+): QuantumState {
+	const dim = 1 << numQubits;
+	const pos = numQubits - 1 - qubit;        // qubit 0 = highest bit
+
+	// Step 1: Calculate probability of measuring |0⟩ for this qubit
+	let prob0 = 0;
+	const blockSize = 1 << pos;               // size of each 0/1 pair block
+
+	for (let base = 0; base < dim; base += 2 * blockSize) {
+		for (let offset = 0; offset < blockSize; offset++) {
+			prob0 += magnitudeSquared(state[base + offset]);
+		}
+	}
+
+	// Step 2: Randomly choose outcome (this is the "quantum randomness")
+	const outcome = Math.random() < prob0 ? 0 : 1;
+
+	// Step 3: Keep only the amplitudes for the chosen outcome
+	const newState = state.map((amp, index) => {
+		const bit = (index >> pos) & 1;
+		return bit === outcome ? amp : createComplex(0, 0);
+	});
+
+	// Step 4: Renormalize so total probability = 1
+	const totalProb = newState.reduce((sum, amp) => sum + magnitudeSquared(amp), 0);
+	const norm = Math.sqrt(totalProb || 1);
+
+	return newState.map(amp => scale(amp, 1 / norm));
+}
+
 export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 	// Initial state: |0⟩ = [1, 0]
 	let state: QuantumState = createState([
@@ -32,6 +64,7 @@ export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
 
 		if (gate.gateType === 'MEASURE') {
 			measuredQubits.add(gate.qubit);
+			state = collapseQubit(state, gate.qubit, 1);
 			continue;
 		}
 
@@ -111,6 +144,7 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 
 			if (gate.gateType === 'MEASURE') {
 				measuredQubits.add(gate.qubit);
+				state = collapseQubit(state, gate.qubit, numQubits);
 				continue;
 			}
 
