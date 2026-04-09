@@ -36,7 +36,7 @@
 	<!-- Wire/s with Drop Zone -->
 	<CircuitLayout />
 
-	<div class="absolute z-10 bottom-2 w-11/12 grid grid-cols-3">
+	<div class="absolute bottom-2 w-[96%] grid grid-cols-3">
 		<div class="justify-self-start mt-auto">
 			<SimulationResult />
 		</div>
@@ -44,7 +44,7 @@
 		<div></div>
 		<!-- empty center -->
 
-		<div class="justify-self-end mt-auto">
+		<div class="justify-self-end mt-auto z-50">
 			<OverallBlochSphere />
 		</div>
 	</div>

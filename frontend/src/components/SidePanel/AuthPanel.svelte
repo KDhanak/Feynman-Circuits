@@ -164,7 +164,7 @@
 		</button>
 		{#if dropdownOpen}
 			<div
-				class="absolute top-full w-[130%] right-0 mt-1 bg-ternary-2 border rounded-md shadow-md border-white z-50"
+				class="absolute top-full w-[130%] right-0 mt-1 bg-ternary-2 border rounded-md shadow-md border-white z-100"
 			>
 				<button
 					on:click={() => {
@@ -181,7 +181,7 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-40 bg-black/40"
+		class="fixed inset-0 z-100 bg-black/40"
 		role="button"
 		tabindex="0"
 		aria-label="Close authentication drawer"

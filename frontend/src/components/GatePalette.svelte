@@ -190,7 +190,7 @@
 	on:dragover={(e) => e.preventDefault()}
 	on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
 	on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
-	class="relative mb-2 w-14/15 h-auto py-4 flex justify-center gap-3 rounded-md border-2 border-secondary-3"
+	class="relative mb-4 w-[96%] h-auto py-4 flex justify-center gap-3 rounded-md border-1 border-secondary-3 shadow-sm shadow-ternary-2"
 >
 	{#each gates as gate}
 		{#if isSingleMode ? gate.category === 'single' : true}
@@ -246,7 +246,7 @@
 
 		{#if dropdownOpen}
 			<div
-				class="absolute top-full right-0 mt-1 bg-white border rounded-lg shadow-md z-50 min-w-[120px]"
+				class="absolute top-full right-0 mt-1 bg-white border rounded-lg shadow-md z-60 min-w-[120px]"
 			>
 				<button
 					type="button"

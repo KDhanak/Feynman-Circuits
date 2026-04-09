@@ -141,14 +141,16 @@
 <div
 	role="region"
 	aria-label="Quantum Circuit Multi-Wire Drop Zone"
-	class="w-[95%] relative mx-auto"
+	class="w-[96%] relative mx-auto z-50"
 	bind:this={boardEl}
 >
-	<div class="max-h-[50vh] space-y-2 pr-2 mb-auto pb-8 border-b border-gray-800">
+	<div
+		class="max-h-[60vh] h-[90%] space-y-1 p-2 mb-auto border border-ternary-2 shadow-md shadow-secondary-4 rounded-sm overflow-y-auto overflow-x-hidden"
+	>
 		<!-- Draw vertical connector lines for multiqubit gates -->
 		{#each connectors as line (line.key)}
 			<div
-				class="absolute w-0.5 z-10 bg-ternary-1 pointer-events-none"
+				class="absolute w-0.5 bg-ternary-1 pointer-events-none"
 				style="
 			left: {line.left}px;
 			top: {line.top}px;
@@ -161,7 +163,7 @@
 			<div
 				role="region"
 				aria-label="Qubit ${wire.qubit} Wire Drop Zone"
-				class="wire-container-upper relative flex h-16 items-center"
+				class="relative flex h-16 items-center"
 				data-qubit={wire.qubit}
 			>
 				<!-- Wire -->
@@ -250,7 +252,7 @@
 			<div
 				role="region"
 				aria-label="Ghost qubit wire for dynamic expansion"
-				class="wire-container-upper ghost-wire relative flex h-14 items-center"
+				class="ghost-wire relative flex h-14 items-center"
 				data-qubit={$circuit.numQubits}
 			>
 				<!-- Wire -->
@@ -329,5 +331,23 @@
 		top: 50%;
 		transform: translateY(-50%);
 		z-index: 20;
+	}
+	::-webkit-scrollbar {
+		width: 7px;
+		height: 7px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: #1f2937; /* dark bg */
+		border-radius: 20px;
+	}
+
+	::-webkit-scrollbar-thumb {
+		background: gray; /* your purple color */
+		border-radius: 20px;
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: darkgray;
 	}
 </style>
