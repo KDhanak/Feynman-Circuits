@@ -89,7 +89,9 @@
 					}}
 				>
 					<div class="flex mb-2 justify-center">
-						<h3 class="text-white text-lg font-bold underline underline-offset-4">Simulation Results</h3>
+						<h3 class="text-white text-lg font-bold underline underline-offset-4">
+							Simulation Results
+						</h3>
 						<button type="button" aria-label="Close dialog" on:click={toggleEnlarge}>
 							<Icon
 								icon="material-symbols:close"
@@ -101,13 +103,24 @@
 							/>
 						</button>
 					</div>
-					<p class="text-md font-bold">
+					<p class="text-md font-medium">
 						Quantum State:
-						<span class="text-sm font-medium text-ternary-1">
-							<!-- Ensure formattedState exists before displaying -->
+						<span class="text-sm font-normal">
 							{$SimulationResults.formattedState ?? 'Calculating...'}
 						</span>
 					</p>
+
+					<!-- Classical bits display -->
+					{#if $SimulationResults.classicalBits && $SimulationResults.classicalBits.size > 0}
+						<p class="text-md font-medium mt-3">
+							Classical bits after measurement:
+							<span class="text-ternary-1 font-semibold">
+								{Array.from($SimulationResults.classicalBits.entries())
+									.map(([qubit, value]) => `q${qubit} = ${value}`)
+									.join(', ')}
+							</span>
+						</p>
+					{/if}
 
 					<p class="text-md font-medium mt-5">Probabilities:</p>
 
@@ -137,10 +150,21 @@
 		<p class="text-md font-medium">
 			Quantum State:
 			<span class="text-sm font-normal">
-				<!-- Ensure formattedState exists before displaying -->
 				{$SimulationResults.formattedState ?? 'Calculating...'}
 			</span>
 		</p>
+
+		<!-- Classical bits display -->
+		{#if $SimulationResults.classicalBits && $SimulationResults.classicalBits.size > 0}
+			<p class="text-md font-medium mt-3">
+				Classical bits after measurement:
+				<span class="text-ternary-1 font-semibold">
+					{Array.from($SimulationResults.classicalBits.entries())
+						.map(([qubit, value]) => `q${qubit} = ${value}`)
+						.join(', ')}
+				</span>
+			</p>
+		{/if}
 
 		<p class="text-md font-medium mt-5">Probabilities:</p>
 

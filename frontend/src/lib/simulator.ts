@@ -1,4 +1,4 @@
-import type { CircuitState, SimulationResult, MatrixGateType } from "./stores";
+import type { CircuitState, SimulationResult, MatrixGateType, GateInstance } from "./stores";
 import { circuit, SimulationResults } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
@@ -15,7 +15,7 @@ export function collapseQubit(
 	state: QuantumState,
 	qubit: number,
 	numQubits: number
-): QuantumState {
+): { newState: QuantumState; outcome: number } {
 	const dim = 1 << numQubits;
 	const pos = numQubits - 1 - qubit;        // qubit 0 = highest bit
 
@@ -30,7 +30,7 @@ export function collapseQubit(
 	}
 
 	// Step 2: Randomly choose outcome (this is the "quantum randomness")
-	const outcome = Math.random() < prob0 ? 0 : 1;
+	const outcome = prob0 > 0.5 ? 0 : 1;
 
 	// Step 3: Keep only the amplitudes for the chosen outcome
 	const newState = state.map((amp, index) => {
@@ -42,63 +42,94 @@ export function collapseQubit(
 	const totalProb = newState.reduce((sum, amp) => sum + magnitudeSquared(amp), 0);
 	const norm = Math.sqrt(totalProb || 1);
 
-	return newState.map(amp => scale(amp, 1 / norm));
+	return {
+		newState: newState.map(amp => scale(amp, 1 / norm)),
+		outcome
+	};
 }
 
+export function skipIfMeasured(
+	gate: GateInstance,
+	measuredQubits: Set<number>
+): boolean {
+	return measuredQubits.has(gate.qubit);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 1. Single-qubit simulator (Corrected)
 export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
-	// Initial state: |0⟩ = [1, 0]
-	let state: QuantumState = createState([
-		createComplex(1, 0),
-		createComplex(0, 0),
-	]);
-
-	const gatesInColumnOrder = [...circuit.gates].sort(
-		(a, b) => a.columnIndex - b.columnIndex
-	);
-
+	let state: QuantumState = createState([createComplex(1, 0), createComplex(0, 0)]);
 	const measuredQubits = new Set<number>();
+	const classicalBits = new Map<number, number>();   // qubit → classical 0 or 1
 
-	// Apply gates sequentially
+	const gatesInColumnOrder = [...circuit.gates].sort((a, b) => a.columnIndex - b.columnIndex);
+
 	for (const gate of gatesInColumnOrder) {
-		if (gate.gateType === 'CONTROL') continue;
-
 		if (gate.gateType === 'MEASURE') {
 			measuredQubits.add(gate.qubit);
-			state = collapseQubit(state, gate.qubit, 1);
+			const result = collapseQubit(state, gate.qubit, 1);   // updated call
+			state = result.newState;
+			classicalBits.set(gate.qubit, result.outcome);
 			continue;
 		}
+
+		if (skipIfMeasured(gate, measuredQubits)) {
+			// Classical gate after measurement
+			if (gate.gateType === 'X') {
+				let current = classicalBits.get(gate.qubit) ?? 0;
+				current = 1 - current;                    // flip 0 <-> 1
+				classicalBits.set(gate.qubit, current);
+
+				// Update the quantum state to reflect the classical value
+				const pos = 0; // single qubit
+				state = state.map((amp, index) => {
+					return index === current ? amp : createComplex(0, 0);
+				});
+				// No need to renormalize since it's already a basis state
+			}
+			// Ignore all other gates after measurement
+			continue;
+		}
+
+		if (gate.gateType === 'CONTROL') continue;
 
 		const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
 		if (gateDef && gateDef.matrix.length > 0) {
 			state = applyMatrix(gateDef.matrix, state);
-		} else {
-			console.warn(`Skipping gate: ${gate.gateType} not supported`);
 		}
 	}
 
-	// Calculate probabilities
-	const probabilities: { [state: string]: number } = {
+	const probabilities = {
 		'0': magnitudeSquared(state[0]),
-		'1': magnitudeSquared(state[1]),
+		'1': magnitudeSquared(state[1])
 	};
 
 	const formattedState = formatQuantumState(state);
 	const formattedStatePolar = formatQuantumStatePolar(state);
-
 	const blochVectors = computeBlochVectorsFromState(state, 1);
-	return { probabilities, formattedState, formattedStatePolar, blochVectors };
+
+	return {
+		probabilities,
+		formattedState,
+		formattedStatePolar,
+		blochVectors,
+		measuredQubits: Array.from(measuredQubits).sort((a, b) => a - b),
+		classicalBits
+	};
 }
 
-
+// ─────────────────────────────────────────────────────────────
+// 2. Multi-qubit simulator with classical post-measurement support
 export function simulateMultipleQubits(circuit: CircuitState): SimulationResult {
 	const { numQubits, gates } = circuit;
-	if (numQubits < 2) {
-		throw new Error('Multi-Qubit simulator requires at least 2 qubits');
-	}
+	if (numQubits < 2) throw new Error('Multi-Qubit simulator requires at least 2 qubits');
 
 	const dim = 1 << numQubits;
 	let state: QuantumState = createState(Array(dim).fill(null).map(() => createComplex(0, 0)));
 	state[0] = createComplex(1, 0);
+
+	const measuredQubits = new Set<number>();
+	const classicalBits = new Map<number, number>();   // qubit → classical 0 or 1
 
 	const maxColumn = gates.length ? Math.max(...gates.map(g => g.columnIndex)) + 1 : 0;
 	const columns = Array.from({ length: maxColumn }, (_, colIndex) =>
@@ -106,11 +137,8 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 	);
 
 	for (const colGates of columns) {
-		// Step 1: Extract CONTROL gates
+		// CONTROL aggregation
 		const controlGates = colGates.filter(g => g.gateType === 'CONTROL');
-
-
-		// Step 2: Aggregate CONTROLs by targetQubit (NOT create pairs!)
 		const controlsByTarget = new Map<number, number[]>();
 		for (const ctrl of controlGates) {
 			const targets = ctrl.targetQubits ?? (ctrl.targetQubit !== undefined ? [ctrl.targetQubit] : []);
@@ -121,30 +149,40 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 			}
 		}
 
-		// Example: If you have:
-		//   CONTROL(qubit=0, targetQubit=2)
-		//   CONTROL(qubit=1, targetQubit=2)
-		//   X(qubit=2)
-		//
-		// After aggregation, controlsByTarget = {
-		//   2: [0, 1]  ← ALL controls targeting qubit 2, collected in array
-		// }
-
-		// Step 3: Build set of involved qubits (for skipping independent gates)
 		const controlledQubits = new Set<number>();
 		for (const [t, ctrls] of controlsByTarget) {
-			controlledQubits.add(t);              // Add target qubit
-			ctrls.forEach(c => controlledQubits.add(c));  // Add ALL control qubits
+			controlledQubits.add(t);
+			ctrls.forEach(c => controlledQubits.add(c));
 		}
 
-		// Step 4: Apply independent gates (unchanged)
-		const measuredQubits = new Set<number>();
+		// Independent gates
 		for (const gate of colGates) {
 			if (gate.gateType === 'CONTROL' || controlledQubits.has(gate.qubit)) continue;
 
 			if (gate.gateType === 'MEASURE') {
 				measuredQubits.add(gate.qubit);
-				state = collapseQubit(state, gate.qubit, numQubits);
+				const result = collapseQubit(state, gate.qubit, numQubits);
+				state = result.newState;
+				classicalBits.set(gate.qubit, result.outcome);
+				continue;
+			}
+
+			if (skipIfMeasured(gate, measuredQubits)) {
+				// Classical gate after measurement
+				if (gate.gateType === 'X') {
+					let current = classicalBits.get(gate.qubit) ?? 0;
+					current = 1 - current;                    // flip 0 <-> 1
+					classicalBits.set(gate.qubit, current);
+
+					// Update quantum state to reflect new classical value
+					const pos = numQubits - 1 - gate.qubit;
+					const mask = 1 << pos;
+					state = state.map((amp, index) => {
+						const bit = (index >> pos) & 1;
+						return bit === current ? amp : createComplex(0, 0);
+					});
+				}
+				// Ignore other gates (H, Y, Z, etc.)
 				continue;
 			}
 
@@ -152,44 +190,22 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 			if (gateDef && gateDef.matrix.length > 0) {
 				const matrix = extendGateMatrix(gateDef.matrix, gate.qubit, numQubits);
 				state = applyMatrix(matrix, state);
-			} else {
-				console.warn(`Invalid or unsupported gate type: ${gate.gateType}`);
 			}
 		}
 
-		// Step 5: Apply controlled gates (ONE per target, with ALL controls)
+		// Controlled gates (block if target is measured)
 		for (const [targetQubit, controlQubits] of controlsByTarget) {
-			// Find the target gate (X, Y, H, etc. on this qubit)
+			if (measuredQubits.has(targetQubit)) continue;
+
 			const targetGate = colGates.find(g => g.qubit === targetQubit && g.gateType !== 'CONTROL' && g.gateType !== 'MEASURE');
-			if (!targetGate) {
-				console.warn(`No target gate found for CONTROL(s) on qubit ${targetQubit}`);
-				continue;
-			}
+			if (!targetGate) continue;
 
-			// Get the gate definition from GATE_MAP (no hardcoding!)
 			const gateDef = GATE_MAP[targetGate.gateType as MatrixGateType];
-			if (!gateDef || gateDef.matrix.length === 0) {
-				console.warn(`Unsupported target gate: ${targetGate.gateType}`);
-				continue;
-			}
+			if (!gateDef || gateDef.matrix.length === 0) continue;
 
-			// ✅ Build ONE multi-control matrix with ALL controls
-			//    Instead of:    computeControlledUMatrix(0, 2, ...)  [1 control]
-			//    We now call:   computeMultiControlledUMatrix([0, 1], 2, ...)  [2+ controls]
 			const matrix = computeMultiControlledUMatrix(controlQubits, targetQubit, numQubits, gateDef.matrix);
 			state = applyMatrix(matrix, state);
 		}
-
-		// CONSEQUENCE:
-		// For the same example:
-		//   CONTROL(qubit=0, targetQubit=2)
-		//   CONTROL(qubit=1, targetQubit=2)
-		//   X(qubit=2)
-		//
-		// Now applies ONE Toffoli operation:
-		// computeMultiControlledUMatrix([0, 1], 2, 3, X_GATE.matrix)
-		//
-		// ✅ CORRECT! X flips ONLY IF both qubits 0 AND 1 are |1⟩
 	}
 
 	const probabilities = Object.fromEntries(
@@ -198,14 +214,21 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 			const prob = magnitudeSquared(amplitude);
 			return [bitString, prob] as [string, number];
 		})
-	)
+	);
 
 	const formattedState = formatQuantumState(state);
 	const formattedStatePolar = formatQuantumStatePolar(state);
 	const blochVectors = computeBlochVectorsFromState(state, numQubits);
-	return { probabilities, formattedState, formattedStatePolar, blochVectors };
 
-}
+	return {
+		probabilities,
+		formattedState,
+		formattedStatePolar,
+		blochVectors,
+		measuredQubits: Array.from(measuredQubits).sort((a, b) => a - b),
+		classicalBits
+	};
+};
 
 export function resetCircuit() {
 	const current = get(circuit);

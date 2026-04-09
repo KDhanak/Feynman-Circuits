@@ -13,6 +13,7 @@
 	import { get } from 'svelte/store';
 	import { updateQubitLabel } from '$lib/qubitLables';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
+	import Icon from '@iconify/svelte';
 
 	export let qubit: number;
 
@@ -82,7 +83,13 @@
 			on:touchend={(e) => handleTouchEnd(e)}
 			class="gate z-10 cursor-grab select-none rounded px-3 py-2 text-base border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
 		>
-			{gate.gateType}
+			{#if gate.gateType === 'MEASURE'}
+				<span class="text-secondary-4">
+					<Icon icon="si:meter-fill" width="20" height="20" />
+				</span>
+			{:else}
+				<span class="gate-label">{gate.gateType}</span>
+			{/if}
 		</div>
 	{/each}
 </div>

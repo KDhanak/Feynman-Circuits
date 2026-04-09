@@ -63,7 +63,8 @@ export interface SimulationResult {
     formattedQuantumStateApproximate?: string;
     formattedStatePolar?: string;
     blochVectors?: BlochVector[];
-
+    measuredQubits?: number[];
+    classicalBits?: Map<number, number>;
 };
 
 /**

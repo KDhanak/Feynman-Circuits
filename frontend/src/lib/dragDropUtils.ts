@@ -1,5 +1,3 @@
-// dragDropUtils.ts  –  cleaned version  ❱❱❱
-
 import {
     circuit,
     SimulationResults,
