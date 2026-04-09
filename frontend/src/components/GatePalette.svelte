@@ -190,7 +190,7 @@
 	on:dragover={(e) => e.preventDefault()}
 	on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
 	on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
-	class="relative mb-4 w-[96%] h-auto py-4 flex justify-center gap-3 rounded-md border-1 border-secondary-3 shadow-sm shadow-ternary-2"
+	class="relative mb-4 w-[96%] h-auto py-4 flex justify-center gap-3 rounded-md border-1 border-secondary-3"
 >
 	{#each gates as gate}
 		{#if isSingleMode ? gate.category === 'single' : true}
