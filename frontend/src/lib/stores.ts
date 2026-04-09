@@ -51,6 +51,7 @@ export interface GateData {
     source: 'palette' | 'wire';
     gateType?: string; // Present if source is 'palette'
     gateId?: string; // Present if source is 'wire'
+    isCopy?: boolean; // Indicates if the drag operation is a copy (e.g., Ctrl key pressed)
 };
 
 /**

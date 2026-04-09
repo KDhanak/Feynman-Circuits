@@ -25,6 +25,13 @@ function findNextAvailableColumn(cs: CircuitState, q: number) {
     return cols.length ? Math.max(...cols) + 1 : 0;
 }
 
+function isCopyModifier(e: DragEvent | TouchEvent): boolean {
+    if (e instanceof DragEvent) {
+        return e.ctrlKey || e.metaKey;
+    }
+    return false;
+}
+
 /** Recompute every CONTROL→X pairing for a consistent circuit */
 function relinkControls(gates: GateInstance[]): GateInstance[] {
     return gates.map(g => {
@@ -58,9 +65,17 @@ let touchData: GateData | null = null;
 let ghostElement: HTMLElement | null = null;
 
 export function handleGateDragStart(e: DragEvent, id: string) {
+    const isCopy = isCopyModifier(e);
+
+    const dragData: GateData = {
+        source: "wire",
+        gateId: id,
+        isCopy
+    };
+
     e.dataTransfer?.setData(
         "application/json",
-        JSON.stringify({ source: "wire", gateId: id } satisfies GateData)
+        JSON.stringify(dragData)
     );
     isDragging.set(true);
 }
@@ -187,6 +202,7 @@ export function handleTouchEnd(event: TouchEvent) {
 export function handleDrop(e: DragEvent, col: number, qubit: number) {
     e.preventDefault();
     isDragging.set(false);
+
     const raw = e.dataTransfer?.getData("application/json");
     if (!raw) return;
 
@@ -217,7 +233,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
                 triggerSimulation(updated);
                 return updated;
             } else if (parsed.source === "wire" && parsed.gateId) {
-                // Moving a gate to the ghost qubit also expands
+                // Moving or Copying a gate to the ghost qubit also expands
                 const moving = current.gates.find(g => g.id === parsed.gateId);
                 if (!moving) return current;
 
@@ -241,25 +257,44 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
             return current;
         }
 
-        /*─── 1. MOVE an existing gate ───*/
+        /*─── 1. MOVE or COPY an existing gate ───*/
         if (parsed.source === "wire" && parsed.gateId) {
-            const moving = current.gates.find(g => g.id === parsed.gateId);
-            if (!moving) return current;
+            const original = current.gates.find(g => g.id === parsed.gateId);
+            if (!original) return current;
 
-            if (
-                current.gates.some(
-                    g => g.columnIndex === col && g.qubit === qubit && g.id !== moving.id
-                )
-            ) {
+            const isCopy = parsed.isCopy ?? false;
+
+            // Check if target slot is free
+            if (current.gates.some(g =>
+                g.columnIndex === col &&
+                g.qubit === qubit &&
+                g.id !== original.id
+            )) {
                 console.warn(`Cell (${col}, q=${qubit}) is occupied.`);
                 return current;
             }
 
-            const afterMove = current.gates.map(g =>
-                g.id === moving.id ? { ...g, columnIndex: col, qubit } : g
-            );
+            let newGates = [...current.gates];
 
-            const relinked = relinkControls(afterMove);
+            if (isCopy) {
+                // Duplicate: create new gate with same type but new ID
+                const duplicate: GateInstance = {
+                    ...original,
+                    id: crypto.randomUUID(),           // NEW ID
+                    columnIndex: col,
+                    qubit: qubit
+                };
+                newGates.push(duplicate);
+            } else {
+                // Normal move
+                newGates = newGates.map(g =>
+                    g.id === original.id
+                        ? { ...g, columnIndex: col, qubit }
+                        : g
+                );
+            }
+
+            const relinked = relinkControls(newGates);
             const updated = { ...current, gates: relinked };
             triggerSimulation(updated);
             return updated;
