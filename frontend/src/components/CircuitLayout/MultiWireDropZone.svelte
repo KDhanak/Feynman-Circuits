@@ -18,6 +18,7 @@
 
 	let columnWidth = 58;
 	let gateOffset = 120;
+	let scrollContainer: HTMLDivElement | null = null;
 
 	const MAX_COLUMNS = 29;
 	const MAX_QUBITS = 8;
@@ -84,23 +85,6 @@
 		});
 	}
 
-	onMount(() => {
-		const ro = new ResizeObserver(() => scheduleConnectorRecompute());
-		if (boardEl) ro.observe(boardEl);
-
-		window.addEventListener('resize', scheduleConnectorRecompute);
-		window.addEventListener('scroll', scheduleConnectorRecompute, true);
-
-		scheduleConnectorRecompute();
-
-		return () => {
-			ro.disconnect();
-			window.removeEventListener('resize', scheduleConnectorRecompute);
-			window.removeEventListener('scroll', scheduleConnectorRecompute, true);
-			if (rafId !== null) cancelAnimationFrame(rafId);
-		};
-	});
-
 	$: $circuit.gates, scheduleConnectorRecompute();
 
 	$: wires = Array.from({ length: $circuit.numQubits }, (_, i) => ({
@@ -135,6 +119,21 @@
 		});
 
 		triggerSimulation($circuit);
+	}
+	// Auto-scroll when 5th, 6th, or 7th qubit (ghost wire) appears
+	$: if ($circuit.numQubits >= 5 && scrollContainer) {
+		(async () => {
+			await tick(); // Wait for the new ghost wire to be rendered
+
+			setTimeout(() => {
+				if (scrollContainer) {
+					scrollContainer.scrollTo({
+						top: scrollContainer.scrollHeight + 140, // Extra padding so ghost dropzone is fully visible
+						behavior: 'smooth'
+					});
+				}
+			}, 120);
+		})();
 	}
 </script>
 
@@ -254,6 +253,7 @@
 				aria-label="Ghost qubit wire for dynamic expansion"
 				class="ghost-wire relative flex h-14 items-center"
 				data-qubit={$circuit.numQubits}
+				bind:this={scrollContainer}
 			>
 				<!-- Wire -->
 				<div
