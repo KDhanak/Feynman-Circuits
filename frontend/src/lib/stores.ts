@@ -9,7 +9,6 @@ import type { BlochVector } from './quantum/bloch';
  */
 export type MatrixGateType = 'X' | 'Y' | 'Z' | 'H' | 'S' | 'T';
 export type GateType = MatrixGateType | 'CONTROL' | 'MEASURE';
-export type QubitMode = 'single' | 'multi';
 
 /**
  * Represents a gate instance in the internal circuit state.
@@ -35,14 +34,12 @@ export interface GateInstance {
  * Stored in the circuit store and used by the simulator.
  */
 export interface CircuitState {
-    /** Number of qubits in the circuit (currently 1 for single qubit) */
+    /** Number of qubits in the circuit (starts at 1, supports up to 8) */
     numQubits: number;
     /** Array of gates in the circuit */
     gates: GateInstance[];
     /** Optional labels for qubits, used in UI */
     qubitLabels?: string[];
-    /** Optional field to record the mode of the circuit */
-    mode?: QubitMode;
 };
 
 // Define the type for the drag data
@@ -88,7 +85,6 @@ export interface ImportedCircuit {
     qubitLabels?: [];
     gates: ImportedGate[];
     numQubits: number;
-    mode?: QubitMode;
 };
 
 /**
@@ -107,7 +103,6 @@ export const circuit = writable<CircuitState>({
     numQubits: 1,
     gates: [],
     qubitLabels: ['Qubit 0'],
-    mode: 'single',
 });
 
 /**
@@ -126,18 +121,6 @@ export const SimulationResults = writable<SimulationResult>({
  * Used to display ghost qubit wires for dynamic qubit expansion.
  */
 export const isDragging = writable<boolean>(false);
-
-/** function for switch between single and multi qubit mode. */
-export function toggleMode(backToCount: number = 2) {
-    circuit.update(c => {
-        const newCount = c.numQubits === 1 ? backToCount : 1;
-        return {
-            ...c,
-            numQubits: newCount,
-            qubitLabels: Array.from({ length: newCount }, (_, i) => `Qubit ${i}`)
-        };
-    });
-};
 
 /**
  * Store for the current state of the quantum circuit.

@@ -1,5 +1,5 @@
 import { generateDefaultQubitLabels } from "./qubitLables";
-import type { CircuitState, GateType, GateInstance, QubitMode } from "./stores";
+import type { CircuitState, GateType, GateInstance } from "./stores";
 import type { ImportedCircuit, ErrorResponse } from "./stores";
 
 /**
@@ -128,8 +128,6 @@ export function importCircuit(input: ImportedCircuit): CircuitState | ErrorRespo
 		}
 	}
 
-	const mode: QubitMode = input.mode ? input.mode : input.numQubits === 1 ? "single" : "multi";
-
 	const labels =
 		input.qubitLabels?.slice(0, input.numQubits) ?? generateDefaultQubitLabels(input.numQubits);
 
@@ -137,6 +135,5 @@ export function importCircuit(input: ImportedCircuit): CircuitState | ErrorRespo
 		numQubits: input.numQubits,
 		gates,
 		qubitLabels: labels,
-		mode
 	};
 }

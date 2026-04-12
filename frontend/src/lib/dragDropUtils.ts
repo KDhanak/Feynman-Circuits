@@ -9,15 +9,13 @@ import {
 } from "./stores";
 import {
     simulateMultipleQubits,
-    simulateSingleQubit,
 } from "$lib/simulator";
 
 /*──────────────────────── helpers ───────────────────────*/
 
 export function triggerSimulation(cs: CircuitState) {
-    const r =
-        cs.numQubits === 1 ? simulateSingleQubit(cs) : simulateMultipleQubits(cs);
-    SimulationResults.set(r);
+    const result = simulateMultipleQubits(cs);
+    SimulationResults.set(result);
 }
 
 function findNextAvailableColumn(cs: CircuitState, q: number) {
@@ -353,24 +351,30 @@ export function handlePaletteDrop(e: DragEvent) {
 
 export function handleDoubleClick(data: GateData) {
     const valid: GateType[] = ["X", "Y", "Z", "H", "S", "T", "CONTROL", "MEASURE"];
+
     circuit.update(current => {
         let next = current;
 
         if (data.source === "palette" && data.gateType) {
-            if (current.numQubits > 1) return current;
             const gt = data.gateType as GateType;
             if (!valid.includes(gt)) return current;
 
-            const q = 0;
+            // For single qubit → always use qubit 0
+            // For multi qubit → use the first qubit (or improve later with click target)
+            const q = current.numQubits === 1 ? 0 : 0;   // You can enhance this later
+
             const col = findNextAvailableColumn(current, q);
+
             const g: GateInstance = {
                 id: crypto.randomUUID(),
                 gateType: gt,
                 qubit: q,
                 columnIndex: col,
             };
+
             next = { ...current, gates: [...current.gates, g] };
-        } else if (data.source === "wire" && data.gateId) {
+        } 
+        else if (data.source === "wire" && data.gateId) {
             next = { ...current, gates: current.gates.filter(g => g.id !== data.gateId) };
         }
 

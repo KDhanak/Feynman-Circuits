@@ -4,10 +4,9 @@ import { fromCircuitState } from '$lib/IR/fromCircuitState';
 export type DataViewMode = 'json' | 'cir';
 
 export function buildCircuitJson(circuitState: CircuitState) {
-	const { numQubits, gates, qubitLabels, mode } = circuitState;
+	const { numQubits, gates, qubitLabels } = circuitState;
 
 	return {
-		mode,
 		numQubits,
 		qubitLabels,
 		gates: gates.map(({ gateType, qubit, columnIndex, targetQubit, targetQubits }) => ({

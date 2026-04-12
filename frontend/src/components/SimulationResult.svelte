@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { SimulationResults, circuit } from '../lib/stores';
-	import Icon from '@iconify/svelte';
 	import { onMount, onDestroy } from 'svelte';
-
-	const DISPLAY_LIMIT = 2;   // inline view for ≤2 qubits, popup for ≥3
 
 	let popupWindow: Window | null = null;
 	let unsubscribe: (() => void) | null = null;

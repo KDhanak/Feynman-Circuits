@@ -17,11 +17,10 @@ export function collapseQubit(
 	numQubits: number
 ): { newState: QuantumState; outcome: number } {
 	const dim = 1 << numQubits;
-	const pos = numQubits - 1 - qubit;        // qubit 0 = highest bit
+	const pos = numQubits - 1 - qubit;
 
-	// Step 1: Calculate probability of measuring |0⟩ for this qubit
 	let prob0 = 0;
-	const blockSize = 1 << pos;               // size of each 0/1 pair block
+	const blockSize = 1 << pos;
 
 	for (let base = 0; base < dim; base += 2 * blockSize) {
 		for (let offset = 0; offset < blockSize; offset++) {
@@ -29,16 +28,13 @@ export function collapseQubit(
 		}
 	}
 
-	// Step 2: Randomly choose outcome (this is the "quantum randomness")
-	const outcome = prob0 > 0.5 ? 0 : 1;
+	const outcome = prob0 > 0.5 ? 0 : 1;   // simple random choice (you can use Math.random() later if you want)
 
-	// Step 3: Keep only the amplitudes for the chosen outcome
 	const newState = state.map((amp, index) => {
 		const bit = (index >> pos) & 1;
 		return bit === outcome ? amp : createComplex(0, 0);
 	});
 
-	// Step 4: Renormalize so total probability = 1
 	const totalProb = newState.reduce((sum, amp) => sum + magnitudeSquared(amp), 0);
 	const norm = Math.sqrt(totalProb || 1);
 
@@ -56,80 +52,18 @@ export function skipIfMeasured(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 1. Single-qubit simulator (Corrected)
-export function simulateSingleQubit(circuit: CircuitState): SimulationResult {
-	let state: QuantumState = createState([createComplex(1, 0), createComplex(0, 0)]);
-	const measuredQubits = new Set<number>();
-	const classicalBits = new Map<number, number>();   // qubit → classical 0 or 1
-
-	const gatesInColumnOrder = [...circuit.gates].sort((a, b) => a.columnIndex - b.columnIndex);
-
-	for (const gate of gatesInColumnOrder) {
-		if (gate.gateType === 'MEASURE') {
-			measuredQubits.add(gate.qubit);
-			const result = collapseQubit(state, gate.qubit, 1);   // updated call
-			state = result.newState;
-			classicalBits.set(gate.qubit, result.outcome);
-			continue;
-		}
-
-		if (skipIfMeasured(gate, measuredQubits)) {
-			// Classical gate after measurement
-			if (gate.gateType === 'X') {
-				let current = classicalBits.get(gate.qubit) ?? 0;
-				current = 1 - current;                    // flip 0 <-> 1
-				classicalBits.set(gate.qubit, current);
-
-				// Update the quantum state to reflect the classical value
-				const pos = 0; // single qubit
-				state = state.map((amp, index) => {
-					return index === current ? amp : createComplex(0, 0);
-				});
-				// No need to renormalize since it's already a basis state
-			}
-			// Ignore all other gates after measurement
-			continue;
-		}
-
-		if (gate.gateType === 'CONTROL') continue;
-
-		const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
-		if (gateDef && gateDef.matrix.length > 0) {
-			state = applyMatrix(gateDef.matrix, state);
-		}
-	}
-
-	const probabilities = {
-		'0': magnitudeSquared(state[0]),
-		'1': magnitudeSquared(state[1])
-	};
-
-	const formattedState = formatQuantumState(state);
-	const formattedStatePolar = formatQuantumStatePolar(state);
-	const blochVectors = computeBlochVectorsFromState(state, 1);
-
-	return {
-		probabilities,
-		formattedState,
-		formattedStatePolar,
-		blochVectors,
-		measuredQubits: Array.from(measuredQubits).sort((a, b) => a - b),
-		classicalBits
-	};
-}
-
+// Unified simulator (works for 1 qubit AND multi-qubit)
 // ─────────────────────────────────────────────────────────────
-// 2. Multi-qubit simulator with classical post-measurement support
 export function simulateMultipleQubits(circuit: CircuitState): SimulationResult {
 	const { numQubits, gates } = circuit;
-	if (numQubits < 2) throw new Error('Multi-Qubit simulator requires at least 2 qubits');
+	if (numQubits < 1) throw new Error('At least 1 qubit required');
 
 	const dim = 1 << numQubits;
 	let state: QuantumState = createState(Array(dim).fill(null).map(() => createComplex(0, 0)));
 	state[0] = createComplex(1, 0);
 
 	const measuredQubits = new Set<number>();
-	const classicalBits = new Map<number, number>();   // qubit → classical 0 or 1
+	const classicalBits = new Map<number, number>();
 
 	const maxColumn = gates.length ? Math.max(...gates.map(g => g.columnIndex)) + 1 : 0;
 	const columns = Array.from({ length: maxColumn }, (_, colIndex) =>
@@ -168,13 +102,12 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 			}
 
 			if (skipIfMeasured(gate, measuredQubits)) {
-				// Classical gate after measurement
+				// Classical gate after measurement (only X supported for now)
 				if (gate.gateType === 'X') {
 					let current = classicalBits.get(gate.qubit) ?? 0;
-					current = 1 - current;                    // flip 0 <-> 1
+					current = 1 - current;
 					classicalBits.set(gate.qubit, current);
 
-					// Update quantum state to reflect new classical value
 					const pos = numQubits - 1 - gate.qubit;
 					const mask = 1 << pos;
 					state = state.map((amp, index) => {
@@ -182,7 +115,6 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 						return bit === current ? amp : createComplex(0, 0);
 					});
 				}
-				// Ignore other gates (H, Y, Z, etc.)
 				continue;
 			}
 
@@ -193,11 +125,15 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 			}
 		}
 
-		// Controlled gates (block if target is measured)
+		// Controlled gates
 		for (const [targetQubit, controlQubits] of controlsByTarget) {
 			if (measuredQubits.has(targetQubit)) continue;
 
-			const targetGate = colGates.find(g => g.qubit === targetQubit && g.gateType !== 'CONTROL' && g.gateType !== 'MEASURE');
+			const targetGate = colGates.find(g => 
+				g.qubit === targetQubit && 
+				g.gateType !== 'CONTROL' && 
+				g.gateType !== 'MEASURE'
+			);
 			if (!targetGate) continue;
 
 			const gateDef = GATE_MAP[targetGate.gateType as MatrixGateType];
@@ -228,18 +164,19 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 		measuredQubits: Array.from(measuredQubits).sort((a, b) => a - b),
 		classicalBits
 	};
-};
+}
 
 export function resetCircuit() {
 	const current = get(circuit);
-	const qubits = current.numQubits;
+	const qubits = current.numQubits || 1;
+
 	circuit.set({
 		numQubits: qubits,
 		gates: []
 	});
 
 	const probabilities: { [state: string]: number } = {};
-	for (let i = 0; i < 1 << qubits; i++) {
+	for (let i = 0; i < (1 << qubits); i++) {
 		probabilities[i.toString(2).padStart(qubits, '0')] = i === 0 ? 1 : 0;
 	}
 
@@ -250,7 +187,6 @@ export function resetCircuit() {
 		z: 1,
 		magnitude: 1
 	}));
-
 
 	SimulationResults.set({
 		probabilities,

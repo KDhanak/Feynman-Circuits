@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import { circuit, circuitLayout, isDragging } from '$lib/stores';
 	import {
 		handleDrop,
@@ -78,6 +78,8 @@
 	}
 
 	function scheduleConnectorRecompute() {
+		if (typeof window === 'undefined') return; // ← Skip on server
+
 		if (rafId !== null) cancelAnimationFrame(rafId);
 		rafId = requestAnimationFrame(() => {
 			recomputeConnectors();
@@ -96,8 +98,11 @@
 
 	function removeQubitWire(qubitIndex: number) {
 		const currentCircuit = $circuit;
-		if (currentCircuit.numQubits <= 2) return; // Prevent removing below 2 qubits
 
+		// Allow removing down to 1 qubit
+		if (currentCircuit.numQubits <= 1) return;
+
+		// Prevent removing a qubit that has gates or is targeted by controls
 		if (
 			currentCircuit.gates.some(
 				(gate) =>
@@ -105,20 +110,27 @@
 					gate.targetQubits?.includes(qubitIndex) ||
 					gate.targetQubit === qubitIndex
 			)
-		)
+		) {
 			return;
+		}
 
 		const newQubitLabels = currentCircuit.qubitLabels
 			? currentCircuit.qubitLabels.filter((_, idx) => idx !== qubitIndex)
 			: [];
 
+		// Update circuit
 		circuit.set({
 			...currentCircuit,
 			numQubits: currentCircuit.numQubits - 1,
 			qubitLabels: newQubitLabels
 		});
 
-		triggerSimulation($circuit);
+		// Trigger simulation with the NEW state (use the updated object)
+		triggerSimulation({
+			...currentCircuit,
+			numQubits: currentCircuit.numQubits - 1,
+			qubitLabels: newQubitLabels
+		});
 	}
 	// Auto-scroll when 5th, 6th, or 7th qubit (ghost wire) appears
 	$: if ($circuit.numQubits >= 5 && scrollContainer) {
@@ -187,8 +199,8 @@
 
 				<!-- Qubit circle -->
 				<div
-					class={`qubit-circle mr-2 z-10 flex h-10 w-10 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg ${wire.qubit >= 2 ? 'cursor-pointer border-dotted active:border-solid active:border-amber-700 select-none' : 'cursor-default'}`}
-					aria-label={`Qubit ${wire.qubit} - double click to remove wire`}
+					class={`qubit-circle mr-2 z-10 flex h-10 w-10 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg ${wire.qubit >= 1 ? 'cursor-pointer border-dotted active:border-solid active:border-amber-700 select-none' : 'cursor-default'}`}
+					aria-label={`double click to remove wire`}
 					role="button"
 					tabindex="0"
 					on:dblclick={() => removeQubitWire(wire.qubit)}

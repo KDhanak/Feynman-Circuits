@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { circuitLayout, circuit } from '$lib/stores';
-	import SingleWireDropZone from './SingleWireDropZone.svelte';
-	import MultiWireDropZone from './MultiWireDropZone.svelte';
+	import { circuitLayout } from '$lib/stores';
+	import WireDropeZone from './WireDropeZone.svelte';
 
 	let containerEl: HTMLDivElement;
 	let containerWidth = 0;
@@ -18,10 +17,7 @@
 	function updateLayout() {
 		containerWidth = containerEl?.clientWidth ?? 0;
 
-		const usableWidth = Math.max(
-			0,
-			containerWidth - LABEL_WIDTH - LEFT_EXTRA - BLOCH_SPACE
-		);
+		const usableWidth = Math.max(0, containerWidth - LABEL_WIDTH - LEFT_EXTRA - BLOCH_SPACE);
 
 		const columnWidth = Math.max(
 			MIN_COLUMN_WIDTH,
@@ -55,18 +51,8 @@
 			window.removeEventListener('resize', updateLayout);
 		};
 	});
-
-	$: if ($circuit.mode) {
-		refreshLayout();
-	}
 </script>
 
 <div bind:this={containerEl} class="w-full flex justify-center">
-	{#key $circuit.mode}
-		{#if $circuit.mode === 'single'}
-			<SingleWireDropZone qubit={0} />
-		{:else}
-			<MultiWireDropZone />
-		{/if}
-	{/key}
+	<WireDropeZone />
 </div>

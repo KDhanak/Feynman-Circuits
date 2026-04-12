@@ -39,6 +39,9 @@
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 	let shake = false;
 
+	// Hide CONTROL gate when there's only 1 qubit (clean beginner experience)
+	$: isSingleQubit = $circuit.numQubits === 1;
+
 	function flash(opts: { text: string; isError?: boolean; duration?: number }) {
 		const { text, isError = false, duration = 2000 } = opts;
 
@@ -118,7 +121,6 @@
 				}
 
 				const legacyCircuit = toCircuitState(input as CircuitIR);
-
 				circuit.set(legacyCircuit);
 				editorContent = JSON.stringify(input, null, 2);
 
@@ -179,8 +181,6 @@
 		document.addEventListener('click', handleClick);
 		return () => document.removeEventListener('click', handleClick);
 	});
-
-	$: isSingleMode = $circuit.numQubits === 1;
 </script>
 
 <div
@@ -193,7 +193,7 @@
 	class="relative mb-4 w-[96%] h-auto py-4 flex justify-center gap-3 rounded-md border-1 border-secondary-3"
 >
 	{#each gates as gate}
-		{#if isSingleMode ? gate.category === 'single' : true}
+		{#if !isSingleQubit || gate.type !== 'CONTROL'}
 			<div
 				title={gate.name}
 				role="region"
