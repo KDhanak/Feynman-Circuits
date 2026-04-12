@@ -23,13 +23,6 @@ function findNextAvailableColumn(cs: CircuitState, q: number) {
     return cols.length ? Math.max(...cols) + 1 : 0;
 }
 
-function isCopyModifier(e: DragEvent | TouchEvent): boolean {
-    if (e instanceof DragEvent) {
-        return e.ctrlKey || e.metaKey;
-    }
-    return false;
-}
-
 /** Recompute every CONTROL→X pairing for a consistent circuit */
 function relinkControls(gates: GateInstance[]): GateInstance[] {
     return gates.map(g => {
@@ -63,7 +56,7 @@ let touchData: GateData | null = null;
 let ghostElement: HTMLElement | null = null;
 
 export function handleGateDragStart(e: DragEvent, id: string) {
-    const isCopy = isCopyModifier(e);
+    const isCopy = e.ctrlKey || e.metaKey;
 
     const dragData: GateData = {
         source: "wire",
@@ -71,12 +64,21 @@ export function handleGateDragStart(e: DragEvent, id: string) {
         isCopy
     };
 
-    e.dataTransfer?.setData(
-        "application/json",
-        JSON.stringify(dragData)
-    );
+    e.dataTransfer?.setData("application/json", JSON.stringify(dragData));
     isDragging.set(true);
+
+    // NEW: Remove any leftover "copying" class from ALL gates when starting a new drag
+    document.querySelectorAll('.gate.copying').forEach(el => {
+        el.classList.remove('copying');
+    });
+
+    // Optional: add visual feedback only if copying
+    if (isCopy) {
+        const gateEl = document.querySelector(`[data-gate-id="${id}"]`);
+        if (gateEl) gateEl.classList.add('copying');
+    }
 }
+
 export function handleDragOver(e: DragEvent) {
     e.preventDefault();
 }

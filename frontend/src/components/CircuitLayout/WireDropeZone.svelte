@@ -235,6 +235,7 @@
 					{#each $circuit.gates as gate (gate.id)}
 						{#if gate.qubit === wire.qubit}
 							<div
+								data-gate-id={gate.id}
 								data-col={gate.columnIndex}
 								data-qubit={gate.qubit}
 								data-type={gate.gateType}
@@ -329,6 +330,11 @@
 		transform: translate(-50%, -50%);
 		z-index: 10;
 		white-space: nowrap;
+	}
+
+	.gate.copying {
+		box-shadow: 0 0 0 1px #22c55e; /* green glow when copying */
+		transition: all 0.15s ease;
 	}
 
 	.qubit-label:hover {
