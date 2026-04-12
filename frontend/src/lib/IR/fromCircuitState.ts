@@ -72,8 +72,6 @@ export function fromCircuitState(circuitState: CircuitState): CircuitIR {
         }
     }
 
-    console.log('Generated IR:', { numQubbits: numQubits, qubitLabels, operations });
-
     return {
         version: '1.0',
         registers: {

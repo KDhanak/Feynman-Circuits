@@ -4,7 +4,10 @@
 		handleDoubleClick,
 		handleTouchStart,
 		handleTouchEnd,
-		handleTouchMove
+		handleTouchMove,
+
+		triggerSimulation
+
 	} from '$lib/dragDropUtils';
 	import type { GateData, GateType, CircuitState, ImportedCircuit } from '$lib/stores';
 	import { circuit, isDragging } from '$lib/stores';
@@ -101,6 +104,7 @@
 				}
 
 				circuit.set(result as CircuitState);
+				triggerSimulation(result as CircuitState);
 				editorContent = buildJsonString(result as CircuitState);
 				flash({ text: 'Circuit loaded successfully!' });
 			} catch {
@@ -122,6 +126,7 @@
 
 				const legacyCircuit = toCircuitState(input as CircuitIR);
 				circuit.set(legacyCircuit);
+				triggerSimulation(legacyCircuit);
 				editorContent = JSON.stringify(input, null, 2);
 
 				flash({ text: 'Canonical IR loaded successfully!' });
@@ -129,6 +134,8 @@
 				flash({ text: 'Invalid Canonical IR JSON format', isError: true });
 			}
 		}
+
+		isEnlarged = false;
 	}
 
 	function downloadFile(filename: string, content: string, mimeType = 'text/plain') {

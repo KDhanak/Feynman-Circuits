@@ -197,7 +197,11 @@
 			<div class="flex items-center justify-between border-b-1 border-gray-500 px-6 py-4">
 				<div class="flex items-center gap-3">
 					{#if currentView.showBack}
-						<button type="button" class="cursor-pointer text-white active:text-ternary-2" on:click={goBack}>
+						<button
+							type="button"
+							class="cursor-pointer text-white active:text-ternary-2"
+							on:click={goBack}
+						>
 							<Icon icon="material-symbols:arrow-back" width="22" height="22" />
 						</button>
 					{/if}
@@ -217,71 +221,85 @@
 
 			<div class="px-6 pt-5">
 				{#if currentView.showTabs}
-					<div class="mb-6 grid grid-cols-2 rounded-md border border-secondary-2 bg-white">
-						<button
-							type="button"
-							on:click={() => (activeView = 'signin')}
-							class={`cursor-pointer rounded-md px-3 py-2 text-sm font-medium ${
-								activeView === 'signin'
-									? 'bg-secondary-4 text-secondary-1'
-									: 'text-secondary-3 active:bg-secondary-1'
-							}`}
-						>
-							Sign In
-						</button>
-						<button
-							type="button"
-							on:click={() => (activeView = 'signup')}
-							class={`cursor-pointer rounded-md px-3 py-2 text-sm font-medium ${
-								activeView === 'signup'
-									? 'bg-secondary-4 text-secondary-1'
-									: 'text-secondary-3 active:bg-secondary-1'
-							}`}
-						>
-							Sign Up
-						</button>
+					<div class="mb-6 relative rounded-md border border-secondary-2 bg-white overflow-hidden">
+						<!-- Sliding background -->
+						<div
+							class="absolute top-0 bottom-0 w-1/2 bg-secondary-4 transition-all duration-300 ease-in-out rounded-md"
+							style="transform: translateX({activeView === 'signin' ? '0%' : '100%'});"
+						></div>
+
+						<div class="grid grid-cols-2 relative">
+							<button
+								type="button"
+								on:click={() => (activeView = 'signin')}
+								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${
+									activeView === 'signin' ? 'text-secondary-1' : 'text-secondary-3'
+								}`}
+							>
+								Sign In
+							</button>
+							<button
+								type="button"
+								on:click={() => (activeView = 'signup')}
+								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${
+									activeView === 'signup' ? 'text-secondary-1' : 'text-secondary-3'
+								}`}
+							>
+								Sign Up
+							</button>
+						</div>
 					</div>
 				{/if}
-				{#if activeView === 'signin'}
-					<SignIn
-						initialEmail={prefilledSignInEmail}
-						onSignedIn={closeDrawer}
-						onSwitchToForgot={() => (activeView = 'forgot')}
-					/>
-				{:else if activeView === 'signup'}
-					<SignUp
-						onSignedUp={(email) => {
-							prefilledSignInEmail = email;
-							activeView = 'signin';
-						}}
-						onSwitchToSignIn={() => (activeView = 'signin')}
-					/>
-				{:else if activeView === 'forgot'}
-					<ForgotPassword
-						onOtpSent={(email) => {
-							resetEmail = email;
-							activeView = 'otp';
-						}}
-					/>
-				{:else if activeView === 'otp'}
-					<OtpVerification
-						email={resetEmail}
-						onVerified={(token) => {
-							resetToken = token;
-							activeView = 'reset';
-						}}
-						onBack={() => (activeView = 'forgot')}
-					/>
-				{:else if activeView === 'reset'}
-					<ResetPassword
-						{resetToken}
-						onResetDone={() => {
-							resetToken = '';
-							resetEmail = '';
-							activeView = 'signin';
-						}}
-					/>
-				{/if}
+
+				<div class="relative" style="min-height: 420px;">
+					{#key activeView}
+						<div
+							transition:fly={{ x: activeView === 'signup' ? 40 : -40, duration: 280, opacity: 0 }}
+							class="absolute w-full"
+						>
+							{#if activeView === 'signin'}
+								<SignIn
+									initialEmail={prefilledSignInEmail}
+									onSignedIn={closeDrawer}
+									onSwitchToForgot={() => (activeView = 'forgot')}
+								/>
+							{:else if activeView === 'signup'}
+								<SignUp
+									onSignedUp={(email) => {
+										prefilledSignInEmail = email;
+										activeView = 'signin';
+									}}
+									onSwitchToSignIn={() => (activeView = 'signin')}
+								/>
+							{:else if activeView === 'forgot'}
+								<ForgotPassword
+									onOtpSent={(email) => {
+										resetEmail = email;
+										activeView = 'otp';
+									}}
+								/>
+							{:else if activeView === 'otp'}
+								<OtpVerification
+									email={resetEmail}
+									onVerified={(token) => {
+										resetToken = token;
+										activeView = 'reset';
+									}}
+									onBack={() => (activeView = 'forgot')}
+								/>
+							{:else if activeView === 'reset'}
+								<ResetPassword
+									{resetToken}
+									onResetDone={() => {
+										resetToken = '';
+										resetEmail = '';
+										activeView = 'signin';
+									}}
+								/>
+							{/if}
+						</div>
+					{/key}
+				</div>
 			</div>
 		</aside>
 	</div>

@@ -26,7 +26,7 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 bg-transparent flex items-center justify-center z-50"
+		class="fixed inset-0 bg-transparent flex items-center justify-center z-60"
 		role="button"
 		transition:fade={{ duration: 200 }}
 		tabindex="0"
@@ -160,5 +160,22 @@
 
 	.shake {
 		animation: shake 0.3s ease;
+	}
+
+	::-webkit-scrollbar {
+		width: 7px;
+		height: 7px;
+	}
+	::-webkit-scrollbar-track {
+		background: #1f2937;
+		border-radius: 20px;
+	}
+	::-webkit-scrollbar-thumb {
+		background: gray;
+		border-radius: 20px;
+	}
+	::-webkit-scrollbar-thumb:hover {
+		background: darkgray;
+		cursor: auto;
 	}
 </style>
