@@ -13,15 +13,14 @@
 </script>
 
 <main
-	class="flex min-h-screen flex-col overflow-y-hidden overflow-x-hidden items-center bg-gray-900 text-gray-800"
+	class="flex min-h-screen flex-col overflow-y-hidden overflow-x-hidden items-center bg-[radial-gradient(at_center,#020618_50%,#09090b_90%)]"
 >
-	<div class="relative w-full flex items-center justify-center">
-		<div class="flex flex-row my-4">
-			<img src="/logo.png" alt="Logo" class="w-20 h-14" />
+	<div class="relative w-full flex items-center justify-between my-4">
+		<div class="flex flex-row mx-10">
 			<h1 class="mb-6 text-2xl font-bold text-secondary-2">Feynman</h1>
 			<h1 class="mb-6 text-2xl font-bold text-white">Circuits</h1>
 		</div>
-		<div class="absolute top-10 right-10">
+		<div class="flex flex-row mx-10">
 			<SignUp_In />
 		</div>
 	</div>

@@ -37,7 +37,7 @@
 		}}
 	>
 		<div
-			class="bg-background border border-gray-500 p-4 rounded-md shadow-md max-w-4xl w-full max-h-[85vh] flex flex-col"
+			class="bg-slate-950 border border-gray-500 p-4 rounded-md shadow-md max-w-4xl w-full max-h-[85vh] flex flex-col"
 			role="dialog"
 			aria-modal="true"
 			tabindex="0"

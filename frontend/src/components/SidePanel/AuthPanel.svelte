@@ -181,7 +181,7 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-100 bg-black/40"
+		class="fixed inset-0 z-100 bg-slate-950/60"
 		role="button"
 		tabindex="0"
 		aria-label="Close authentication drawer"
@@ -190,7 +190,7 @@
 		transition:fade={{ duration: 300 }}
 	>
 		<aside
-			class="absolute right-0 top-0 h-full w-full max-w-md bg-gray-900 border-l-1 border-t-1 border-b-1 rounded-md border-gray-500 shadow-2xl auth-drawer"
+			class="absolute right-0 top-0 h-full w-full max-w-md bg-slate-950 border-l-1 border-t-1 border-b-1 rounded-md border-gray-500 shadow-2xl auth-drawer"
 			aria-label="Authentication"
 			transition:fly={{ x: 400, duration: 300 }}
 		>

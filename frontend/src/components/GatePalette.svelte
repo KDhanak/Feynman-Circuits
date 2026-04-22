@@ -253,7 +253,7 @@
 
 		{#if dropdownOpen}
 			<div
-				class="absolute top-full right-0 mt-1 bg-white border rounded-lg shadow-md z-60 min-w-[120px]"
+				class="absolute top-full right-0 mt-1 bg-slate-950/70 border rounded-lg shadow-md z-60 min-w-[120px]"
 			>
 				<button
 					type="button"
@@ -266,7 +266,7 @@
 				<button
 					type="button"
 					on:click={() => resetCircuit()}
-					class="whitespace-nowrap w-full py-2 text-center font-semibold rounded-b-md bg-white border border-white active:border-ternary-2 text-ternary-2 cursor-pointer active:text-ternary-2"
+					class="whitespace-nowrap w-full py-2 text-center font-semibold rounded-b-md border border-white active:border-ternary-2 text-ternary-2 cursor-pointer active:text-ternary-2"
 				>
 					Reset Circuit
 				</button>

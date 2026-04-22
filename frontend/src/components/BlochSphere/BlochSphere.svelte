@@ -64,7 +64,7 @@
 		min-width: 100px;
 	}
 	.sphere {
-		fill: #152238;
+		fill: #020618;
 		border-color: #7e22ce;
 		stroke: #7e22ce;
 		stroke-width: 2;

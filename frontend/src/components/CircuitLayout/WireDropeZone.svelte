@@ -42,6 +42,7 @@
 
 	async function recomputeConnectors() {
 		await tick();
+		await tick(); // Ensures layout is fully updated after resize
 		if (!boardEl) return;
 
 		const boardRect = boardEl.getBoundingClientRect();
@@ -50,6 +51,7 @@
 		for (const control of $circuit.gates.filter((g) => g.gateType === 'CONTROL')) {
 			const targets =
 				control.targetQubits ?? (control.targetQubit !== undefined ? [control.targetQubit] : []);
+
 			if (!targets.length) continue;
 
 			const controlEl = boardEl.querySelector(
@@ -66,6 +68,7 @@
 				if (!targetEl) continue;
 
 				const t = getCenter(targetEl, boardRect);
+
 				next.push({
 					key: `${control.id}-${tq}`,
 					left: c.x,
@@ -87,7 +90,8 @@
 		});
 	}
 
-	$: $circuit.gates, scheduleConnectorRecompute();
+	// Recompute connectors when gates or layout changes (fixes red line on resize)
+	$: $circuit.gates, $circuitLayout, scheduleConnectorRecompute();
 
 	$: wires = Array.from({ length: $circuit.numQubits }, (_, i) => ({
 		id: `wire-${i}`,
@@ -96,17 +100,17 @@
 
 	$: showGhostWire = $isDragging && $circuit.numQubits < MAX_QUBITS;
 
-	// Auto-scroll to bottom ONLY when dragging starts (to reveal ghost wire)
+	// Auto-scroll to bottom when ghost wire appears
 	$: if (showGhostWire && scrollContainer) {
 		(async () => {
-			await tick(); // Wait for DOM update (height change)
-			await tick(); // Extra tick for safety
+			await tick();
+			await tick();
 			setTimeout(() => {
 				scrollContainer?.scrollTo({
 					top: scrollContainer.scrollHeight,
 					behavior: 'smooth'
 				});
-			}, 120); // Small delay so height transition finishes first
+			}, 350);
 		})();
 	}
 

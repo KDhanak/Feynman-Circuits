@@ -78,7 +78,7 @@
 <head>
 	<title>Live Quantum Results — ${$circuit.numQubits} qubits</title>
 	<style>
-		body { font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0; padding:24px; margin:0; }
+		body { font-family: system-ui, sans-serif; background:#020618; color:#e2e8f0; padding:24px; margin:0; }
 		.container { max-width:920px; margin:0 auto; }
 		h3 { color:#e9d5ff; text-align:center; }
 		.live-dot { display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%; animation: pulse 2s infinite; }
@@ -178,7 +178,7 @@
 			<p class="text-md font-medium">{$circuit.numQubits} qubits — Many states</p>
 			<button
 				type="button"
-				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium border border-white rounded-md hover:bg-white hover:text-secondary-2 transition-colors"
+				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium border border-white rounded-md"
 				on:click={openResultsInNewWindow}
 			>
 				Open Live Results in New Window
