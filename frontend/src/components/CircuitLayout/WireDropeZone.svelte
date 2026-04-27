@@ -232,7 +232,7 @@
 						value={$circuit.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 						on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 						placeholder="Label"
-						class="qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-md bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
+						class="qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-sm bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
 					/>
 
 					<!-- Gates -->
@@ -254,7 +254,7 @@
 									handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
 								on:touchmove={handleTouchMove}
 								on:touchend={handleTouchEnd}
-								class="gate z-10 cursor-grab select-none rounded px-3 py-2 text-base border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
+								class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
 								style="left: {gateOffset + (gate.columnIndex + 0.5) * columnWidth}px;"
 							>
 								{#if gate.gateType === 'CONTROL'}
@@ -301,7 +301,7 @@
 						type="text"
 						value="Qubit {$circuit.numQubits}"
 						disabled
-						class="z-10 w-15 h-7.5 px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-md bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
+						class="z-10 w-15 h-7.5 px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
 					/>
 				</div>
 			{/if}

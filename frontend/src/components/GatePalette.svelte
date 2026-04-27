@@ -197,7 +197,7 @@
 	on:dragover={(e) => e.preventDefault()}
 	on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
 	on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
-	class="relative mb-4 w-[96%] h-auto py-4 flex justify-center gap-3 rounded-md border-1 border-secondary-3"
+	class="relative mb-4 w-[96%] h-auto py-4 flex justify-center gap-3 rounded-sm border-1 border-secondary-3"
 >
 	{#each gates as gate}
 		{#if !isSingleQubit || gate.type !== 'CONTROL'}
@@ -217,8 +217,8 @@
 				on:touchend={(e) => handleTouchEnd(e)}
 				class={`cursor-grab select-none border bg-white active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center ${
 					['CONTROL', 'MEASURE'].includes(gate.type)
-						? 'h-11 w-10 rounded-md border-secondary-4'
-						: 'rounded-md border-secondary-4 px-3.5 py-2 text-md font-medium text-secondary-2'
+						? 'h-11 w-10 rounded-sm border-secondary-4'
+						: 'rounded-sm border-secondary-4 px-3.5 py-2 text-md font-medium text-secondary-2'
 				}`}
 			>
 				{#if gate.type === 'CONTROL'}
@@ -253,12 +253,12 @@
 
 		{#if dropdownOpen}
 			<div
-				class="absolute top-full right-0 mt-1 bg-slate-950/70 border rounded-lg shadow-md z-60 min-w-[120px]"
+				class="absolute top-full right-0 mt-1 bg-white border border-secondary-3 rounded-sm shadow-md z-60 min-w-[120px]"
 			>
 				<button
 					type="button"
 					on:click={openCircuitDataModal}
-					class="whitespace-nowrap py-2 w-full text-center border border-b-gray-400 rounded-t-md border-white text-secondary-2 cursor-pointer active:text-secondary-3 active:border-secondary-3"
+					class="whitespace-nowrap py-2 w-full text-center border border-b-gray-400 rounded-t-sm border-white text-secondary-2 cursor-pointer active:text-secondary-3 active:border-secondary-3"
 				>
 					Circuit Data
 				</button>
@@ -266,7 +266,7 @@
 				<button
 					type="button"
 					on:click={() => resetCircuit()}
-					class="whitespace-nowrap w-full py-2 text-center font-semibold rounded-b-md border border-white active:border-ternary-2 text-ternary-2 cursor-pointer active:text-ternary-2"
+					class="whitespace-nowrap w-full py-2 text-center font-semibold rounded-b-sm border border-white active:border-ternary-2 text-ternary-2 cursor-pointer active:text-ternary-2"
 				>
 					Reset Circuit
 				</button>

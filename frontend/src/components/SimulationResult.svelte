@@ -174,11 +174,11 @@
 
 <div class="text-white">
 	{#if shouldShowPopupButton}
-		<div class="p-5 border border-secondary-3 rounded-md bg-secondary-4/20 text-center">
+		<div class="p-5 border border-secondary-3 rounded-sm bg-secondary-4/20 text-center">
 			<p class="text-md font-medium">{$circuit.numQubits} qubits — Many states</p>
 			<button
 				type="button"
-				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium border border-white rounded-md"
+				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium border border-white rounded-sm"
 				on:click={openResultsInNewWindow}
 			>
 				Open Live Results in New Window

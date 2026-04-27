@@ -133,12 +133,12 @@
 {#if $session.status === 'loading'}
 	<!-- optional skeleton -->
 	<button
-		class="cursor-pointer rounded-md border px-4 py-1 text-secondary-3 border-secondary-3 bg-white active:border-white active:text-white active:bg-secondary-4"
+		class="cursor-pointer rounded-sm border px-4 py-1 text-secondary-3 border-secondary-3 bg-white active:border-white active:text-white active:bg-secondary-4"
 		disabled>Loading…</button
 	>
 {:else if $session.status === 'anonymous'}
 	<button
-		class="cursor-pointer rounded-md border px-4 py-1 text-secondary-3 border-secondary-3 bg-white active:border-white active:text-white active:bg-secondary-4"
+		class="cursor-pointer rounded-sm border px-4 py-1 text-secondary-3 border-secondary-3 bg-white active:border-white active:text-white active:bg-secondary-4"
 		on:click={openDrawer}
 	>
 		Sign In/Up
@@ -164,14 +164,14 @@
 		</button>
 		{#if dropdownOpen}
 			<div
-				class="absolute top-full w-[130%] right-0 mt-1 bg-ternary-2 border rounded-md shadow-md border-white z-100"
+				class="absolute top-full w-[130%] right-0 mt-1 bg-white rounded-sm shadow-md z-100"
 			>
 				<button
 					on:click={() => {
 						logoutAndClose();
 						dropdownOpen = false;
 					}}
-					class="px-2 py-1 items-center w-full text-white cursor-pointer rounded-md active:text-ternary-2 active:bg-white"
+					class="px-2 py-1 items-center w-full border rounded-sm bg-white text-ternary-2 border-white active:border-2 active:text-ternary-3 active:border-ternary-3 cursor-pointer"
 					>Sign out</button
 				>
 			</div>
@@ -190,7 +190,7 @@
 		transition:fade={{ duration: 300 }}
 	>
 		<aside
-			class="absolute right-0 top-0 h-full w-full max-w-md bg-slate-950 border-l-1 border-t-1 border-b-1 rounded-md border-gray-500 shadow-2xl auth-drawer"
+			class="absolute right-0 top-0 h-full w-full max-w-md bg-slate-950 border-l-1 border-t-1 border-b-1 rounded-sm border-gray-500 shadow-2xl auth-drawer"
 			aria-label="Authentication"
 			transition:fly={{ x: 400, duration: 300 }}
 		>
@@ -221,10 +221,10 @@
 
 			<div class="px-6 pt-5">
 				{#if currentView.showTabs}
-					<div class="mb-6 relative rounded-md border border-secondary-2 bg-white overflow-hidden">
+					<div class="mb-6 relative rounded-sm border border-secondary-2 bg-white overflow-hidden">
 						<!-- Sliding background -->
 						<div
-							class="absolute top-0 bottom-0 w-1/2 bg-secondary-4 transition-all duration-300 ease-in-out rounded-md"
+							class="absolute top-0 bottom-0 w-1/2 bg-secondary-4 transition-all duration-300 ease-in-out rounded-sm"
 							style="transform: translateX({activeView === 'signin' ? '0%' : '100%'});"
 						></div>
 

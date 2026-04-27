@@ -37,7 +37,7 @@
 		}}
 	>
 		<div
-			class="bg-slate-950 border border-gray-500 p-4 rounded-md shadow-md max-w-4xl w-full max-h-[85vh] flex flex-col"
+			class="bg-slate-950 border border-gray-500 p-4 rounded-sm shadow-md max-w-4xl w-full max-h-[85vh] flex flex-col"
 			role="dialog"
 			aria-modal="true"
 			tabindex="0"
@@ -55,7 +55,7 @@
 						on:click={() => onTabChange('json')}
 						class:!bg-white={activeView === 'json'}
 						class:!text-secondary-2={activeView === 'json'}
-						class="rounded-md px-3 py-1.5 text-sm border border-white text-white cursor-pointer"
+						class="rounded-sm px-3 py-1.5 text-sm border border-white text-white cursor-pointer"
 					>
 						JSON
 					</button>
@@ -65,7 +65,7 @@
 						on:click={() => onTabChange('cir')}
 						class:!bg-white={activeView === 'cir'}
 						class:!text-secondary-2={activeView === 'cir'}
-						class="rounded-md px-3 py-1.5 text-sm border border-white text-white cursor-pointer"
+						class="rounded-sm px-3 py-1.5 text-sm border border-white text-white cursor-pointer"
 					>
 						Canonical IR
 					</button>
@@ -73,7 +73,7 @@
 
 				<div class="flex items-center gap-2">
 					<div class="flex flex-col justify-center items-center">
-						<button type="button" on:click={onCopy} class="rounded-md text-sm text-white">
+						<button type="button" on:click={onCopy} class="rounded-sm text-sm text-white">
 							<Icon
 								icon="solar:copy-bold"
 								width="24"
@@ -84,7 +84,7 @@
 						<span class="font-extralight text-gray-300 text-[10px]">Copy</span>
 					</div>
 					<div class="flex flex-col justify-center items-center">
-						<button type="button" on:click={onDownload} class="rounded-md text-sm text-white">
+						<button type="button" on:click={onDownload} class="rounded-sm text-sm text-white">
 							<Icon
 								icon="mingcute:download-fill"
 								width="24"
@@ -95,7 +95,7 @@
 						<span class="font-extralight text-gray-300 text-[10px]">Download</span>
 					</div>
 					<div class="flex flex-col">
-						<button type="button" on:click={onImport} class="rounded-md text-sm text-white">
+						<button type="button" on:click={onImport} class="rounded-sm text-sm text-white">
 							<Icon
 								icon="mdi:file-import"
 								width="24"
@@ -126,7 +126,7 @@
 
 			<textarea
 				bind:value
-				class="rounded-md bg-transparent border w-full h-[60vh] text-white p-3 resize-none active:outline-none focus:outline-none"
+				class="rounded-sm bg-transparent border w-full h-[60vh] text-white p-3 resize-none active:outline-none focus:outline-none"
 				class:border-red-400={errorMessage}
 				class:border-green-400={message && !errorMessage}
 				class:border-white={!message && !errorMessage}

@@ -204,7 +204,7 @@
 				inputmode="numeric"
 				autocomplete="one-time-code"
 				maxlength="1"
-				class="h-12 w-12 rounded-md border border-secondary-2 bg-white text-center text-lg font-semibold text-black outline-none focus:border-secondary-3"
+				class="h-12 w-12 rounded-sm border border-secondary-2 bg-white text-center text-lg font-semibold text-black outline-none focus:border-secondary-3"
 				bind:value={otp[index]}
 				on:input={(e) => handleInput(index, e)}
 				on:keydown={(e) => handleKeydown(index, e)}
@@ -261,7 +261,7 @@
 
 		<button
 			type="button"
-			class="cursor-pointer rounded-md border border-white bg-ternary-2 px-4 py-2 font-semibold text-white active:border-ternary-3 active:text-ternary-3"
+			class="cursor-pointer rounded-sm border border-white bg-ternary-2 px-4 py-2 font-semibold text-white active:border-ternary-3 active:text-ternary-3"
 			on:click={() => void verifyOtp()}
 			disabled={loading || otpValue().length !== 6}
 		>
