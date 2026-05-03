@@ -261,7 +261,7 @@
 
 		<button
 			type="button"
-			class="cursor-pointer rounded-sm border border-white bg-ternary-2 px-4 py-2 font-semibold text-white active:border-ternary-3 active:text-ternary-3"
+			class="btn-primary"
 			on:click={() => void verifyOtp()}
 			disabled={loading || otpValue().length !== 6}
 		>

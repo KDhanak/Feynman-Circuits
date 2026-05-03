@@ -37,7 +37,7 @@
 		}}
 	>
 		<div
-			class="bg-slate-950 border border-gray-500 p-4 rounded-sm shadow-md max-w-4xl w-full max-h-[85vh] flex flex-col"
+			class="bg-slate-950 border border-gray-500 p-4 rounded-sm shadow-md max-w-4xl w-[95vw] sm:w-full max-h-[85vh] flex flex-col"
 			role="dialog"
 			aria-modal="true"
 			tabindex="0"
@@ -162,20 +162,4 @@
 		animation: shake 0.3s ease;
 	}
 
-	::-webkit-scrollbar {
-		width: 7px;
-		height: 7px;
-	}
-	::-webkit-scrollbar-track {
-		background: #1f2937;
-		border-radius: 20px;
-	}
-	::-webkit-scrollbar-thumb {
-		background: gray;
-		border-radius: 20px;
-	}
-	::-webkit-scrollbar-thumb:hover {
-		background: darkgray;
-		cursor: auto;
-	}
 </style>

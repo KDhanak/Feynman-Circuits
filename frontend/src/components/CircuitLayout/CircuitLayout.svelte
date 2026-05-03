@@ -53,6 +53,9 @@
 	});
 </script>
 
-<div bind:this={containerEl} class="w-full flex justify-center">
+<p class="sm:hidden text-center text-xs text-secondary-1 opacity-60 mb-2 px-4">
+	Rotate your device or use a wider screen for the best circuit editing experience.
+</p>
+<div bind:this={containerEl} class="w-full flex justify-center overflow-x-auto">
 	<WireDropeZone />
 </div>
