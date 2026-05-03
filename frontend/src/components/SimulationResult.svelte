@@ -175,7 +175,7 @@
 <div class="text-white">
 	{#if shouldShowPopupButton}
 		<div class="p-5 border border-secondary-3 rounded-sm bg-secondary-4/20 text-center">
-			<p class="text-md font-medium">{$circuit.numQubits} qubits — Many states</p>
+			<p class="text-base font-medium">{$circuit.numQubits} qubits — Many states</p>
 			<button
 				type="button"
 				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium border border-white rounded-sm"
@@ -186,7 +186,7 @@
 		</div>
 	{:else}
 		<!-- Compact inline view for 1-2 qubits -->
-		<p class="text-md font-medium">
+		<p class="text-base font-medium">
 			Quantum State:
 			<span class="text-sm font-normal">
 				{$SimulationResults.formattedState ?? 'Calculating...'}
@@ -212,10 +212,10 @@
 					<div class="prob-column" role="listitem">
 						{#each column as item}
 							<div class="prob-row">
-								<span class="state" style="color: {item.prob > 0 ? '#67e8f9' : 'var(--muted-text)'}"
+								<span class:text-cyan-300={item.prob > 0} class:text-slate-500={item.prob === 0}
 									>|{item.state}⟩</span
 								>
-								<span class="prob" style="color: {item.prob > 0 ? '#67e8f9' : 'var(--muted-text)'}">
+								<span class:text-cyan-300={item.prob > 0} class:text-slate-500={item.prob === 0}>
 									{(item.prob * 100).toFixed(2)}%
 								</span>
 							</div>
@@ -249,8 +249,5 @@
 		border-bottom: 1.5px solid rgb(174, 0, 255);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;
 		font-size: 0.95rem;
-	}
-	.state {
-		color: var(--muted-text);
 	}
 </style>

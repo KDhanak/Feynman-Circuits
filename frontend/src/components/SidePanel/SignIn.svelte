@@ -81,7 +81,7 @@
 					signinErrors = rest;
 					generalErrorMsg = '';
 				}}
-				class="w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
+				class="input-field"
 			/>
 			{#if signinErrors.email}
 				<p class="mt-1 text-sm text-red-400 font-bold">{signinErrors.email}</p>
@@ -102,7 +102,7 @@
 					signinErrors = rest;
 					generalErrorMsg = '';
 				}}
-				class="w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
+				class="input-field"
 			/>
 			{#if signinErrors.password}
 				<p class="mt-1 text-sm text-red-400 font-bold">{signinErrors.password}</p>
@@ -111,7 +111,7 @@
 
 		<button
 			type="submit"
-			class="w-full cursor-pointer rounded-sm border px-4 py-2 font-semibold bg-ternary-2 text-white active:bg-ternary-2 border-white active:text-ternary-3 active:border-ternary-3"
+			class="btn-primary w-full"
 			disabled={loading}
 		>
 			{loading ? 'Signing in...' : 'Sign In'}

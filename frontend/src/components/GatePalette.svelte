@@ -41,6 +41,7 @@
 	let errorMessage = '';
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 	let shake = false;
+	let dragEnterCount = 0;
 
 	// Hide CONTROL gate when there's only 1 qubit (clean beginner experience)
 	$: isSingleQubit = $circuit.numQubits === 1;
@@ -193,14 +194,18 @@
 <div
 	aria-label="Quantum Circuit Gate Palette"
 	role="region"
-	on:drop={handlePaletteDrop}
+	on:drop={(e) => { handlePaletteDrop(e); dragEnterCount = 0; e.currentTarget.classList.remove('drop-target-active'); }}
 	on:dragover={(e) => e.preventDefault()}
-	on:dragenter={(e) => e.currentTarget.classList.add('drop-target-active')}
-	on:dragleave={(e) => e.currentTarget.classList.remove('drop-target-active')}
-	class="relative mb-4 w-[96%] h-auto py-4 flex justify-center gap-3 rounded-sm border-1 border-secondary-3"
+	on:dragenter={(e) => { dragEnterCount++; e.currentTarget.classList.add('drop-target-active'); }}
+	on:dragleave={(e) => { dragEnterCount--; if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active'); }}
+	class="relative mb-4 w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm border border-secondary-3"
 >
 	{#each gates as gate}
 		{#if !isSingleQubit || gate.type !== 'CONTROL'}
+			<!-- Separator before multi-qubit gates -->
+			{#if gate.category === 'multi' && !isSingleQubit && gate.type === 'CONTROL'}
+				<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
+			{/if}
 			<div
 				title={gate.name}
 				role="region"
@@ -215,10 +220,10 @@
 				on:touchstart={(e) => handleTouchStart(e, { source: 'palette', gateType: gate.type })}
 				on:touchmove={handleTouchMove}
 				on:touchend={(e) => handleTouchEnd(e)}
-				class={`cursor-grab select-none border bg-white active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center ${
+				class={`cursor-grab select-none border bg-white hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
 					['CONTROL', 'MEASURE'].includes(gate.type)
 						? 'h-11 w-10 rounded-sm border-secondary-4'
-						: 'rounded-sm border-secondary-4 px-3.5 py-2 text-md font-medium text-secondary-2'
+						: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
 				}`}
 			>
 				{#if gate.type === 'CONTROL'}

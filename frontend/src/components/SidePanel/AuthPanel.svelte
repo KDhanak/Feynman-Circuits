@@ -29,34 +29,11 @@
 			backTo?: AuthView;
 		}
 	> = {
-		signin: {
-			title: 'Sign In',
-			showTabs: true,
-			showBack: false
-		},
-		signup: {
-			title: 'Create Account',
-			showTabs: true,
-			showBack: false
-		},
-		forgot: {
-			title: 'Forgot Password',
-			showTabs: false,
-			showBack: true,
-			backTo: 'signin'
-		},
-		otp: {
-			title: 'Verify OTP',
-			showTabs: false,
-			showBack: true,
-			backTo: 'forgot'
-		},
-		reset: {
-			title: 'Reset Password',
-			showTabs: false,
-			showBack: true,
-			backTo: 'otp'
-		}
+		signin: { title: 'Sign In', showTabs: true, showBack: false },
+		signup: { title: 'Create Account', showTabs: true, showBack: false },
+		forgot: { title: 'Forgot Password', showTabs: false, showBack: true, backTo: 'signin' },
+		otp: { title: 'Verify OTP', showTabs: false, showBack: true, backTo: 'forgot' },
+		reset: { title: 'Reset Password', showTabs: false, showBack: true, backTo: 'otp' }
 	};
 
 	$: currentView = viewMeta[activeView];
@@ -98,7 +75,6 @@
 
 	function normalizeBackendErrors(data: any): Record<string, string> {
 		if (!data || typeof data !== 'object') return {};
-
 		return Object.fromEntries(
 			Object.entries(data).map(([key, value]) => [
 				key,
@@ -115,10 +91,7 @@
 		try {
 			await loadSession();
 			signoutMessage = 'Signed out!';
-			// clear after 2 sec
-			setTimeout(() => {
-				signoutMessage = '';
-			}, 2000);
+			setTimeout(() => { signoutMessage = ''; }, 2000);
 		} catch (err: any) {
 			const data = err?.response?.data;
 			const errors = normalizeBackendErrors(data);
@@ -131,27 +104,13 @@
 </script>
 
 {#if $session.status === 'loading'}
-	<!-- optional skeleton -->
-	<button
-		class="cursor-pointer rounded-sm border px-4 py-1 text-secondary-3 border-secondary-3 bg-white active:border-white active:text-white active:bg-secondary-4"
-		disabled>Loading…</button
-	>
+	<button class="btn-secondary" disabled>Loading…</button>
 {:else if $session.status === 'anonymous'}
-	<button
-		class="cursor-pointer rounded-sm border px-4 py-1 text-secondary-3 border-secondary-3 bg-white active:border-white active:text-white active:bg-secondary-4"
-		on:click={openDrawer}
-	>
-		Sign In/Up
-	</button>
+	<button class="btn-secondary" on:click={openDrawer}>Sign In/Up</button>
 {:else}
-	<div class="relative cursor-pointer dropdown-container">
-		<button
-			class="flex items-center gap-2 cursor-pointer"
-			on:click={() => (dropdownOpen = !dropdownOpen)}
-		>
-			<span class="text=md text-white font-semibold text-sm">
-				{$session.user?.first_name}
-			</span>
+	<div class="relative flex flex-col items-end gap-1 dropdown-container">
+		<button class="flex items-center gap-2 cursor-pointer" on:click={() => (dropdownOpen = !dropdownOpen)}>
+			<span class="text-white font-semibold text-sm">{$session.user?.first_name}</span>
 			<Icon
 				icon="icon-park-solid:down-one"
 				width="20"
@@ -162,18 +121,17 @@
 					: 'transition: transform 0.2s ease;'}
 			/>
 		</button>
+
+		{#if signoutMessage}
+			<p class="text-xs text-red-400 font-bold whitespace-nowrap">{signoutMessage}</p>
+		{/if}
+
 		{#if dropdownOpen}
-			<div
-				class="absolute top-full w-[130%] right-0 mt-1 bg-white rounded-sm shadow-md z-100"
-			>
+			<div class="absolute top-full w-[130%] right-0 mt-1 bg-white rounded-sm shadow-md z-[100]">
 				<button
-					on:click={() => {
-						logoutAndClose();
-						dropdownOpen = false;
-					}}
+					on:click={() => { logoutAndClose(); dropdownOpen = false; }}
 					class="px-2 py-1 items-center w-full border rounded-sm bg-white text-ternary-2 border-white active:border-2 active:text-ternary-3 active:border-ternary-3 cursor-pointer"
-					>Sign out</button
-				>
+				>Sign out</button>
 			</div>
 		{/if}
 	</div>
@@ -181,7 +139,7 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-100 bg-slate-950/60"
+		class="fixed inset-0 z-[100] bg-slate-950/60"
 		role="button"
 		tabindex="0"
 		aria-label="Close authentication drawer"
@@ -190,11 +148,11 @@
 		transition:fade={{ duration: 300 }}
 	>
 		<aside
-			class="absolute right-0 top-0 h-full w-full max-w-md bg-slate-950 border-l-1 border-t-1 border-b-1 rounded-sm border-gray-500 shadow-2xl auth-drawer"
+			class="absolute right-0 top-0 h-full w-full sm:max-w-md bg-slate-950 border-l border-t border-b rounded-sm border-gray-500 shadow-2xl"
 			aria-label="Authentication"
 			transition:fly={{ x: 400, duration: 300 }}
 		>
-			<div class="flex items-center justify-between border-b-1 border-gray-500 px-6 py-4">
+			<div class="flex items-center justify-between border-b border-gray-500 px-6 py-4">
 				<div class="flex items-center gap-3">
 					{#if currentView.showBack}
 						<button
@@ -205,48 +163,32 @@
 							<Icon icon="material-symbols:arrow-back" width="22" height="22" />
 						</button>
 					{/if}
-
 					<h2 class="text-lg font-semibold text-white">{currentView.title}</h2>
 				</div>
 
 				<button type="button" aria-label="Close dialog" on:click={closeDrawer}>
-					<Icon
-						icon="material-symbols:close"
-						class="text-ternary-0 cursor-pointer"
-						width="24"
-						height="24"
-					/>
+					<Icon icon="material-symbols:close" class="text-ternary-0 cursor-pointer" width="24" height="24" />
 				</button>
 			</div>
 
 			<div class="px-6 pt-5">
 				{#if currentView.showTabs}
 					<div class="mb-6 relative rounded-sm border border-secondary-2 bg-white overflow-hidden">
-						<!-- Sliding background -->
 						<div
 							class="absolute top-0 bottom-0 w-1/2 bg-secondary-4 transition-all duration-300 ease-in-out rounded-sm"
 							style="transform: translateX({activeView === 'signin' ? '0%' : '100%'});"
 						></div>
-
 						<div class="grid grid-cols-2 relative">
 							<button
 								type="button"
 								on:click={() => (activeView = 'signin')}
-								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${
-									activeView === 'signin' ? 'text-secondary-1' : 'text-secondary-3'
-								}`}
-							>
-								Sign In
-							</button>
+								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${activeView === 'signin' ? 'text-secondary-1' : 'text-secondary-3'}`}
+							>Sign In</button>
 							<button
 								type="button"
 								on:click={() => (activeView = 'signup')}
-								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${
-									activeView === 'signup' ? 'text-secondary-1' : 'text-secondary-3'
-								}`}
-							>
-								Sign Up
-							</button>
+								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${activeView === 'signup' ? 'text-secondary-1' : 'text-secondary-3'}`}
+							>Sign Up</button>
 						</div>
 					</div>
 				{/if}
@@ -265,36 +207,21 @@
 								/>
 							{:else if activeView === 'signup'}
 								<SignUp
-									onSignedUp={(email) => {
-										prefilledSignInEmail = email;
-										activeView = 'signin';
-									}}
+									onSignedUp={(email) => { prefilledSignInEmail = email; activeView = 'signin'; }}
 									onSwitchToSignIn={() => (activeView = 'signin')}
 								/>
 							{:else if activeView === 'forgot'}
-								<ForgotPassword
-									onOtpSent={(email) => {
-										resetEmail = email;
-										activeView = 'otp';
-									}}
-								/>
+								<ForgotPassword onOtpSent={(email) => { resetEmail = email; activeView = 'otp'; }} />
 							{:else if activeView === 'otp'}
 								<OtpVerification
 									email={resetEmail}
-									onVerified={(token) => {
-										resetToken = token;
-										activeView = 'reset';
-									}}
+									onVerified={(token) => { resetToken = token; activeView = 'reset'; }}
 									onBack={() => (activeView = 'forgot')}
 								/>
 							{:else if activeView === 'reset'}
 								<ResetPassword
 									{resetToken}
-									onResetDone={() => {
-										resetToken = '';
-										resetEmail = '';
-										activeView = 'signin';
-									}}
+									onResetDone={() => { resetToken = ''; resetEmail = ''; activeView = 'signin'; }}
 								/>
 							{/if}
 						</div>
@@ -304,12 +231,3 @@
 		</aside>
 	</div>
 {/if}
-
-<div class="absolute top-1 w-full right-25">
-	{#if signoutMessage}
-		<p class="text-sm text-red-400 font-bold">{signoutMessage}</p>
-	{/if}
-</div>
-
-<style>
-</style>

@@ -2,23 +2,21 @@
 	import BlochSphere from './BlochSphere.svelte';
 	import { SimulationResults } from '$lib/stores';
 	import { computeOverallBlochVector } from '$lib/quantum/bloch';
+	import { onMount } from 'svelte';
 
 	$: vectors = $SimulationResults.blochVectors ?? [];
 	$: overall = computeOverallBlochVector(vectors);
+
+	let sphereSize = 200;
+
+	onMount(() => {
+		const update = () => { sphereSize = window.innerWidth < 768 ? 140 : 200; };
+		update();
+		window.addEventListener('resize', update);
+		return () => window.removeEventListener('resize', update);
+	});
 </script>
 
-<div class="overall-bloch">
-	<BlochSphere vector={overall} label="Overall State" size={200} showAxisLabels={true} />
+<div class="flex flex-col items-center text-white text-xs tracking-wider font-light">
+	<BlochSphere vector={overall} label="Overall State" size={sphereSize} showAxisLabels={true} />
 </div>
-
-<style>
-	.overall-bloch {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		font-family: 'Inter', 'Roboto', sans-serif;
-		font-size: 0.5rem;
-		color: white;
-		letter-spacing: 0.05rem;
-	}
-</style>

@@ -20,6 +20,7 @@
 	let columnWidth = 58;
 	let gateOffset = 120;
 	let scrollContainer: HTMLDivElement | null = null;
+	let hoveredWire: number | null = null;
 
 	const MAX_COLUMNS = 29;
 	const MAX_QUBITS = 8;
@@ -42,7 +43,7 @@
 
 	async function recomputeConnectors() {
 		await tick();
-		await tick(); // Ensures layout is fully updated after resize
+		await tick();
 		if (!boardEl) return;
 
 		const boardRect = boardEl.getBoundingClientRect();
@@ -90,7 +91,6 @@
 		});
 	}
 
-	// Recompute connectors when gates or layout changes (fixes red line on resize)
 	$: $circuit.gates, $circuitLayout, scheduleConnectorRecompute();
 
 	$: wires = Array.from({ length: $circuit.numQubits }, (_, i) => ({
@@ -100,33 +100,29 @@
 
 	$: showGhostWire = $isDragging && $circuit.numQubits < MAX_QUBITS;
 
-	// Auto-scroll to bottom when ghost wire appears
 	$: if (showGhostWire && scrollContainer) {
 		(async () => {
 			await tick();
 			await tick();
 			setTimeout(() => {
-				scrollContainer?.scrollTo({
-					top: scrollContainer.scrollHeight,
-					behavior: 'smooth'
-				});
+				scrollContainer?.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
 			}, 350);
 		})();
+	}
+
+	function hasGatesOnWire(qubitIndex: number) {
+		return $circuit.gates.some(
+			(g) =>
+				g.qubit === qubitIndex ||
+				g.targetQubit === qubitIndex ||
+				g.targetQubits?.includes(qubitIndex)
+		);
 	}
 
 	function removeQubitWire(qubitIndex: number) {
 		const current = $circuit;
 		if (current.numQubits <= 1) return;
-
-		if (
-			current.gates.some(
-				(g) =>
-					g.qubit === qubitIndex ||
-					g.targetQubit === qubitIndex ||
-					g.targetQubits?.includes(qubitIndex)
-			)
-		)
-			return;
+		if (hasGatesOnWire(qubitIndex)) return;
 
 		const newNumQubits = current.numQubits - 1;
 
@@ -146,12 +142,7 @@
 							.map((t) => (t > qubitIndex ? t - 1 : t))
 					: undefined;
 
-				return {
-					...gate,
-					qubit: newQubit,
-					targetQubit: newTargetQubit,
-					targetQubits: newTargetQubits
-				} as GateInstance;
+				return { ...gate, qubit: newQubit, targetQubit: newTargetQubit, targetQubits: newTargetQubits } as GateInstance;
 			});
 
 		const newQubitLabels = current.qubitLabels
@@ -176,7 +167,6 @@
 	class="w-[96%] relative mx-auto z-50"
 	bind:this={boardEl}
 >
-	<!-- Fixed max height after 5 qubits -->
 	<div
 		class="border border-ternary-2 rounded-sm transition-all duration-300 ease-in-out overflow-hidden"
 		style="height: {(Math.min($circuit.numQubits, 6) + (showGhostWire ? 1 : 0)) * 64 + 16}px;"
@@ -192,8 +182,15 @@
 
 			<!-- Real wires -->
 			{#each wires as wire (wire.id)}
-				<div class="relative flex h-16 items-center" data-qubit={wire.qubit}>
-					<!-- Wire -->
+				<div
+					role="row"
+					tabindex="-1"
+					class="relative flex h-16 items-center"
+					data-qubit={wire.qubit}
+					on:mouseenter={() => hoveredWire = wire.qubit}
+					on:mouseleave={() => hoveredWire = null}
+				>
+					<!-- Wire line -->
 					<div
 						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-gray-300"
 					>
@@ -213,18 +210,29 @@
 						</div>
 					</div>
 
-					<!-- Qubit circle -->
-					<div
-						class={`qubit-circle mr-2 z-10 flex h-10 w-10 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-md text-white shadow-lg ${
-							wire.qubit >= 1
-								? 'cursor-pointer border-dotted active:border-solid active:border-amber-700 select-none'
-								: 'cursor-default'
-						}`}
-						role="button"
-						tabindex="0"
-						on:dblclick={() => removeQubitWire(wire.qubit)}
-					>
-						|0⟩
+					<!-- Qubit circle with hover-reveal delete button -->
+					<div class="relative mr-2 z-10 flex-shrink-0">
+						<div
+							class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-base text-white shadow-lg ${
+								wire.qubit >= 1
+									? 'cursor-pointer border-dotted active:border-solid active:border-amber-700'
+									: 'cursor-default'
+							}`}
+							role="button"
+							tabindex="0"
+							on:dblclick={() => removeQubitWire(wire.qubit)}
+						>
+							|0⟩
+						</div>
+						{#if wire.qubit >= 1 && !hasGatesOnWire(wire.qubit)}
+							<button
+								class="absolute -top-1 -right-1 w-4 h-4 rounded-full border border-ternary-3 cursor-pointer bg-ternary-2 text-white text-[10px] leading-none transition-opacity flex items-center justify-center"
+								class:opacity-0={hoveredWire !== wire.qubit}
+								class:opacity-100={hoveredWire === wire.qubit}
+								on:click={() => removeQubitWire(wire.qubit)}
+								aria-label="Remove qubit {wire.qubit}"
+							>×</button>
+						{/if}
 					</div>
 
 					<input
@@ -232,7 +240,7 @@
 						value={$circuit.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 						on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 						placeholder="Label"
-						class="qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-sm bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
+						class="qubit-label z-10 w-[60px] h-[26px] px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-sm bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
 					/>
 
 					<!-- Gates -->
@@ -244,17 +252,18 @@
 								data-qubit={gate.qubit}
 								data-type={gate.gateType}
 								role="button"
-								aria-label={`Remove ${gate.gateType} gate...`}
+								aria-label={`Remove ${gate.gateType} gate`}
 								tabindex="0"
 								draggable="true"
 								on:dragstart={(e) => handleGateDragStart(e, gate.id)}
+								on:dragend={() => isDragging.set(false)}
 								on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
 								on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 								on:touchstart={(e) =>
 									handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
 								on:touchmove={handleTouchMove}
 								on:touchend={handleTouchEnd}
-								class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow"
+								class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-white text-secondary-4 hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow transition-colors duration-100"
 								style="left: {gateOffset + (gate.columnIndex + 0.5) * columnWidth}px;"
 							>
 								{#if gate.gateType === 'CONTROL'}
@@ -272,7 +281,7 @@
 				</div>
 			{/each}
 
-			<!-- Ghost wire (inside scrollable area, no height impact) -->
+			<!-- Ghost wire -->
 			{#if showGhostWire}
 				<div class="ghost-wire relative flex h-14 items-center" data-qubit={$circuit.numQubits}>
 					<div
@@ -292,7 +301,7 @@
 					</div>
 
 					<div
-						class="z-10 mr-2 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-md text-white shadow-lg opacity-50"
+						class="z-10 mr-2 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-base text-white shadow-lg opacity-50"
 					>
 						|0⟩
 					</div>
@@ -301,7 +310,7 @@
 						type="text"
 						value="Qubit {$circuit.numQubits}"
 						disabled
-						class="z-10 w-15 h-7.5 px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
+						class="z-10 w-[60px] h-[30px] px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
 					/>
 				</div>
 			{/if}
@@ -314,7 +323,8 @@
 		opacity: 0.6;
 	}
 	.ghost-wire :global(.dropzone:hover) {
-		background-color: rgba(100, 200, 255, 0.15);
+		background-color: rgba(168, 85, 247, 0.15);
+		border-radius: 4px;
 	}
 
 	.dropzone {
@@ -325,7 +335,8 @@
 		transition: background-color 0.2s ease;
 	}
 	.dropzone:hover {
-		background-color: rgba(255, 255, 255, 0.05);
+		background-color: rgba(168, 85, 247, 0.15);
+		border-radius: 4px;
 	}
 
 	.gate {
@@ -337,7 +348,7 @@
 	}
 
 	.gate.copying {
-		box-shadow: 0 0 0 1px #22c55e; /* green glow when copying */
+		box-shadow: 0 0 0 1px #22c55e;
 		transition: all 0.15s ease;
 	}
 
@@ -352,21 +363,5 @@
 		top: 50%;
 		transform: translateY(-50%);
 		z-index: 20;
-	}
-
-	::-webkit-scrollbar {
-		width: 7px;
-		height: 7px;
-	}
-	::-webkit-scrollbar-track {
-		background: #1f2937;
-		border-radius: 20px;
-	}
-	::-webkit-scrollbar-thumb {
-		background: gray;
-		border-radius: 20px;
-	}
-	::-webkit-scrollbar-thumb:hover {
-		background: darkgray;
 	}
 </style>

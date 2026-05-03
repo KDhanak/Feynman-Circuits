@@ -100,7 +100,7 @@
 					const { first_name, ...rest } = signupErrors;
 					signupErrors = rest;
 				}}
-				class="w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
+				class="input-field"
 			/>
 			{#if signupErrors.first_name}
 				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.first_name}</p>
@@ -119,7 +119,7 @@
 					const { last_name, ...rest } = signupErrors;
 					signupErrors = rest;
 				}}
-				class="w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
+				class="input-field"
 			/>
 			{#if signupErrors.last_name}
 				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.last_name}</p>
@@ -137,7 +137,7 @@
 					const { email, ...rest } = signupErrors;
 					signupErrors = rest;
 				}}
-				class="w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
+				class="input-field"
 			/>
 			{#if signupErrors.email}
 				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.email}</p>
@@ -156,7 +156,7 @@
 					const { password, ...rest } = signupErrors;
 					signupErrors = rest;
 				}}
-				class="w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
+				class="input-field"
 			/>
 			{#if signupErrors.password}
 				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.password}</p>
@@ -175,7 +175,7 @@
 					const { password2, ...rest } = signupErrors;
 					signupErrors = rest;
 				}}
-				class="w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 text-black font-extralight outline-none focus:border-secondary-3"
+				class="input-field"
 			/>
 			{#if signupErrors.password2}
 				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.password2}</p>
@@ -183,7 +183,7 @@
 		</div>
 		<button
 			type="submit"
-			class="w-full cursor-pointer rounded-sm border px-4 py-2 font-semibold bg-ternary-2 text-white active:bg-ternary-2 border-white active:text-ternary-3 active:border-ternary-3"
+			class="btn-primary w-full"
 		>
 			{loading ? 'Creating...' : 'Create Account'}
 		</button>
