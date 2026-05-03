@@ -10,12 +10,15 @@ import {
 import {
     simulateMultipleQubits,
 } from "$lib/simulator";
+import { fromCircuitState } from "./IR/fromCircuitState";
 
 /*──────────────────────── helpers ───────────────────────*/
 
 export function triggerSimulation(cs: CircuitState) {
-    const result = simulateMultipleQubits(cs);
+    const ir = fromCircuitState(cs);
+    const result = simulateMultipleQubits(ir);
     SimulationResults.set(result);
+    console.log("Simulation triggered with IR:", ir); // DEBUG
 }
 
 function findNextAvailableColumn(cs: CircuitState, q: number) {

@@ -1,4 +1,6 @@
-import type { CircuitState, SimulationResult, MatrixGateType, GateInstance } from "./stores";
+import type { CircuitIR } from "./IR/schema";
+import { circuitIR } from "./IR/stores";
+import type { SimulationResult } from "./stores";
 import { circuit, SimulationResults } from '../lib/stores';
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
@@ -6,6 +8,7 @@ import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix } from "./
 import { GATE_MAP } from "./quantum/gates";
 import { get } from "svelte/store";
 import { computeBlochVectorsFromState } from './quantum/bloch';
+
 
 /**
  * Collapses ONE qubit to a random 0 or 1 (according to Born's rule).
@@ -44,18 +47,11 @@ export function collapseQubit(
 	};
 }
 
-export function skipIfMeasured(
-	gate: GateInstance,
-	measuredQubits: Set<number>
-): boolean {
-	return measuredQubits.has(gate.qubit);
-}
-
 // ─────────────────────────────────────────────────────────────
 // Unified simulator (works for 1 qubit AND multi-qubit)
 // ─────────────────────────────────────────────────────────────
-export function simulateMultipleQubits(circuit: CircuitState): SimulationResult {
-	const { numQubits, gates } = circuit;
+export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
+	const numQubits = ir.registers.q;
 	if (numQubits < 1) throw new Error('At least 1 qubit required');
 
 	const dim = 1 << numQubits;
@@ -65,82 +61,39 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 	const measuredQubits = new Set<number>();
 	const classicalBits = new Map<number, number>();
 
-	const maxColumn = gates.length ? Math.max(...gates.map(g => g.columnIndex)) + 1 : 0;
-	const columns = Array.from({ length: maxColumn }, (_, colIndex) =>
-		gates.filter(g => g.columnIndex === colIndex)
-	);
+	const maxColumn = ir.operations.length ? Math.max(...ir.operations.map(op => op.column)) + 1 : 0;
 
-	for (const colGates of columns) {
-		// CONTROL aggregation
-		const controlGates = colGates.filter(g => g.gateType === 'CONTROL');
-		const controlsByTarget = new Map<number, number[]>();
-		for (const ctrl of controlGates) {
-			const targets = ctrl.targetQubits ?? (ctrl.targetQubit !== undefined ? [ctrl.targetQubit] : []);
-			for (const targetQubit of targets) {
-				const arr = controlsByTarget.get(targetQubit) ?? [];
-				arr.push(ctrl.qubit);
-				controlsByTarget.set(targetQubit, arr);
-			}
-		}
+	for (let colIndex = 0; colIndex < maxColumn; colIndex++) {
+		const colOps = ir.operations.filter(op => op.column === colIndex);
 
-		const controlledQubits = new Set<number>();
-		for (const [t, ctrls] of controlsByTarget) {
-			controlledQubits.add(t);
-			ctrls.forEach(c => controlledQubits.add(c));
-		}
-
-		// Independent gates
-		for (const gate of colGates) {
-			if (gate.gateType === 'CONTROL' || controlledQubits.has(gate.qubit)) continue;
-
-			if (gate.gateType === 'MEASURE') {
-				measuredQubits.add(gate.qubit);
-				const result = collapseQubit(state, gate.qubit, numQubits);
-				state = result.newState;
-				classicalBits.set(gate.qubit, result.outcome);
-				continue;
-			}
-
-			if (skipIfMeasured(gate, measuredQubits)) {
-				// Classical gate after measurement (only X supported for now)
-				if (gate.gateType === 'X') {
-					let current = classicalBits.get(gate.qubit) ?? 0;
-					current = 1 - current;
-					classicalBits.set(gate.qubit, current);
-
-					const pos = numQubits - 1 - gate.qubit;
-					const mask = 1 << pos;
-					state = state.map((amp, index) => {
-						const bit = (index >> pos) & 1;
-						return bit === current ? amp : createComplex(0, 0);
-					});
+		for (const op of colOps) {
+			if (op.kind === 'measure') {
+				for (const target of op.targets) {
+					measuredQubits.add(target);
+					const result = collapseQubit(state, target, numQubits);
+					state = result.newState;
+					classicalBits.set(target, result.outcome);
 				}
 				continue;
+			};
+
+			if (op.kind === 'reset' || op.kind === 'barrier')
+				continue;
+
+			if (op.kind === 'unitary') {
+				if (measuredQubits.has(op.targets[0])) continue; // skip gates on measured qubits
+
+				const gateDef = GATE_MAP[op.gate];
+				if (!gateDef) continue;
+
+				if (op.controls.length === 0) {
+					const matrix = extendGateMatrix(gateDef.matrix, op.targets[0], numQubits);
+					state = applyMatrix(matrix, state);
+				} else {
+					const matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, gateDef.matrix);
+					state = applyMatrix(matrix, state);
+				}
 			}
-
-			const gateDef = GATE_MAP[gate.gateType as MatrixGateType];
-			if (gateDef && gateDef.matrix.length > 0) {
-				const matrix = extendGateMatrix(gateDef.matrix, gate.qubit, numQubits);
-				state = applyMatrix(matrix, state);
-			}
-		}
-
-		// Controlled gates
-		for (const [targetQubit, controlQubits] of controlsByTarget) {
-			if (measuredQubits.has(targetQubit)) continue;
-
-			const targetGate = colGates.find(g => 
-				g.qubit === targetQubit && 
-				g.gateType !== 'CONTROL' && 
-				g.gateType !== 'MEASURE'
-			);
-			if (!targetGate) continue;
-
-			const gateDef = GATE_MAP[targetGate.gateType as MatrixGateType];
-			if (!gateDef || gateDef.matrix.length === 0) continue;
-
-			const matrix = computeMultiControlledUMatrix(controlQubits, targetQubit, numQubits, gateDef.matrix);
-			state = applyMatrix(matrix, state);
 		}
 	}
 
@@ -167,13 +120,10 @@ export function simulateMultipleQubits(circuit: CircuitState): SimulationResult 
 }
 
 export function resetCircuit() {
-	const current = get(circuit);
-	const qubits = current.numQubits || 1;
+const current = get(circuitIR);
+const qubits = current.registers.q || 1;
 
-	circuit.set({
-		numQubits: qubits,
-		gates: []
-	});
+	circuitIR.update(c => ({...c, operations: []}));
 
 	const probabilities: { [state: string]: number } = {};
 	for (let i = 0; i < (1 << qubits); i++) {
