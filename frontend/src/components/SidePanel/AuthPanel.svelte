@@ -109,13 +109,15 @@
 	<button class="btn-secondary" on:click={openDrawer}>Sign In/Up</button>
 {:else}
 	<div class="relative flex flex-col items-end gap-1 dropdown-container">
-		<button class="flex items-center gap-2 cursor-pointer" on:click={() => (dropdownOpen = !dropdownOpen)}>
-			<span class="text-white font-semibold text-sm">{$session.user?.first_name}</span>
+		<button
+			class="btn-secondary flex items-center gap-1.5"
+			on:click={() => (dropdownOpen = !dropdownOpen)}
+		>
+			<span>{$session.user?.first_name || $session.user?.email}</span>
 			<Icon
 				icon="icon-park-solid:down-one"
-				width="20"
-				height="20"
-				class="text-white"
+				width="16"
+				height="16"
 				style={dropdownOpen
 					? 'transform: rotate(180deg); transition: transform 0.2s ease;'
 					: 'transition: transform 0.2s ease;'}
@@ -123,15 +125,19 @@
 		</button>
 
 		{#if signoutMessage}
-			<p class="text-xs text-red-400 font-bold whitespace-nowrap">{signoutMessage}</p>
+			<p class="text-xs text-green-400 font-bold whitespace-nowrap">{signoutMessage}</p>
 		{/if}
 
 		{#if dropdownOpen}
-			<div class="absolute top-full w-[130%] right-0 mt-1 bg-white rounded-sm shadow-md z-[100]">
+			<div class="absolute top-full right-0 mt-1 bg-slate-900 border border-gray-600 rounded-sm shadow-xl z-[100] min-w-full">
 				<button
-					on:click={() => { logoutAndClose(); dropdownOpen = false; }}
-					class="px-2 py-1 items-center w-full border rounded-sm bg-white text-ternary-2 border-white active:border-2 active:text-ternary-3 active:border-ternary-3 cursor-pointer"
-				>Sign out</button>
+					on:click={() => logoutAndClose()}
+					disabled={loading}
+					class="flex items-center gap-2 px-4 py-2.5 w-full text-sm text-white hover:bg-slate-800 active:bg-slate-700 cursor-pointer transition-colors whitespace-nowrap disabled:opacity-50"
+				>
+					<Icon icon="material-symbols:logout" width="16" height="16" />
+					{loading ? 'Signing out…' : 'Sign out'}
+				</button>
 			</div>
 		{/if}
 	</div>
