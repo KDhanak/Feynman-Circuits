@@ -44,8 +44,9 @@ if DEBUG:
     CSRF_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
-    
+
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    AUTH_FROM_EMAIL = "noreply@localhost"
 else:
     ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
     CORS_ALLOWED_ORIGINS = os.environ.get("FRONTEND_URL", "").split(",")
@@ -75,7 +76,7 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "REFRESH_TOKEN_ROTATE": True,
+    "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
@@ -111,7 +112,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
-    "anymail",
+    *( ["anymail"] if not DEBUG else [] ),
 ]
 
 MIDDLEWARE = [
