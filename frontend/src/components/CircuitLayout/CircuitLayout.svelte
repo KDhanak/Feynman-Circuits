@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { circuitLayout } from '$lib/stores';
+	import { circuitLayout } from '$lib/IR/stores';
 	import WireDropeZone from './WireDropeZone.svelte';
 
 	let containerEl: HTMLDivElement;

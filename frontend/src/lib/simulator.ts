@@ -4,7 +4,7 @@ import type { SimulationResult } from "./IR/schema";
 import { simulationResult } from "./IR/stores";
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
-import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix } from "./quantum/matrix";
+import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix, computeMultiControlledUMatrixWithAntiControls } from "./quantum/matrix";
 import { GATE_MAP } from "./quantum/gates";
 import { get } from "svelte/store";
 import { computeBlochVectorsFromState } from './quantum/bloch';
@@ -86,13 +86,15 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 				const gateDef = GATE_MAP[op.gate];
 				if (!gateDef) continue;
 
-				if (op.controls.length === 0) {
-					const matrix = extendGateMatrix(gateDef.matrix, op.targets[0], numQubits);
-					state = applyMatrix(matrix, state);
+				let matrix: typeof gateDef.matrix;
+				if (op.controls.length === 0 && op.antiControls.length === 0) {
+					matrix = extendGateMatrix(gateDef.matrix, op.targets[0], numQubits);
+				} else if (op.antiControls.length === 0) {
+					matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, gateDef.matrix);
 				} else {
-					const matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, gateDef.matrix);
-					state = applyMatrix(matrix, state);
+					matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, gateDef.matrix);
 				}
+				state = applyMatrix(matrix, state);
 			}
 		}
 	}

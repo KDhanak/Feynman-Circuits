@@ -16,3 +16,11 @@ export const simulationResult = writable<SimulationResult>({
     formattedState: '1.00|0⟩',
     blochVectors: [{ qubit: 0, x: 0, y: 0, z: 1, magnitude: 1}]
 });
+
+export const isDragging = writable<boolean>(false);
+
+export const circuitLayout = writable({
+	columnWidth: 58,
+	gateOffset: 120,
+	usableWidth: 1000,
+});

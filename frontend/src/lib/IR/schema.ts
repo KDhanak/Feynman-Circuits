@@ -16,6 +16,7 @@ export interface UnitaryOperation extends BaseOperation {
     gate: CanonicalUnitaryGate;
     targets: number[];
     controls: number[];
+    antiControls: number[];
     params: number[];
 }
 
@@ -62,4 +63,8 @@ export interface GateData {
     gateType?: string;
     gateId?: string; 
     isCopy?: boolean; 
+};
+
+export interface ErrorResponse {
+    detail?: string;
 };

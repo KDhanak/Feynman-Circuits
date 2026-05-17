@@ -8,7 +8,7 @@
 		handleTouchMove,
 		triggerSimulation
 	} from '$lib/dragDropUtils';
-	import { isDragging } from '$lib/stores';
+	import { isDragging } from '$lib/IR/stores';
 	import { resetCircuit } from '$lib/simulator';
 	import { importCircuit } from '$lib/IE';
 	import { onMount } from 'svelte';
@@ -27,6 +27,7 @@
 		{ type: 'S', name: 'S', category: 'single' },
 		{ type: 'T', name: 'T', category: 'single' },
 		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' },
+		{ type: 'ANTI_CONTROL', name: 'ANTI_CONTROL', category: 'multi' },
 		{ type: 'MEASURE', name: 'MEASURE', category: 'single' }
 	];
 
@@ -186,13 +187,15 @@
 				on:touchmove={handleTouchMove}
 				on:touchend={(e) => handleTouchEnd(e)}
 				class={`cursor-grab select-none border bg-white hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
-					['CONTROL', 'MEASURE'].includes(gate.type)
+					['CONTROL', 'ANTI_CONTROL', 'MEASURE'].includes(gate.type)
 						? 'h-11 w-10 rounded-sm border-secondary-4'
 						: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
 				}`}
 			>
 				{#if gate.type === 'CONTROL'}
 					<span class="h-3 w-3 rounded-full bg-secondary-4"></span>
+				{:else if gate.type === 'ANTI_CONTROL'}
+					<span class="h-3 w-3 rounded-full border border-secondary-4"></span>
 				{:else if gate.type === 'MEASURE'}
 					<span class="text-secondary-4">
 						<Icon icon="si:meter-fill" width="20" height="20" />

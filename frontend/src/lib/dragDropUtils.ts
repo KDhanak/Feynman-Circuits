@@ -1,12 +1,14 @@
 import type { CircuitIR, UnitaryOperation, MeasureOperation, CircuitOperation, GateData } from './IR/schema';
 import { writable, get } from 'svelte/store';
-import { isDragging } from './stores';
-import { circuitIR, simulationResult } from './IR/stores';
+import { circuitIR, simulationResult, isDragging } from './IR/stores';
 import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } from './IR/operations';
 import { simulateMultipleQubits } from './simulator';
 
 // UI-only: tracks controls placed in a column before any unitary op exists there
 export const pendingControls = writable<Map<number, number[]>>(new Map());
+
+// UI-only: tracks anti-controls placed in a column before any unitary op exists there
+export const pendingAntiControls = writable<Map<number, number[]>>(new Map());
 
 /*──────────────────────── simulation ────────────────────*/
 
@@ -133,6 +135,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
     const parsed = JSON.parse(raw) as GateData;
     const ir = get(circuitIR);
     const pending = get(pendingControls);
+    const antiPending = get(pendingAntiControls);
 
     /*─── Ghost wire drop: expand qubit count ───*/
     if (qubit === ir.registers.q && ir.registers.q < 8) {
@@ -140,7 +143,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
         const freshIR = get(circuitIR);
 
         if (parsed.source === 'palette' && parsed.gateType) {
-            _dropPaletteGate(parsed.gateType, col, qubit, freshIR, pending);
+            _dropPaletteGate(parsed.gateType, col, qubit, freshIR, pending, antiPending);
         } else if (parsed.source === 'wire' && parsed.gateId) {
             updateOperation(parsed.gateId, op => ({ ...op, column: col, targets: [qubit] } as CircuitOperation));
             triggerSimulation(get(circuitIR));
@@ -171,7 +174,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 
     /*─── Drop from palette ───*/
     if (parsed.source === 'palette' && parsed.gateType) {
-        _dropPaletteGate(parsed.gateType, col, qubit, ir, pending);
+        _dropPaletteGate(parsed.gateType, col, qubit, ir, pending, antiPending);
     }
 }
 
@@ -180,7 +183,8 @@ function _dropPaletteGate(
     col: number,
     qubit: number,
     ir: CircuitIR,
-    pending: Map<number, number[]>
+    pending: Map<number, number[]>,
+    antiPending: Map<number, number[]>
 ) {
     const upperType = gateType.toUpperCase();
 
@@ -213,6 +217,35 @@ function _dropPaletteGate(
         return;
     }
 
+    if (upperType === 'ANTI_CONTROL') {
+        // Find all unitary ops in this column
+        const existingOps = ir.operations.filter(
+            op => op.kind === 'unitary' && op.column === col
+        ) as UnitaryOperation[];
+
+        if (existingOps.length > 0) {
+            // Attach anti-control to all unitary ops in this column
+            for (const existingOp of existingOps) {
+                if (!existingOp.antiControls.includes(qubit)) {
+                    updateOperation(existingOp.id, op => ({
+                        ...op,
+                        antiControls: [...(op as UnitaryOperation).antiControls, qubit]
+                    } as CircuitOperation));
+                }
+            }
+        } else {
+            // No unitary op yet — park in pendingAntiControls
+            pendingAntiControls.update(map => {
+                const next = new Map(map);
+                const existing = next.get(col) ?? [];
+                if (!existing.includes(qubit)) next.set(col, [...existing, qubit]);
+                return next;
+            });
+        }
+        triggerSimulation(get(circuitIR));
+        return;
+    }
+
     if (upperType === 'MEASURE') {
         const occupied = ir.operations.some(op => op.column === col && 'targets' in op && (op.targets as number[]).includes(qubit));
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
@@ -235,16 +268,20 @@ function _dropPaletteGate(
     if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
     const pendingInColumn = pending.get(col) ?? [];
+    const antiPendingInColumn = antiPending.get(col) ?? [];
 
     // Also collect controls from other operations in this column
     const existingControls = new Set<number>();
+    const existingAntiControls = new Set<number>();
     for (const op of ir.operations) {
         if (op.kind === 'unitary' && op.column === col) {
             (op as UnitaryOperation).controls.forEach(c => existingControls.add(c));
+            (op as UnitaryOperation).antiControls.forEach(c => existingAntiControls.add(c));
         }
     }
 
     const allControls = [...new Set([...pendingInColumn, ...existingControls])];
+    const allAntiControls = [...new Set([...antiPendingInColumn, ...existingAntiControls])];
 
     const unitaryOp: UnitaryOperation = {
         id: crypto.randomUUID(),
@@ -253,6 +290,7 @@ function _dropPaletteGate(
         column: col,
         targets: [qubit],
         controls: allControls,
+        antiControls: allAntiControls,
         params: [],
     };
     insertOperation(unitaryOp);
@@ -260,6 +298,9 @@ function _dropPaletteGate(
     // Clear consumed pending controls for this column
     if (pendingInColumn.length > 0) {
         pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
+    }
+    if (antiPendingInColumn.length > 0) {
+        pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
     }
 
     triggerSimulation(get(circuitIR));
@@ -287,14 +328,15 @@ export function handlePaletteDrop(e: DragEvent) {
 /*──────────────────────── double-click ──────────────────*/
 
 export function handleDoubleClick(data: GateData) {
-    const valid = ['X', 'Y', 'Z', 'H', 'S', 'T', 'CONTROL', 'MEASURE'];
+    const valid = ['X', 'Y', 'Z', 'H', 'S', 'T', 'CONTROL', 'ANTI_CONTROL', 'MEASURE'];
 
     if (data.source === 'palette' && data.gateType) {
         if (!valid.includes(data.gateType.toUpperCase())) return;
         const ir = get(circuitIR);
         const col = findNextAvailableColumn(ir, 0);
         const pending = get(pendingControls);
-        _dropPaletteGate(data.gateType, col, 0, ir, pending);
+        const antiPending = get(pendingAntiControls);
+        _dropPaletteGate(data.gateType, col, 0, ir, pending, antiPending);
     } else if (data.source === 'wire' && data.gateId) {
         removeGate(data.gateId);
     }

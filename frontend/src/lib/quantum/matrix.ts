@@ -150,3 +150,51 @@ export function computeMultiControlledUMatrix(controlQubits: number[], targetQub
     }
     return matrix;
 }
+
+/**
+ * Generates a multi-qubit gate matrix for n control qubits, m anti-control qubits, and 1 target qubit
+ * Gate applies when: all controls are 1 AND all anti-controls are 0
+ * @param controlQubits - Array of control qubit indices (gate applies when these are |1⟩)
+ * @param antiControlQubits - Array of anti-control qubit indices (gate applies when these are |0⟩)
+ * @param targetQubit - Target qubit index
+ * @param numQubits - Total qubits in the system
+ * @param U - The 2×2 unitary gate to apply conditionally
+ * @returns Full (2^numQubits × 2^numQubits) controlled matrix
+ */
+export function computeMultiControlledUMatrixWithAntiControls(
+    controlQubits: number[],
+    antiControlQubits: number[],
+    targetQubit: number,
+    numQubits: number,
+    U: Complex[][]
+): Complex[][] {
+    const dim = 1 << numQubits;
+    const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(createComplex(0, 0)));
+    const zero = createComplex(0, 0);
+    const one = createComplex(1, 0);
+
+    for (let src = 0; src < dim; src++) {
+        // Check if all control qubits are 1
+        const allControlsActive = controlQubits.every(ctrl => (src >> (numQubits - 1 - ctrl)) & 1);
+        // Check if all anti-control qubits are 0
+        const allAntiControlsInactive = antiControlQubits.every(antiCtrl => !((src >> (numQubits - 1 - antiCtrl)) & 1));
+
+        if (!allControlsActive || !allAntiControlsInactive) {
+            matrix[src][src] = one; // Identity when conditions not met
+            continue;
+        }
+
+        // Both controls and anti-controls satisfy conditions, apply U to target qubit
+        const targetBit = (src >> (numQubits - 1 - targetQubit)) & 1;
+        const targetMask = 1 << (numQubits - 1 - targetQubit);
+
+        for (let rowBit = 0; rowBit < 2; rowBit++) {
+            const amp = U[rowBit][targetBit];
+            if (amp.re === 0 && amp.im === 0) continue;
+
+            const dest = (rowBit === targetBit) ? src : (src ^ targetMask);
+            matrix[dest][src] = amp;
+        }
+    }
+    return matrix;
+}
