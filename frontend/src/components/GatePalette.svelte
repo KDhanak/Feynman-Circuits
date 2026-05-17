@@ -40,8 +40,6 @@
 	let shake = false;
 	let dragEnterCount = 0;
 
-	// Hide CONTROL gate when there's only 1 qubit (clean beginner experience)
-	$: isSingleQubit = $circuitIR.registers.q === 1;
 
 	function flash(opts: { text: string; isError?: boolean; duration?: number }) {
 		const { text, isError = false, duration = 2000 } = opts;
@@ -169,11 +167,10 @@
 	class="relative mb-4 w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm border border-secondary-3"
 >
 	{#each gates as gate}
-		{#if !isSingleQubit || gate.type !== 'CONTROL'}
-			<!-- Separator before multi-qubit gates -->
-			{#if gate.category === 'multi' && !isSingleQubit && gate.type === 'CONTROL'}
-				<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
-			{/if}
+		<!-- Separator before multi-qubit gates -->
+		{#if gate.category === 'multi' && gate.type === 'CONTROL'}
+			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
+		{/if}
 			<div
 				title={gate.name}
 				role="region"
@@ -204,7 +201,6 @@
 					{gate.name}
 				{/if}
 			</div>
-		{/if}
 	{/each}
 
 	<div class="absolute top-2 right-4 cursor-pointer dropdown-container">
