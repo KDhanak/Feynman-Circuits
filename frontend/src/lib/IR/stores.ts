@@ -24,3 +24,8 @@ export const circuitLayout = writable({
 	gateOffset: 120,
 	usableWidth: 1000,
 });
+
+export const showCircuitDataModal = writable<boolean>(false);
+export const circuitDataModalContent = writable<string>('');
+
+export const notification = writable<{ message: string; type: 'success' | 'error' } | null>(null);

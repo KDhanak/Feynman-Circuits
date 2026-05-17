@@ -8,7 +8,8 @@
 		handleTouchMove,
 		triggerSimulation
 	} from '$lib/dragDropUtils';
-	import { isDragging } from '$lib/IR/stores';
+	import { isDragging, showCircuitDataModal, circuitDataModalContent } from '$lib/IR/stores';
+import { showNotification } from '$lib/notificationUtils';
 	import { resetCircuit } from '$lib/simulator';
 	import { importCircuit } from '$lib/IE';
 	import { onMount } from 'svelte';
@@ -32,15 +33,12 @@
 	];
 
 	let dropdownOpen = false;
-	let isEnlarged = false;
 	let activeView: DataViewMode = 'cir';
-	let editorContent = '';
 	let message = '';
 	let errorMessage = '';
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 	let shake = false;
 	let dragEnterCount = 0;
-
 
 	function flash(opts: { text: string; isError?: boolean; duration?: number }) {
 		const { text, isError = false, duration = 2000 } = opts;
@@ -67,43 +65,48 @@
 
 	function openCircuitDataModal() {
 		activeView = 'cir';
-		editorContent = buildCanonicalString($circuitIR);
-		isEnlarged = true;
+		circuitDataModalContent.set(buildCanonicalString($circuitIR));
+		showCircuitDataModal.set(true);
 		dropdownOpen = false;
 	}
 
 	function closeModal() {
-		isEnlarged = false;
+		showCircuitDataModal.set(false);
 	}
 
 	function handleTabChange(mode: DataViewMode) {
 		activeView = mode;
 		if (mode === 'cir') {
-			editorContent = buildCanonicalString($circuitIR);
+			circuitDataModalContent.set(buildCanonicalString($circuitIR));
 		}
 	}
 
 	function importJson() {
 		try {
-			const input: unknown = JSON.parse(editorContent);
+			const input: unknown = JSON.parse($circuitDataModalContent);
 			const result = importCircuit(input);
 
 			// Type guard: check if it's an error response
 			if ('detail' in result && !('version' in result)) {
-				flash({ text: result.detail ?? 'Unknown error', isError: true });
+				const errorMsg = result.detail ?? 'Unknown error';
+				flash({ text: errorMsg, isError: true });
+				showNotification(errorMsg, 'error');
 				return;
 			}
 
 			// Now TypeScript knows result is CircuitIR
 			circuitIR.set(result as CircuitIR);
 			triggerSimulation(result as CircuitIR);
-			editorContent = buildCanonicalString(result as CircuitIR);
+			circuitDataModalContent.set(buildCanonicalString(result as CircuitIR));
 			flash({ text: 'Canonical IR loaded successfully!' });
+			showNotification('Circuit imported successfully!', 'success');
 		} catch {
-			flash({ text: 'Invalid JSON format', isError: true });
+			const errorMsg = 'Invalid JSON format';
+			flash({ text: errorMsg, isError: true });
+			showNotification(errorMsg, 'error');
 		}
 
-		isEnlarged = false;
+		showCircuitDataModal.set(false);
 	}
 
 	function downloadFile(filename: string, content: string, mimeType = 'text/plain') {
@@ -122,14 +125,14 @@
 
 	function exportCurrentView() {
 		const content = buildCanonicalString($circuitIR);
-		editorContent = content;
+		circuitDataModalContent.set(content);
 		downloadFile('circuit.cir', content, 'text/plain');
 		flash({ text: 'Canonical IR downloaded!' });
 	}
 
 	async function copyToClipboard() {
 		try {
-			await navigator.clipboard.writeText(editorContent);
+			await navigator.clipboard.writeText($circuitDataModalContent);
 			flash({ text: 'Copied to clipboard!' });
 		} catch {
 			flash({ text: 'Failed to copy text. Please copy manually.', isError: true });
@@ -172,85 +175,45 @@
 		{#if gate.category === 'multi' && gate.type === 'CONTROL'}
 			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
 		{/if}
-			<div
-				title={gate.name}
-				role="region"
-				draggable="true"
-				on:dragstart={(e) => {
-					const dragData: GateData = { source: 'palette', gateType: gate.type };
-					e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
-					isDragging.set(true);
-				}}
-				on:dragend={() => isDragging.set(false)}
-				on:dblclick={() => handleDoubleClick({ source: 'palette', gateType: gate.type })}
-				on:touchstart={(e) => handleTouchStart(e, { source: 'palette', gateType: gate.type })}
-				on:touchmove={handleTouchMove}
-				on:touchend={(e) => handleTouchEnd(e)}
-				class={`cursor-grab select-none border bg-white hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
-					['CONTROL', 'ANTI_CONTROL', 'MEASURE'].includes(gate.type)
-						? 'h-11 w-10 rounded-sm border-secondary-4'
-						: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
-				}`}
-			>
-				{#if gate.type === 'CONTROL'}
-					<span class="h-3 w-3 rounded-full bg-secondary-4"></span>
-				{:else if gate.type === 'ANTI_CONTROL'}
-					<span class="h-3 w-3 rounded-full border border-secondary-4"></span>
-				{:else if gate.type === 'MEASURE'}
-					<span class="text-secondary-4">
-						<Icon icon="si:meter-fill" width="20" height="20" />
-					</span>
-				{:else}
-					{gate.name}
-				{/if}
-			</div>
-	{/each}
-
-	<div class="absolute top-2 right-4 cursor-pointer dropdown-container">
-		<button
-			type="button"
-			class="flex items-center gap-2 cursor-pointer"
-			on:click={() => (dropdownOpen = !dropdownOpen)}
+		<div
+			title={gate.name}
+			role="region"
+			draggable="true"
+			on:dragstart={(e) => {
+				const dragData: GateData = { source: 'palette', gateType: gate.type };
+				e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
+				isDragging.set(true);
+			}}
+			on:dragend={() => isDragging.set(false)}
+			on:dblclick={() => handleDoubleClick({ source: 'palette', gateType: gate.type })}
+			on:touchstart={(e) => handleTouchStart(e, { source: 'palette', gateType: gate.type })}
+			on:touchmove={handleTouchMove}
+			on:touchend={(e) => handleTouchEnd(e)}
+			class={`cursor-grab select-none border bg-white hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
+				['CONTROL', 'ANTI_CONTROL', 'MEASURE'].includes(gate.type)
+					? 'h-11 w-10 rounded-sm border-secondary-4'
+					: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
+			}`}
 		>
-			<Icon
-				icon="icon-park-solid:down-one"
-				width="20"
-				height="20"
-				class="text-white"
-				style={dropdownOpen
-					? 'transform: rotate(180deg); transition: transform 0.2s ease;'
-					: 'transition: transform 0.2s ease;'}
-			/>
-		</button>
-
-		{#if dropdownOpen}
-			<div
-				class="absolute top-full right-0 mt-1 bg-white border border-secondary-3 rounded-sm shadow-md z-60 min-w-30"
-			>
-				<button
-					type="button"
-					on:click={openCircuitDataModal}
-					class="whitespace-nowrap py-2 w-full text-center border border-b-gray-400 rounded-t-sm border-white text-secondary-2 cursor-pointer active:text-secondary-3 active:border-secondary-3"
-				>
-					Circuit Data
-				</button>
-
-				<button
-					type="button"
-					on:click={() => resetCircuit()}
-					class="whitespace-nowrap w-full py-2 text-center font-semibold rounded-b-sm border border-white active:border-ternary-2 text-ternary-2 cursor-pointer active:text-ternary-2"
-				>
-					Reset Circuit
-				</button>
-			</div>
-		{/if}
-	</div>
+			{#if gate.type === 'CONTROL'}
+				<span class="h-3 w-3 rounded-full bg-secondary-4"></span>
+			{:else if gate.type === 'ANTI_CONTROL'}
+				<span class="h-3 w-3 rounded-full border border-secondary-4"></span>
+			{:else if gate.type === 'MEASURE'}
+				<span class="text-secondary-4">
+					<Icon icon="si:meter-fill" width="20" height="20" />
+				</span>
+			{:else}
+				{gate.name}
+			{/if}
+		</div>
+	{/each}
 </div>
 
 <CircuitDataModal
-	open={isEnlarged}
+	open={$showCircuitDataModal}
 	{activeView}
-	bind:value={editorContent}
+	bind:value={$circuitDataModalContent}
 	{message}
 	{errorMessage}
 	onClose={closeModal}

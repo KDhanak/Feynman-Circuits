@@ -1,7 +1,14 @@
 <script lang="ts">
 	import type { UnitaryOperation, MeasureOperation } from '$lib/IR/schema';
-	import { tick } from 'svelte';
-	import { circuitLayout, isDragging, simulationResult } from '$lib/IR/stores';
+	import { tick, onMount } from 'svelte';
+	import {
+		circuitLayout,
+		isDragging,
+		simulationResult,
+		showCircuitDataModal,
+		circuitDataModalContent,
+		notification as notificationStore
+	} from '$lib/IR/stores';
 	import { circuitIR } from '$lib/IR/stores';
 	import {
 		handleDrop,
@@ -17,12 +24,18 @@
 		pendingAntiControls
 	} from '$lib/dragDropUtils';
 	import { updateQubitLabel } from '$lib/qubitLables';
+	import { buildCanonicalString } from '$lib/circuitDataModal';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
+import Icon from '@iconify/svelte';
+import { showNotification } from '$lib/notificationUtils';
 
 	let columnWidth = 58;
 	let gateOffset = 120;
 	let scrollContainer: HTMLDivElement | null = null;
 	let hoveredWire: number | null = null;
+	let contextMenuVisible = false;
+	let contextMenuX = 0;
+	let contextMenuY = 0;
 
 	const MAX_COLUMNS = 29;
 	const MAX_QUBITS = 8;
@@ -114,7 +127,7 @@
 		});
 	}
 
-	$: $circuitIR.operations, $circuitLayout, scheduleConnectorRecompute();
+	$: ($circuitIR.operations, $circuitLayout, scheduleConnectorRecompute());
 
 	$: wires = Array.from({ length: $circuitIR.registers.q }, (_, i) => ({
 		id: `wire-${i}`,
@@ -183,14 +196,69 @@
 		});
 		triggerSimulation($circuitIR);
 	}
+
+	function handleContextMenu(e: MouseEvent) {
+		e.preventDefault();
+		contextMenuX = e.clientX;
+		contextMenuY = e.clientY;
+		contextMenuVisible = true;
+	}
+
+	function closeContextMenu() {
+		contextMenuVisible = false;
+	}
+
+	function copyCircuitStructure() {
+		try {
+			const circuitJson = JSON.stringify($circuitIR, null, 2);
+			navigator.clipboard.writeText(circuitJson);
+			closeContextMenu();
+			showNotification('Circuit copied to clipboard!', 'success');
+		} catch {
+			console.error('Failed to copy circuit');
+			showNotification('Failed to copy circuit', 'error');
+		}
+	}
+
+	function resetAndClose() {
+		closeContextMenu();
+		// Import resetCircuit from simulator
+		import('$lib/simulator').then(({ resetCircuit }) => {
+			resetCircuit();
+		});
+	}
+
+	onMount(() => {
+		const handleClickOutside = (e: MouseEvent) => {
+			const target = e.target as HTMLElement;
+			const contextMenu = document.querySelector('[role="menu"]');
+			if (contextMenuVisible && contextMenu && !contextMenu.contains(target)) {
+				closeContextMenu();
+			}
+		};
+
+		document.addEventListener('click', handleClickOutside);
+		return () => document.removeEventListener('click', handleClickOutside);
+	});
 </script>
 
 <div
-	role="region"
-	aria-label="Quantum Circuit Multi-Wire Drop Zone"
+	role="none"
 	class="w-[96%] relative mx-auto z-50"
 	bind:this={boardEl}
+	on:contextmenu={handleContextMenu}
+	on:click={closeContextMenu}
+	on:keydown={(e) => {
+		if (e.key === 'Escape') closeContextMenu();
+	}}
 >
+	<!-- Notification Toast -->
+	{#if $notificationStore}
+		<div class="notification fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2.5 rounded-sm shadow-lg z-50 text-sm flex items-center gap-2 text-white {$notificationStore.type === 'success' ? 'bg-green-500' : 'bg-red-500'}">
+			<Icon icon={$notificationStore.type === 'success' ? 'material-symbols:check-circle' : 'material-symbols:error'} width="18" height="18" />
+			{$notificationStore.message}
+		</div>
+	{/if}
 	<div
 		class="border border-ternary-2 rounded-sm transition-all duration-300 ease-in-out overflow-hidden"
 		style="height: {(Math.min($circuitIR.registers.q, 6) + (showGhostWire ? 1 : 0)) * 64 + 16}px;"
@@ -345,7 +413,11 @@
 									on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
 									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 									on:touchstart={(e) =>
-										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: 'ANTI_CONTROL' })}
+										handleTouchStart(e, {
+											source: 'wire',
+											gateId: gate.id,
+											gateType: 'ANTI_CONTROL'
+										})}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
 									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border bg-white active:bg-secondary-3 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
@@ -372,7 +444,11 @@
 									on:keydown={(e) => e.key === 'Delete' && removeGate(measureOp.id)}
 									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: measureOp.id })}
 									on:touchstart={(e) =>
-										handleTouchStart(e, { source: 'wire', gateId: measureOp.id, gateType: 'MEASURE' })}
+										handleTouchStart(e, {
+											source: 'wire',
+											gateId: measureOp.id,
+											gateType: 'MEASURE'
+										})}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
 									class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-orange-100 text-orange-700 active:bg-orange-400 border-orange-300 active:text-white active:border-white shadow transition-colors duration-100"
@@ -386,33 +462,38 @@
 
 					<!-- Pending control gate boxes (uncommitted controls)
 				-->
-				{#each Array.from($pendingAntiControls.entries()) as [col, qubits]}
-					{#each qubits as antiControlQubit}
-						{#if antiControlQubit === wire.qubit}
-							<div
-								data-col={col}
-								data-qubit={antiControlQubit}
-								data-type="ANTI_CONTROL"
-								role="button"
-								aria-label="Pending anti-control (place a gate in this column to attach)"
-								tabindex="0"
-								on:keydown={(e) => e.key === 'Delete' && pendingAntiControls.update(map => {
-									const next = new Map(map);
-									const qubits = next.get(col) ?? [];
-									next.set(col, qubits.filter(q => q !== antiControlQubit));
-									if (next.get(col)?.length === 0) next.delete(col);
-									return next;
-								})}
-								class="gate z-10 select-none rounded-sm h-11 w-10 py-3 text-base border bg-orange-200 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
-								style="left: {gateOffset + (col + 0.5) * columnWidth}px;"
-							>
-								<div class="w-3 h-3 rounded-full border border-orange-600"></div>
-							</div>
-						{/if}
+					{#each Array.from($pendingAntiControls.entries()) as [col, qubits]}
+						{#each qubits as antiControlQubit}
+							{#if antiControlQubit === wire.qubit}
+								<div
+									data-col={col}
+									data-qubit={antiControlQubit}
+									data-type="ANTI_CONTROL"
+									role="button"
+									aria-label="Pending anti-control (place a gate in this column to attach)"
+									tabindex="0"
+									on:keydown={(e) =>
+										e.key === 'Delete' &&
+										pendingAntiControls.update((map) => {
+											const next = new Map(map);
+											const qubits = next.get(col) ?? [];
+											next.set(
+												col,
+												qubits.filter((q) => q !== antiControlQubit)
+											);
+											if (next.get(col)?.length === 0) next.delete(col);
+											return next;
+										})}
+									class="gate z-10 select-none rounded-sm h-11 w-10 py-3 text-base border bg-orange-200 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
+									style="left: {gateOffset + (col + 0.5) * columnWidth}px;"
+								>
+									<div class="w-3 h-3 rounded-full border border-orange-600"></div>
+								</div>
+							{/if}
+						{/each}
 					{/each}
-				{/each}
 
-				<!-- Pending anti-control gate boxes (uncommitted anti-controls) -->
+					<!-- Pending anti-control gate boxes (uncommitted anti-controls) -->
 					{#each Array.from($pendingControls.entries()) as [col, qubits]}
 						{#each qubits as controlQubit}
 							{#if controlQubit === wire.qubit}
@@ -423,13 +504,18 @@
 									role="button"
 									aria-label="Pending control (place a gate in this column to attach)"
 									tabindex="0"
-									on:keydown={(e) => e.key === 'Delete' && pendingControls.update(map => {
-										const next = new Map(map);
-										const qubits = next.get(col) ?? [];
-										next.set(col, qubits.filter(q => q !== controlQubit));
-										if (next.get(col)?.length === 0) next.delete(col);
-										return next;
-									})}
+									on:keydown={(e) =>
+										e.key === 'Delete' &&
+										pendingControls.update((map) => {
+											const next = new Map(map);
+											const qubits = next.get(col) ?? [];
+											next.set(
+												col,
+												qubits.filter((q) => q !== controlQubit)
+											);
+											if (next.get(col)?.length === 0) next.delete(col);
+											return next;
+										})}
 									class="gate z-10 select-none rounded-sm h-11 w-10 py-3 text-base border bg-yellow-300 border-yellow-500 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
 									style="left: {gateOffset + (col + 0.5) * columnWidth}px;"
 								>
@@ -476,6 +562,52 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Context Menu -->
+	{#if contextMenuVisible}
+		<div
+			class="context-menu fixed border border-gray-200 rounded-sm shadow-lg z-100 w-40 bg-white"
+			style="left: {contextMenuX}px; top: {contextMenuY}px;"
+			role="menu"
+			tabindex="0"
+			on:click|stopPropagation={() => {}}
+			on:keydown={(e) => {
+				if (e.key === 'Escape') closeContextMenu();
+			}}
+		>
+			<button
+				type="button"
+				role="menuitem"
+				class="w-full text-left px-4 py-2.5 text-sm text-gray-700 cursor-pointer transition-colors rounded-t-sm flex items-center gap-2 border-b border-gray-100 active:bg-gray-100 active:shadow-inner"
+				on:click={() => {
+					closeContextMenu();
+					circuitDataModalContent.set(buildCanonicalString($circuitIR));
+					showCircuitDataModal.set(true);
+				}}
+			>
+				<Icon icon="material-symbols:edit-outline" width="16" height="16" />
+				Edit Circuit
+			</button>
+			<button
+				type="button"
+				role="menuitem"
+				class="w-full text-left px-4 py-2.5 text-sm text-gray-700 cursor-pointer transition-colors flex items-center gap-2 border-b border-gray-100 active:bg-gray-100 active:shadow-inner"
+				on:click={copyCircuitStructure}
+			>
+				<Icon icon="material-symbols:content-copy" width="16" height="16" />
+				Copy Circuit
+			</button>
+			<button
+				type="button"
+				role="menuitem"
+				class="w-full text-left px-4 py-2.5 text-sm text-red-700 cursor-pointer transition-colors rounded-b-sm flex items-center gap-2 active:bg-red-100 active:shadow-inner"
+				on:click={resetAndClose}
+			>
+				<Icon icon="material-symbols:restart-alt" width="16" height="16" />
+				Reset Circuit
+			</button>
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -515,6 +647,36 @@
 	.qubit-label:hover {
 		transform: scale(1.05);
 		transition: transform 400ms ease-in-out;
+	}
+
+	@keyframes fadeInScale {
+		from {
+			opacity: 0;
+			transform: scale(0.95) translateY(-8px);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+	}
+
+	.context-menu {
+		animation: fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	@keyframes slideDown {
+		from {
+			opacity: 0;
+			transform: translateY(-12px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.notification {
+		animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
 	.wire-bloch-anchor {
