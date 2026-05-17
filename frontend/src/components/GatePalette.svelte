@@ -8,17 +8,15 @@
 		handleTouchMove,
 		triggerSimulation
 	} from '$lib/dragDropUtils';
-	import { isDragging, showCircuitDataModal, circuitDataModalContent } from '$lib/IR/stores';
+	import { circuitIR } from '$lib/IR/stores';
+	import { isDragging, showCircuitDataModal, circuitDataModalContent } from '$lib/uiStores';
 import { showNotification } from '$lib/notificationUtils';
-	import { resetCircuit } from '$lib/simulator';
 	import { importCircuit } from '$lib/IE';
 	import { onMount } from 'svelte';
 	import Icon from '@iconify/svelte';
 
 	import CircuitDataModal from './CircuitDataModal.svelte';
 	import { buildCanonicalString, type DataViewMode } from '$lib/circuitDataModal';
-	import { validateCanonicalIR } from '$lib/IR/validate';
-	import { circuitIR } from '$lib/IR/stores';
 
 	export const gates: { type: string; name: string; category: string }[] = [
 		{ type: 'X', name: 'X', category: 'single' },
@@ -34,34 +32,7 @@ import { showNotification } from '$lib/notificationUtils';
 
 	let dropdownOpen = false;
 	let activeView: DataViewMode = 'cir';
-	let message = '';
-	let errorMessage = '';
-	let timeoutId: ReturnType<typeof setTimeout> | null = null;
-	let shake = false;
 	let dragEnterCount = 0;
-
-	function flash(opts: { text: string; isError?: boolean; duration?: number }) {
-		const { text, isError = false, duration = 2000 } = opts;
-
-		if (timeoutId) clearTimeout(timeoutId);
-
-		message = '';
-		errorMessage = '';
-
-		if (isError) {
-			errorMessage = text;
-			shake = false;
-			requestAnimationFrame(() => (shake = true));
-		} else {
-			message = text;
-			shake = false;
-		}
-
-		timeoutId = setTimeout(() => {
-			message = '';
-			errorMessage = '';
-		}, duration);
-	}
 
 	function openCircuitDataModal() {
 		activeView = 'cir';
@@ -89,7 +60,6 @@ import { showNotification } from '$lib/notificationUtils';
 			// Type guard: check if it's an error response
 			if ('detail' in result && !('version' in result)) {
 				const errorMsg = result.detail ?? 'Unknown error';
-				flash({ text: errorMsg, isError: true });
 				showNotification(errorMsg, 'error');
 				return;
 			}
@@ -98,11 +68,9 @@ import { showNotification } from '$lib/notificationUtils';
 			circuitIR.set(result as CircuitIR);
 			triggerSimulation(result as CircuitIR);
 			circuitDataModalContent.set(buildCanonicalString(result as CircuitIR));
-			flash({ text: 'Canonical IR loaded successfully!' });
 			showNotification('Circuit imported successfully!', 'success');
 		} catch {
 			const errorMsg = 'Invalid JSON format';
-			flash({ text: errorMsg, isError: true });
 			showNotification(errorMsg, 'error');
 		}
 
@@ -127,15 +95,15 @@ import { showNotification } from '$lib/notificationUtils';
 		const content = buildCanonicalString($circuitIR);
 		circuitDataModalContent.set(content);
 		downloadFile('circuit.cir', content, 'text/plain');
-		flash({ text: 'Canonical IR downloaded!' });
+		showNotification('Canonical IR downloaded!', 'success');
 	}
 
 	async function copyToClipboard() {
 		try {
 			await navigator.clipboard.writeText($circuitDataModalContent);
-			flash({ text: 'Copied to clipboard!' });
+			showNotification('Copied to clipboard!', 'success');
 		} catch {
-			flash({ text: 'Failed to copy text. Please copy manually.', isError: true });
+			showNotification('Failed to copy text. Please copy manually.', 'error');
 		}
 	}
 
@@ -168,7 +136,7 @@ import { showNotification } from '$lib/notificationUtils';
 		dragEnterCount--;
 		if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active');
 	}}
-	class="relative mb-4 w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm border border-secondary-3"
+	class="relative mb-4 w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm shadow-sm shadow-secondary-2 bg-secondary-4/40"
 >
 	{#each gates as gate}
 		<!-- Separator before multi-qubit gates -->
@@ -214,19 +182,12 @@ import { showNotification } from '$lib/notificationUtils';
 	open={$showCircuitDataModal}
 	{activeView}
 	bind:value={$circuitDataModalContent}
-	{message}
-	{errorMessage}
 	onClose={closeModal}
 	onTabChange={handleTabChange}
 	onCopy={copyToClipboard}
 	onDownload={exportCurrentView}
 	onImport={importJson}
-	{shake}
 />
 
 <style>
-	.ghost-gate {
-		pointer-events: none;
-		opacity: 0.8;
-	}
 </style>

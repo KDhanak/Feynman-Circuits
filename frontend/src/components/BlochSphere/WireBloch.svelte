@@ -8,12 +8,6 @@
 	$: vector = $simulationResult.blochVectors?.find((v) => v.qubit === qubit) ?? fallback;
 </script>
 
-<div class="wire-bloch">
+<div class="pointer-events-none">
 	<BlochSphere {vector} size={80} showDetails={false} />
 </div>
-
-<style>
-	.wire-bloch {
-		pointer-events: none;
-	}
-</style>

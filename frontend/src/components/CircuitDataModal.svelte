@@ -6,15 +6,12 @@
 	export let open = false;
 	export let activeView: DataViewMode = 'cir';
 	export let value = '';
-	export let message = '';
-	export let errorMessage = '';
 
 	export let onClose: () => void;
 	export let onTabChange: (mode: DataViewMode) => void;
 	export let onCopy: () => void;
 	export let onDownload: () => void;
 	export let onImport: () => void;
-	export let shake = false;
 
 	function focusOnMount(node: HTMLElement) {
 		node.focus();
@@ -106,50 +103,11 @@
 				</div>
 			</div>
 
-			{#if message}
-				<p class="mb-2 text-sm text-green-400">{message}</p>
-			{/if}
-
-			{#if errorMessage}
-				<p class="mb-2 text-sm text-red-400">{errorMessage}</p>
-			{/if}
-
 			<textarea
 				bind:value
-				class="rounded-sm bg-transparent border w-full h-[60vh] text-white p-3 resize-none active:outline-none focus:outline-none"
-				class:border-red-400={errorMessage}
-				class:border-green-400={message && !errorMessage}
-				class:border-white={!message && !errorMessage}
-				class:shake
+				class="rounded-sm bg-transparent border border-white w-full h-[60vh] text-white p-3 resize-none active:outline-none focus:outline-none"
 			></textarea>
 		</div>
 	</div>
 {/if}
 
-<style>
-	@keyframes shake {
-		0% {
-			transform: translateX(0);
-		}
-		20% {
-			transform: translateX(-6px);
-		}
-		40% {
-			transform: translateX(6px);
-		}
-		60% {
-			transform: translateX(-4px);
-		}
-		80% {
-			transform: translateX(4px);
-		}
-		100% {
-			transform: translateX(0);
-		}
-	}
-
-	.shake {
-		animation: shake 0.3s ease;
-	}
-
-</style>

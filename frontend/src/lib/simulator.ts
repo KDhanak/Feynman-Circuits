@@ -31,7 +31,7 @@ export function collapseQubit(
 		}
 	}
 
-	const outcome = prob0 > 0.5 ? 0 : 1;   // simple random choice (you can use Math.random() later if you want)
+	const outcome = Math.random() < prob0 ? 0 : 1;
 
 	const newState = state.map((amp, index) => {
 		const bit = (index >> pos) & 1;

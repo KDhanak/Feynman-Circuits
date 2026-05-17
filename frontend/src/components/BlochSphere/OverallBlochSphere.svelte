@@ -4,8 +4,7 @@
 	import { computeOverallBlochVector } from '$lib/quantum/bloch';
 	import { onMount } from 'svelte';
 
-	$: vectors = $simulationResult.blochVectors ?? [];
-	$: overall = computeOverallBlochVector(vectors);
+	$: overall = computeOverallBlochVector($simulationResult.blochVectors ?? []);
 
 	let sphereSize = 200;
 

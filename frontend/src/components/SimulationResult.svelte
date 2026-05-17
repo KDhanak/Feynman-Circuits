@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { simulationResult } from '$lib/IR/stores';
 	import { circuitIR } from '$lib/IR/stores';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 
 	let popupWindow: Window | null = null;
-	let unsubscribe: (() => void) | null = null;
 
 	function toEntriesArray(probObj: Record<string, number> | undefined) {
 		if (!probObj) return [];
@@ -20,10 +19,13 @@
 	}
 
 	function coloredStateHtml(stateText: string, measuredQubits: number[]): string {
+		let bitsStr = stateText;
+		// If formatted with | and ⟩, extract just the bits
 		const pipeIndex = stateText.indexOf('|');
-		const closingIndex = stateText.indexOf('⟩');
-		const bitsStr = stateText.substring(pipeIndex + 1, closingIndex);
-		const prefix = stateText.substring(0, pipeIndex + 1);
+		if (pipeIndex !== -1) {
+			const closingIndex = stateText.indexOf('⟩');
+			bitsStr = stateText.substring(pipeIndex + 1, closingIndex);
+		}
 
 		const coloredBits = Array.from(bitsStr)
 			.map((bit, i) => {
@@ -34,7 +36,7 @@
 			})
 			.join('');
 
-		return `${prefix}${coloredBits}⟩`;
+		return `|${coloredBits}⟩`;
 	}
 
 	// Only used for inline view (1-2 qubits)
@@ -95,14 +97,7 @@
 			.map((item) => {
 				const isZero = item.prob === 0;
 				const measuredQubits = $simulationResult.measuredQubits || [];
-				const coloredBits = Array.from(item.state)
-					.map((bit, i) => {
-						if (measuredQubits.includes(i)) {
-							return `<span style="color:#ea580c;font-weight:600;">${bit}</span>`;
-						}
-						return bit;
-					})
-					.join('');
+				const coloredBits = coloredStateHtml(item.state, measuredQubits).substring(1).slice(0, -1);
 				return `
 			<div class="row">
 				<span class="prob ${isZero ? 'zero' : 'nonzero'}">|${coloredBits}⟩</span>
@@ -204,21 +199,17 @@
 			if (popupWindow && !popupWindow.closed) updatePopupContent();
 		});
 
-		unsubscribe = () => {
+		return () => {
 			unsubCircuit();
 			unsubSim();
+			if (popupWindow && !popupWindow.closed) popupWindow.close();
 		};
-	});
-
-	onDestroy(() => {
-		if (unsubscribe) unsubscribe();
-		if (popupWindow && !popupWindow.closed) popupWindow.close();
 	});
 </script>
 
 <div class="text-white">
 	{#if shouldShowPopupButton}
-		<div class="p-5 rounded-sm bg-secondary-4/40 text-center">
+		<div class="p-5 rounded-sm bg-secondary-4/40 shadow-sm shadow-secondary-3 text-center">
 			<p class="text-base font-medium">{$circuitIR.registers.q} qubits — Many states</p>
 			<button
 				type="button"

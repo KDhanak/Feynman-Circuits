@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { circuitLayout } from '$lib/IR/stores';
+	import { circuitLayout } from '$lib/uiStores';
 	import WireDropeZone from './WireDropeZone.svelte';
+	import { LABEL_WIDTH } from '$lib/constants';
 
 	let containerEl: HTMLDivElement;
 	let containerWidth = 0;
 
 	const MAX_COLUMNS = 29;
-	const LABEL_WIDTH = 80;
 	const LEFT_EXTRA = 44;
 	const BLOCH_SPACE = 90;
 

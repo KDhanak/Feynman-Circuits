@@ -1,15 +1,14 @@
 <script lang="ts">
 	import type { UnitaryOperation, MeasureOperation } from '$lib/IR/schema';
 	import { tick, onMount } from 'svelte';
+	import { simulationResult, circuitIR } from '$lib/IR/stores';
 	import {
 		circuitLayout,
 		isDragging,
-		simulationResult,
 		showCircuitDataModal,
 		circuitDataModalContent,
 		notification as notificationStore
-	} from '$lib/IR/stores';
-	import { circuitIR } from '$lib/IR/stores';
+	} from '$lib/uiStores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -26,21 +25,23 @@
 	import { updateQubitLabel } from '$lib/qubitLables';
 	import { buildCanonicalString } from '$lib/circuitDataModal';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
-import Icon from '@iconify/svelte';
-import { showNotification } from '$lib/notificationUtils';
+	import Icon from '@iconify/svelte';
+	import { showNotification } from '$lib/notificationUtils';
+	import { MAX_COLUMNS, MAX_QUBITS, COLUMN_WIDTH, GATE_OFFSET } from '$lib/constants';
 
-	let columnWidth = 58;
-	let gateOffset = 120;
+	let columnWidth: number;
+	let gateOffset: number;
 	let scrollContainer: HTMLDivElement | null = null;
 	let hoveredWire: number | null = null;
+	let hoveredPendingGate: string | null = null;
+	let selectedGateIds = new Set<string>();
 	let contextMenuVisible = false;
 	let contextMenuX = 0;
 	let contextMenuY = 0;
+	let isDragSelecting = false;
+	let dragStart: { x: number; y: number } | null = null;
+	let dragCurrent: { x: number; y: number } | null = null;
 
-	const MAX_COLUMNS = 29;
-	const MAX_QUBITS = 8;
-
-	$circuitLayout;
 	$: ({ columnWidth, gateOffset } = $circuitLayout);
 
 	type Connector = { key: string; left: number; top: number; height: number };
@@ -167,7 +168,7 @@ import { showNotification } from '$lib/notificationUtils';
 		const remappedOps = ir.operations
 			.map((op) => {
 				const remapQubit = (q: number) => (q > qubitIndex ? q - 1 : q);
-				const remapQubits = (qs: number[]) => qs.map(remapQubit).filter((q) => q !== qubitIndex);
+				const remapQubits = (qs: number[]) => qs.filter((q) => q !== qubitIndex).map(remapQubit);
 
 				if (op.kind === 'unitary') {
 					return {
@@ -208,6 +209,106 @@ import { showNotification } from '$lib/notificationUtils';
 		contextMenuVisible = false;
 	}
 
+	function handleGateSelection(gateId: string, event: MouseEvent) {
+		if (event.ctrlKey || event.metaKey) {
+			// Ctrl/Cmd+Click: toggle selection
+			if (selectedGateIds.has(gateId)) {
+				selectedGateIds.delete(gateId);
+			} else {
+				selectedGateIds.add(gateId);
+			}
+			selectedGateIds = selectedGateIds; // trigger reactivity
+		} else {
+			// Regular click: select only this gate
+			selectedGateIds.clear();
+			selectedGateIds.add(gateId);
+			selectedGateIds = selectedGateIds; // trigger reactivity
+		}
+	}
+
+	function handleBoardMouseDown(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		// Only start drag selection if clicking on empty space (not on gates, wires, or labels)
+		if (
+			target.classList.contains('gate') ||
+			target.classList.contains('wire-container') ||
+			target.classList.contains('qubit-label')
+		) {
+			return;
+		}
+
+		isDragSelecting = true;
+		dragStart = { x: e.clientX, y: e.clientY };
+		dragCurrent = { x: e.clientX, y: e.clientY };
+	}
+
+	function handleBoardMouseMove(e: MouseEvent) {
+		if (!isDragSelecting || !dragStart) return;
+		dragCurrent = { x: e.clientX, y: e.clientY };
+	}
+
+	function handleBoardMouseUp(e: MouseEvent) {
+		if (!isDragSelecting || !dragStart || !dragCurrent) {
+			isDragSelecting = false;
+			return;
+		}
+
+		const minX = Math.min(dragStart.x, dragCurrent.x);
+		const maxX = Math.max(dragStart.x, dragCurrent.x);
+		const minY = Math.min(dragStart.y, dragCurrent.y);
+		const maxY = Math.max(dragStart.y, dragCurrent.y);
+
+		// If drag rectangle is too small, treat as click on empty space
+		if (maxX - minX < 5 || maxY - minY < 5) {
+			// Clear selection unless Ctrl/Cmd is held
+			if (!(e.ctrlKey || e.metaKey)) {
+				selectedGateIds.clear();
+				selectedGateIds = selectedGateIds;
+			}
+			isDragSelecting = false;
+			dragStart = null;
+			dragCurrent = null;
+			return;
+		}
+
+		// Find all gates within the drag rectangle
+		const allGates = document.querySelectorAll('[data-gate-id]');
+		const selectedInDrag = new Set<string>();
+
+		allGates.forEach((gate) => {
+			const rect = gate.getBoundingClientRect();
+			const gateId = gate.getAttribute('data-gate-id');
+
+			if (
+				rect.right > minX &&
+				rect.left < maxX &&
+				rect.bottom > minY &&
+				rect.top < maxY &&
+				gateId
+			) {
+				selectedInDrag.add(gateId);
+			}
+		});
+
+		// If Ctrl/Cmd is held, add to existing selection; otherwise replace
+		if (e.ctrlKey || e.metaKey) {
+			selectedInDrag.forEach((id) => selectedGateIds.add(id));
+		} else {
+			selectedGateIds = selectedInDrag;
+		}
+		selectedGateIds = selectedGateIds; // trigger reactivity
+
+		isDragSelecting = false;
+		dragStart = null;
+		dragCurrent = null;
+	}
+
+	function deleteSelectedGates() {
+		selectedGateIds.forEach((gateId) => removeGate(gateId));
+		selectedGateIds.clear();
+		selectedGateIds = selectedGateIds; // trigger reactivity
+	}
+
 	function copyCircuitStructure() {
 		try {
 			const circuitJson = JSON.stringify($circuitIR, null, 2);
@@ -237,30 +338,87 @@ import { showNotification } from '$lib/notificationUtils';
 			}
 		};
 
+		const handleDeleteKey = (e: KeyboardEvent) => {
+			if (e.key === 'Delete' && selectedGateIds.size > 0) {
+				e.preventDefault();
+				deleteSelectedGates();
+			}
+		};
+
 		document.addEventListener('click', handleClickOutside);
-		return () => document.removeEventListener('click', handleClickOutside);
+		document.addEventListener('keydown', handleDeleteKey);
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+			document.removeEventListener('keydown', handleDeleteKey);
+		};
 	});
 </script>
 
 <div
 	role="none"
-	class="w-[96%] relative mx-auto z-50"
+	class="w-full relative mx-auto z-50 select-none"
 	bind:this={boardEl}
 	on:contextmenu={handleContextMenu}
-	on:click={closeContextMenu}
+	on:mousedown={handleBoardMouseDown}
+	on:mousemove={handleBoardMouseMove}
+	on:mouseup={handleBoardMouseUp}
+	on:mouseleave={() => {
+		isDragSelecting = false;
+		dragStart = null;
+		dragCurrent = null;
+	}}
+	on:click={(e) => {
+		closeContextMenu();
+		const target = e.target as HTMLElement;
+		// Clear selection when clicking on empty space (not gates or labels)
+		if (
+			!target.classList.contains('gate') &&
+			!target.classList.contains('qubit-label') &&
+			(target.classList.contains('wire-container') ||
+			target.classList.contains('dropzone') ||
+			target.classList.contains('wire-bloch-anchor') ||
+			target === boardEl)
+		) {
+			selectedGateIds.clear();
+			selectedGateIds = selectedGateIds; // trigger reactivity
+		}
+	}}
 	on:keydown={(e) => {
 		if (e.key === 'Escape') closeContextMenu();
 	}}
 >
 	<!-- Notification Toast -->
 	{#if $notificationStore}
-		<div class="notification fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2.5 rounded-sm shadow-lg z-50 text-sm flex items-center gap-2 text-white {$notificationStore.type === 'success' ? 'bg-green-500' : 'bg-red-500'}">
-			<Icon icon={$notificationStore.type === 'success' ? 'material-symbols:check-circle' : 'material-symbols:error'} width="18" height="18" />
+		<div
+			class="notification fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2.5 rounded-sm shadow-lg z-50 text-sm flex items-center gap-2 text-white {$notificationStore.type ===
+			'success'
+				? 'bg-green-500'
+				: 'bg-red-500'}"
+		>
+			<Icon
+				icon={$notificationStore.type === 'success'
+					? 'material-symbols:check-circle'
+					: 'material-symbols:error'}
+				width="18"
+				height="18"
+			/>
 			{$notificationStore.message}
 		</div>
 	{/if}
+
+	<!-- Drag selection box -->
+	{#if isDragSelecting && dragStart && dragCurrent}
+		{@const minX = Math.min(dragStart.x, dragCurrent.x)}
+		{@const maxX = Math.max(dragStart.x, dragCurrent.x)}
+		{@const minY = Math.min(dragStart.y, dragCurrent.y)}
+		{@const maxY = Math.max(dragStart.y, dragCurrent.y)}
+		<div
+			class="selection-box fixed pointer-events-none border border-blue-400 border-dashed"
+			style="left: {minX}px; top: {minY}px; width: {maxX - minX}px; height: {maxY - minY}px; z-index: 100; background-color: rgba(59, 130, 246, 0.5);"
+		></div>
+	{/if}
 	<div
-		class="border border-ternary-2 rounded-sm transition-all duration-300 ease-in-out overflow-hidden"
+		class="rounded-sm transition-all duration-300 ease-in-out overflow-hidden"
 		style="height: {(Math.min($circuitIR.registers.q, 6) + (showGhostWire ? 1 : 0)) * 64 + 16}px;"
 	>
 		<div class="space-y-1 p-2 overflow-y-auto overflow-x-hidden h-full" bind:this={scrollContainer}>
@@ -336,7 +494,7 @@ import { showNotification } from '$lib/notificationUtils';
 						value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 						on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 						placeholder="Label"
-						class={`qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border text-center rounded-sm shadow-lg focus:outline-none focus:ring-1 ${
+						class={`qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border text-center rounded-sm shadow-lg focus:outline-none focus:ring-1 select-auto ${
 							$simulationResult?.measuredQubits?.includes(wire.qubit)
 								? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
 								: 'border-ternary-3 text-black bg-purple-100 focus:ring-purple-600 focus:border-purple-600'
@@ -360,13 +518,23 @@ import { showNotification } from '$lib/notificationUtils';
 									draggable="true"
 									on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 									on:dragend={() => isDragging.set(false)}
-									on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
+									on:click={(e) => handleGateSelection(gate.id, e)}
+									on:keydown={(e) => {
+										if (e.key === 'Delete') {
+											if (selectedGateIds.size > 0) {
+												deleteSelectedGates();
+											} else {
+												removeGate(gate.id);
+											}
+										}
+									}}
 									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 									on:touchstart={(e) =>
 										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gate })}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
 									class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow transition-colors duration-100"
+									class:selected={selectedGateIds.has(gate.id)}
 									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 								>
 									{gate.gate.toUpperCase()}
@@ -385,7 +553,16 @@ import { showNotification } from '$lib/notificationUtils';
 									draggable="true"
 									on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 									on:dragend={() => isDragging.set(false)}
-									on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
+									on:click={(e) => handleGateSelection(gate.id, e)}
+									on:keydown={(e) => {
+										if (e.key === 'Delete') {
+											if (selectedGateIds.size > 0) {
+												deleteSelectedGates();
+											} else {
+												removeGate(gate.id);
+											}
+										}
+									}}
 									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 									on:touchstart={(e) =>
 										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: 'CONTROL' })}
@@ -410,7 +587,16 @@ import { showNotification } from '$lib/notificationUtils';
 									draggable="true"
 									on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 									on:dragend={() => isDragging.set(false)}
-									on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
+									on:click={(e) => handleGateSelection(gate.id, e)}
+									on:keydown={(e) => {
+										if (e.key === 'Delete') {
+											if (selectedGateIds.size > 0) {
+												deleteSelectedGates();
+											} else {
+												removeGate(gate.id);
+											}
+										}
+									}}
 									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 									on:touchstart={(e) =>
 										handleTouchStart(e, {
@@ -640,8 +826,15 @@ import { showNotification } from '$lib/notificationUtils';
 	}
 
 	.gate.copying {
-		box-shadow: 0 0 0 1px #22c55e;
-		transition: all 0.15s ease;
+		box-shadow: 0 0 0 2px #3bc96f;
+		outline: 2px solid #28ff33;
+		outline-offset: -1px;
+	}
+
+	.gate.selected {
+		box-shadow: 0 0 0 3px #3b82f6;
+		outline: 2px solid #1e40af;
+		outline-offset: -1px;
 	}
 
 	.qubit-label:hover {
@@ -685,5 +878,9 @@ import { showNotification } from '$lib/notificationUtils';
 		top: 50%;
 		transform: translateY(-50%);
 		z-index: 20;
+	}
+
+	.selection-box {
+		box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.1);
 	}
 </style>

@@ -1,8 +1,10 @@
 import type { CircuitIR, UnitaryOperation, MeasureOperation, CircuitOperation, GateData } from './IR/schema';
 import { writable, get } from 'svelte/store';
-import { circuitIR, simulationResult, isDragging } from './IR/stores';
+import { circuitIR, simulationResult } from './IR/stores';
+import { isDragging } from './uiStores';
 import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } from './IR/operations';
 import { simulateMultipleQubits } from './simulator';
+import { LABEL_WIDTH, GATE_OFFSET, COLUMN_WIDTH, MAX_COLUMNS } from './constants';
 
 // UI-only: tracks controls placed in a column before any unitary op exists there
 export const pendingControls = writable<Map<number, number[]>>(new Map());
@@ -27,6 +29,15 @@ function findNextAvailableColumn(ir: CircuitIR, qubit: number): number {
 
 function canonicalGate(gateType: string): string {
     return gateType.toLowerCase();
+}
+
+function isCellOccupied(ir: CircuitIR, col: number, qubit: number, excludeId?: string): boolean {
+    return ir.operations.some(op =>
+        op.column === col &&
+        'targets' in op &&
+        (op.targets as number[]).includes(qubit) &&
+        (excludeId ? op.id !== excludeId : true)
+    );
 }
 
 /*──────────────────────── drag helpers ──────────────────*/
@@ -94,12 +105,7 @@ export function handleTouchEnd(event: TouchEvent) {
     const elementUnderFinger = document.elementFromPoint(touch.clientX, touch.clientY);
     if (ghostElement) ghostElement.style.display = '';
 
-    const LABEL_WIDTH = 80;
-    const GATE_OFFSET = LABEL_WIDTH + 44;
-    const COLUMN_WIDTH = 58;
-    const MAX_COLUMNS = 29;
-
-    const wireContainer = elementUnderFinger?.closest('.wire-container-upper');
+    const wireContainer = elementUnderFinger?.closest('.wire-container');
     if (wireContainer) {
         const qubit = parseInt(wireContainer.getAttribute('data-qubit') ?? '0', 10);
         const wireRect = wireContainer.getBoundingClientRect();
@@ -153,12 +159,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 
     /*─── Move / copy existing gate ───*/
     if (parsed.source === 'wire' && parsed.gateId) {
-        const occupied = ir.operations.some(op =>
-            op.column === col &&
-            'targets' in op &&
-            (op.targets as number[]).includes(qubit) &&
-            op.id !== parsed.gateId
-        );
+        const occupied = isCellOccupied(ir, col, qubit, parsed.gateId);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
         if (parsed.isCopy) {
@@ -247,7 +248,7 @@ function _dropPaletteGate(
     }
 
     if (upperType === 'MEASURE') {
-        const occupied = ir.operations.some(op => op.column === col && 'targets' in op && (op.targets as number[]).includes(qubit));
+        const occupied = isCellOccupied(ir, col, qubit);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
         const measureOp: MeasureOperation = {
@@ -264,7 +265,7 @@ function _dropPaletteGate(
     }
 
     // Standard unitary gate
-    const occupied = ir.operations.some(op => op.column === col && 'targets' in op && (op.targets as number[]).includes(qubit));
+    const occupied = isCellOccupied(ir, col, qubit);
     if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
     const pendingInColumn = pending.get(col) ?? [];
