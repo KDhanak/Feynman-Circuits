@@ -1,28 +1,26 @@
 <script lang="ts">
+	import type { CircuitIR, GateData } from '$lib/IR/schema';
 	import {
 		handlePaletteDrop,
 		handleDoubleClick,
 		handleTouchStart,
 		handleTouchEnd,
 		handleTouchMove,
-
 		triggerSimulation
-
 	} from '$lib/dragDropUtils';
-	import type { GateData, GateType, CircuitState, ImportedCircuit } from '$lib/stores';
-	import { circuit, isDragging } from '$lib/stores';
+	import { isDragging, showCircuitDataModal, circuitDataModalContent } from '$lib/IR/stores';
+import { showNotification } from '$lib/notificationUtils';
 	import { resetCircuit } from '$lib/simulator';
 	import { importCircuit } from '$lib/IE';
 	import { onMount } from 'svelte';
 	import Icon from '@iconify/svelte';
 
 	import CircuitDataModal from './CircuitDataModal.svelte';
-	import { buildJsonString, buildCanonicalString, type DataViewMode } from '$lib/circuitDataModal';
-	import type { CircuitIR } from '$lib/IR/schema';
+	import { buildCanonicalString, type DataViewMode } from '$lib/circuitDataModal';
 	import { validateCanonicalIR } from '$lib/IR/validate';
-	import { toCircuitState } from '$lib/IR/toCircuitState';
+	import { circuitIR } from '$lib/IR/stores';
 
-	export const gates: { type: GateType; name: string; category: string }[] = [
+	export const gates: { type: string; name: string; category: string }[] = [
 		{ type: 'X', name: 'X', category: 'single' },
 		{ type: 'Y', name: 'Y', category: 'single' },
 		{ type: 'Z', name: 'Z', category: 'single' },
@@ -30,21 +28,17 @@
 		{ type: 'S', name: 'S', category: 'single' },
 		{ type: 'T', name: 'T', category: 'single' },
 		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' },
+		{ type: 'ANTI_CONTROL', name: 'ANTI_CONTROL', category: 'multi' },
 		{ type: 'MEASURE', name: 'MEASURE', category: 'single' }
 	];
 
 	let dropdownOpen = false;
-	let isEnlarged = false;
-	let activeView: DataViewMode = 'json';
-	let editorContent = '';
+	let activeView: DataViewMode = 'cir';
 	let message = '';
 	let errorMessage = '';
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 	let shake = false;
 	let dragEnterCount = 0;
-
-	// Hide CONTROL gate when there's only 1 qubit (clean beginner experience)
-	$: isSingleQubit = $circuit.numQubits === 1;
 
 	function flash(opts: { text: string; isError?: boolean; duration?: number }) {
 		const { text, isError = false, duration = 2000 } = opts;
@@ -70,73 +64,49 @@
 	}
 
 	function openCircuitDataModal() {
-		activeView = 'json';
-		editorContent = buildJsonString($circuit);
-		isEnlarged = true;
+		activeView = 'cir';
+		circuitDataModalContent.set(buildCanonicalString($circuitIR));
+		showCircuitDataModal.set(true);
 		dropdownOpen = false;
 	}
 
 	function closeModal() {
-		isEnlarged = false;
+		showCircuitDataModal.set(false);
 	}
 
 	function handleTabChange(mode: DataViewMode) {
 		activeView = mode;
-
-		if (mode === 'json') {
-			editorContent = buildJsonString($circuit);
-			return;
-		}
-
 		if (mode === 'cir') {
-			editorContent = buildCanonicalString($circuit);
+			circuitDataModalContent.set(buildCanonicalString($circuitIR));
 		}
 	}
 
 	function importJson() {
-		if (activeView === 'json') {
-			try {
-				const input: ImportedCircuit = JSON.parse(editorContent);
-				const result = importCircuit(input);
+		try {
+			const input: unknown = JSON.parse($circuitDataModalContent);
+			const result = importCircuit(input);
 
-				if ('detail' in result) {
-					flash({ text: result.detail ?? 'Unknown error', isError: true });
-					return;
-				}
-
-				circuit.set(result as CircuitState);
-				triggerSimulation(result as CircuitState);
-				editorContent = buildJsonString(result as CircuitState);
-				flash({ text: 'Circuit loaded successfully!' });
-			} catch {
-				flash({ text: 'Invalid JSON format', isError: true });
+			// Type guard: check if it's an error response
+			if ('detail' in result && !('version' in result)) {
+				const errorMsg = result.detail ?? 'Unknown error';
+				flash({ text: errorMsg, isError: true });
+				showNotification(errorMsg, 'error');
+				return;
 			}
+
+			// Now TypeScript knows result is CircuitIR
+			circuitIR.set(result as CircuitIR);
+			triggerSimulation(result as CircuitIR);
+			circuitDataModalContent.set(buildCanonicalString(result as CircuitIR));
+			flash({ text: 'Canonical IR loaded successfully!' });
+			showNotification('Circuit imported successfully!', 'success');
+		} catch {
+			const errorMsg = 'Invalid JSON format';
+			flash({ text: errorMsg, isError: true });
+			showNotification(errorMsg, 'error');
 		}
 
-		if (activeView === 'cir') {
-			try {
-				const input: unknown = JSON.parse(editorContent);
-				const validationResult = validateCanonicalIR(input);
-				if (!validationResult.valid) {
-					flash({
-						text: validationResult.errors.join('\n'),
-						isError: true
-					});
-					return;
-				}
-
-				const legacyCircuit = toCircuitState(input as CircuitIR);
-				circuit.set(legacyCircuit);
-				triggerSimulation(legacyCircuit);
-				editorContent = JSON.stringify(input, null, 2);
-
-				flash({ text: 'Canonical IR loaded successfully!' });
-			} catch {
-				flash({ text: 'Invalid Canonical IR JSON format', isError: true });
-			}
-		}
-
-		isEnlarged = false;
+		showCircuitDataModal.set(false);
 	}
 
 	function downloadFile(filename: string, content: string, mimeType = 'text/plain') {
@@ -154,25 +124,15 @@
 	}
 
 	function exportCurrentView() {
-		if (activeView === 'json') {
-			const content = buildJsonString($circuit);
-			editorContent = content;
-			downloadFile('circuit.json', content, 'application/json');
-			flash({ text: 'JSON downloaded!' });
-			return;
-		}
-
-		if (activeView === 'cir') {
-			const content = buildCanonicalString($circuit);
-			editorContent = content;
-			downloadFile('circuit.json', content, 'text/plain');
-			flash({ text: 'Canonical IR downloaded!' });
-		}
+		const content = buildCanonicalString($circuitIR);
+		circuitDataModalContent.set(content);
+		downloadFile('circuit.cir', content, 'text/plain');
+		flash({ text: 'Canonical IR downloaded!' });
 	}
 
 	async function copyToClipboard() {
 		try {
-			await navigator.clipboard.writeText(editorContent);
+			await navigator.clipboard.writeText($circuitDataModalContent);
 			flash({ text: 'Copied to clipboard!' });
 		} catch {
 			flash({ text: 'Failed to copy text. Please copy manually.', isError: true });
@@ -194,96 +154,66 @@
 <div
 	aria-label="Quantum Circuit Gate Palette"
 	role="region"
-	on:drop={(e) => { handlePaletteDrop(e); dragEnterCount = 0; e.currentTarget.classList.remove('drop-target-active'); }}
+	on:drop={(e) => {
+		handlePaletteDrop(e);
+		dragEnterCount = 0;
+		e.currentTarget.classList.remove('drop-target-active');
+	}}
 	on:dragover={(e) => e.preventDefault()}
-	on:dragenter={(e) => { dragEnterCount++; e.currentTarget.classList.add('drop-target-active'); }}
-	on:dragleave={(e) => { dragEnterCount--; if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active'); }}
+	on:dragenter={(e) => {
+		dragEnterCount++;
+		e.currentTarget.classList.add('drop-target-active');
+	}}
+	on:dragleave={(e) => {
+		dragEnterCount--;
+		if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active');
+	}}
 	class="relative mb-4 w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm border border-secondary-3"
 >
 	{#each gates as gate}
-		{#if !isSingleQubit || gate.type !== 'CONTROL'}
-			<!-- Separator before multi-qubit gates -->
-			{#if gate.category === 'multi' && !isSingleQubit && gate.type === 'CONTROL'}
-				<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
-			{/if}
-			<div
-				title={gate.name}
-				role="region"
-				draggable="true"
-				on:dragstart={(e) => {
-					const dragData: GateData = { source: 'palette', gateType: gate.type };
-					e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
-					isDragging.set(true);
-				}}
-				on:dragend={() => isDragging.set(false)}
-				on:dblclick={() => handleDoubleClick({ source: 'palette', gateType: gate.type })}
-				on:touchstart={(e) => handleTouchStart(e, { source: 'palette', gateType: gate.type })}
-				on:touchmove={handleTouchMove}
-				on:touchend={(e) => handleTouchEnd(e)}
-				class={`cursor-grab select-none border bg-white hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
-					['CONTROL', 'MEASURE'].includes(gate.type)
-						? 'h-11 w-10 rounded-sm border-secondary-4'
-						: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
-				}`}
-			>
-				{#if gate.type === 'CONTROL'}
-					<span class="h-3 w-3 rounded-full bg-secondary-4"></span>
-				{:else if gate.type === 'MEASURE'}
-					<span class="text-secondary-4">
-						<Icon icon="si:meter-fill" width="20" height="20" />
-					</span>
-				{:else}
-					{gate.name}
-				{/if}
-			</div>
+		<!-- Separator before multi-qubit gates -->
+		{#if gate.category === 'multi' && gate.type === 'CONTROL'}
+			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
 		{/if}
-	{/each}
-
-	<div class="absolute top-2 right-4 cursor-pointer dropdown-container">
-		<button
-			type="button"
-			class="flex items-center gap-2 cursor-pointer"
-			on:click={() => (dropdownOpen = !dropdownOpen)}
+		<div
+			title={gate.name}
+			role="region"
+			draggable="true"
+			on:dragstart={(e) => {
+				const dragData: GateData = { source: 'palette', gateType: gate.type };
+				e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
+				isDragging.set(true);
+			}}
+			on:dragend={() => isDragging.set(false)}
+			on:dblclick={() => handleDoubleClick({ source: 'palette', gateType: gate.type })}
+			on:touchstart={(e) => handleTouchStart(e, { source: 'palette', gateType: gate.type })}
+			on:touchmove={handleTouchMove}
+			on:touchend={(e) => handleTouchEnd(e)}
+			class={`cursor-grab select-none border bg-white hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
+				['CONTROL', 'ANTI_CONTROL', 'MEASURE'].includes(gate.type)
+					? 'h-11 w-10 rounded-sm border-secondary-4'
+					: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
+			}`}
 		>
-			<Icon
-				icon="icon-park-solid:down-one"
-				width="20"
-				height="20"
-				class="text-white"
-				style={dropdownOpen
-					? 'transform: rotate(180deg); transition: transform 0.2s ease;'
-					: 'transition: transform 0.2s ease;'}
-			/>
-		</button>
-
-		{#if dropdownOpen}
-			<div
-				class="absolute top-full right-0 mt-1 bg-white border border-secondary-3 rounded-sm shadow-md z-60 min-w-[120px]"
-			>
-				<button
-					type="button"
-					on:click={openCircuitDataModal}
-					class="whitespace-nowrap py-2 w-full text-center border border-b-gray-400 rounded-t-sm border-white text-secondary-2 cursor-pointer active:text-secondary-3 active:border-secondary-3"
-				>
-					Circuit Data
-				</button>
-
-				<button
-					type="button"
-					on:click={() => resetCircuit()}
-					class="whitespace-nowrap w-full py-2 text-center font-semibold rounded-b-sm border border-white active:border-ternary-2 text-ternary-2 cursor-pointer active:text-ternary-2"
-				>
-					Reset Circuit
-				</button>
-			</div>
-		{/if}
-	</div>
+			{#if gate.type === 'CONTROL'}
+				<span class="h-3 w-3 rounded-full bg-secondary-4"></span>
+			{:else if gate.type === 'ANTI_CONTROL'}
+				<span class="h-3 w-3 rounded-full border border-secondary-4"></span>
+			{:else if gate.type === 'MEASURE'}
+				<span class="text-secondary-4">
+					<Icon icon="si:meter-fill" width="20" height="20" />
+				</span>
+			{:else}
+				{gate.name}
+			{/if}
+		</div>
+	{/each}
 </div>
 
 <CircuitDataModal
-	open={isEnlarged}
+	open={$showCircuitDataModal}
 	{activeView}
-	bind:value={editorContent}
+	bind:value={$circuitDataModalContent}
 	{message}
 	{errorMessage}
 	onClose={closeModal}

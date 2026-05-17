@@ -15,8 +15,8 @@
 <main class="flex min-h-screen flex-col overflow-x-hidden items-center bg-[radial-gradient(at_center,#020618_50%,#09090b_90%)]">
 
 	<!-- Header -->
-	<header class="relative w-full flex items-center justify-between px-4 sm:px-7 py-2 flex-shrink-0">
-		<a href="/" class="flex-shrink-0">
+	<header class="relative w-full flex items-center justify-between px-4 sm:px-7 py-2 shrink-0">
+		<a href="/" class="shrink-0">
 			<img src="/feynman_circuits_logo.svg" alt="Feynman Circuits Logo" class="h-16 sm:h-20 w-auto cursor-pointer" />
 		</a>
 
@@ -25,7 +25,7 @@
 			<span class="mb-4 text-xl font-semibold text-white">CIRCUITS</span>
 		</div>
 
-		<div class="flex-shrink-0">
+		<div class="shrink-0">
 			<SignUp_In />
 		</div>
 	</header>
@@ -39,7 +39,7 @@
 	<!-- Results row — normal page flow, responsive -->
 	<div class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-end gap-4">
 		<SimulationResult />
-		<div class="flex-shrink-0">
+		<div class="shrink-0">
 			<OverallBlochSphere />
 		</div>
 	</div>

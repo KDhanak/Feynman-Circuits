@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { SimulationResults, circuit } from '../lib/stores';
+	import { simulationResult } from '$lib/IR/stores';
+	import { circuitIR } from '$lib/IR/stores';
 	import { onMount, onDestroy } from 'svelte';
 
 	let popupWindow: Window | null = null;
@@ -18,10 +19,28 @@
 		return out;
 	}
 
+	function coloredStateHtml(stateText: string, measuredQubits: number[]): string {
+		const pipeIndex = stateText.indexOf('|');
+		const closingIndex = stateText.indexOf('⟩');
+		const bitsStr = stateText.substring(pipeIndex + 1, closingIndex);
+		const prefix = stateText.substring(0, pipeIndex + 1);
+
+		const coloredBits = Array.from(bitsStr)
+			.map((bit, i) => {
+				if (measuredQubits.includes(i)) {
+					return `<span style="color:#ea580c;font-weight:600;">${bit}</span>`;
+				}
+				return bit;
+			})
+			.join('');
+
+		return `${prefix}${coloredBits}⟩`;
+	}
+
 	// Only used for inline view (1-2 qubits)
-	$: probabilitiesArray = toEntriesArray($SimulationResults?.probabilities);
+	$: probabilitiesArray = toEntriesArray($simulationResult?.probabilities);
 	$: columns = chunkArray(probabilitiesArray, 16);
-	$: shouldShowPopupButton = $circuit.numQubits >= 3;
+	$: shouldShowPopupButton = $circuitIR.registers.q >= 3;
 
 	// ─────────────────────────────────────────────────────────────
 	// Open / focus popup
@@ -48,25 +67,45 @@
 	function updatePopupContent() {
 		if (!popupWindow || popupWindow.closed) return;
 
+		const measuredQubitsHtml =
+			$simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0
+				? `
+			<p style="margin:12px 0 8px;">
+				<strong>Measured Qubits:</strong>
+				<span style="color:#ea580c;font-weight:600;background:rgba(234,88,12,0.15);padding:4px 8px;border-radius:4px;display:inline-block;">
+					${$simulationResult.measuredQubits.map(q => `q${q}`).join(', ')}
+				</span>
+			</p>`
+				: '';
+
 		const classicalHtml =
-			$SimulationResults.classicalBits && $SimulationResults.classicalBits.size > 0
+			$simulationResult.classicalBits && $simulationResult.classicalBits.size > 0
 				? `
 			<p style="margin:12px 0 20px;">
-				<strong>Classical bits after measurement:</strong> 
-				<span style="color:#67e8f9;font-weight:600;">
-					${Array.from($SimulationResults.classicalBits.entries())
+				<strong>Classical bits after measurement:</strong>
+				<span style="color:#ea580c;font-weight:600;background:rgba(234,88,12,0.15);padding:4px 8px;border-radius:4px;display:inline-block;">
+					${Array.from($simulationResult.classicalBits.entries())
 						.map(([q, v]) => `q${q}=${v}`)
 						.join(', ')}
 				</span>
 			</p>`
 				: '';
 
-		const probRows = toEntriesArray($SimulationResults?.probabilities)
+		const probRows = toEntriesArray($simulationResult?.probabilities)
 			.map((item) => {
 				const isZero = item.prob === 0;
+				const measuredQubits = $simulationResult.measuredQubits || [];
+				const coloredBits = Array.from(item.state)
+					.map((bit, i) => {
+						if (measuredQubits.includes(i)) {
+							return `<span style="color:#ea580c;font-weight:600;">${bit}</span>`;
+						}
+						return bit;
+					})
+					.join('');
 				return `
 			<div class="row">
-				<span class="prob ${isZero ? 'zero' : 'nonzero'}">|${item.state}⟩</span>
+				<span class="prob ${isZero ? 'zero' : 'nonzero'}">|${coloredBits}⟩</span>
 				<span class="prob ${isZero ? 'zero' : 'nonzero'}">${(item.prob * 100).toFixed(4)}%</span>
 			</div>`;
 			})
@@ -76,7 +115,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Live Quantum Results — ${$circuit.numQubits} qubits</title>
+	<title>Live Quantum Results — ${$circuitIR.registers.q} qubits</title>
 	<style>
 		body { font-family: system-ui, sans-serif; background:#020618; color:#e2e8f0; padding:24px; margin:0; }
 		.container { max-width:920px; margin:0 auto; }
@@ -120,8 +159,13 @@
 <body>
 	<div class="container">
 		<h3>Live Simulation Results <span class="live-dot"></span></h3>
-		<p class="quantum-state"><strong>Quantum State:</strong> <span class="state">${$SimulationResults.formattedState ?? 'Calculating...'}</span></p>
+		<p class="quantum-state"><strong>Quantum State:</strong> <span class="state">${
+			$simulationResult.formattedState && $simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0
+				? coloredStateHtml($simulationResult.formattedState, $simulationResult.measuredQubits)
+				: $simulationResult.formattedState ?? 'Calculating...'
+		}</span></p>
 
+		${measuredQubitsHtml}
 		${classicalHtml}
 
 		<div class="header-row">
@@ -145,18 +189,18 @@
 	}
 
 	// Auto-close popup when qubits drop to ≤2
-	$: if (popupWindow && !popupWindow.closed && $circuit.numQubits < 3) {
+	$: if (popupWindow && !popupWindow.closed && $circuitIR.registers.q < 3) {
 		popupWindow.close();
 		popupWindow = null;
 	}
 
 	// Live subscriptions (this eliminates the 1-step lag)
 	onMount(() => {
-		const unsubCircuit = circuit.subscribe(() => {
+		const unsubCircuit = circuitIR.subscribe(() => {
 			if (popupWindow && !popupWindow.closed) updatePopupContent();
 		});
 
-		const unsubSim = SimulationResults.subscribe(() => {
+		const unsubSim = simulationResult.subscribe(() => {
 			if (popupWindow && !popupWindow.closed) updatePopupContent();
 		});
 
@@ -174,8 +218,8 @@
 
 <div class="text-white">
 	{#if shouldShowPopupButton}
-		<div class="p-5 border border-secondary-3 rounded-sm bg-secondary-4/20 text-center">
-			<p class="text-base font-medium">{$circuit.numQubits} qubits — Many states</p>
+		<div class="p-5 rounded-sm bg-secondary-4/40 text-center">
+			<p class="text-base font-medium">{$circuitIR.registers.q} qubits — Many states</p>
 			<button
 				type="button"
 				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium border border-white rounded-sm"
@@ -189,15 +233,38 @@
 		<p class="text-base font-medium">
 			Quantum State:
 			<span class="text-sm font-normal">
-				{$SimulationResults.formattedState ?? 'Calculating...'}
+				{#if $simulationResult.formattedState}
+					{@const stateText = $simulationResult.formattedState}
+					{@const pipeIndex = stateText.indexOf('|')}
+					{@const closingIndex = stateText.indexOf('⟩')}
+					{@const bitsStr = stateText.substring(pipeIndex + 1, closingIndex)}
+					{stateText.substring(0, pipeIndex + 1)}
+					{#each Array.from(bitsStr) as bit, i (i)}
+						<span class={$simulationResult.measuredQubits?.includes(i) ? 'text-orange-500 font-semibold' : ''}>
+							{bit}
+						</span>
+					{/each}
+					⟩
+				{:else}
+					Calculating...
+				{/if}
 			</span>
 		</p>
 
-		{#if $SimulationResults.classicalBits && $SimulationResults.classicalBits.size > 0}
+		{#if $simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0}
+			<p class="text-md font-medium mt-3">
+				Measured Qubits:
+				<span class="text-orange-500 font-semibold bg-orange-500/10 px-2 py-1 rounded">
+					{$simulationResult.measuredQubits.map(q => `q${q}`).join(', ')}
+				</span>
+			</p>
+		{/if}
+
+		{#if $simulationResult.classicalBits && $simulationResult.classicalBits.size > 0}
 			<p class="text-md font-medium mt-3">
 				Classical bits after measurement:
-				<span class="text-ternary-1 font-semibold">
-					{Array.from($SimulationResults.classicalBits.entries())
+				<span class="text-orange-500 font-semibold bg-orange-500/10 px-2 py-1 rounded">
+					{Array.from($simulationResult.classicalBits.entries())
 						.map(([qubit, value]) => `q${qubit} = ${value}`)
 						.join(', ')}
 				</span>

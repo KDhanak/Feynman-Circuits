@@ -5,7 +5,8 @@
 // It only checks correctness and reports errors.
 
 import type {
-    CanonicalUnitaryGate
+    CanonicalUnitaryGate,
+    OperationKind
 } from './schema';
 
 // Supported version of the IR schema
@@ -15,7 +16,7 @@ const VALID_VERSION = '1.0';
 const VALID_UNITARY_GATES: CanonicalUnitaryGate[] = ['x', 'y', 'z', 'h', 's', 't'];
 
 // Allowed operation types
-const VALID_KINDS = ['unitary', 'measure', 'reset', 'barrier'] as const;
+const VALID_KINDS = ['unitary', 'measure', 'reset', 'barrier'] as const satisfies readonly OperationKind[];
 
 // Return type of validator
 export interface ValidationResult {

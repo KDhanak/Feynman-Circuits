@@ -1,10 +1,10 @@
 <script lang="ts">
 	import BlochSphere from './BlochSphere.svelte';
-	import { SimulationResults } from '$lib/stores';
+	import { simulationResult } from '$lib/IR/stores';
 	import { computeOverallBlochVector } from '$lib/quantum/bloch';
 	import { onMount } from 'svelte';
 
-	$: vectors = $SimulationResults.blochVectors ?? [];
+	$: vectors = $simulationResult.blochVectors ?? [];
 	$: overall = computeOverallBlochVector(vectors);
 
 	let sphereSize = 200;
@@ -18,5 +18,5 @@
 </script>
 
 <div class="flex flex-col items-center text-white text-xs tracking-wider font-light">
-	<BlochSphere vector={overall} label="Overall State" size={sphereSize} showAxisLabels={true} />
+	<BlochSphere vector={overall} size={sphereSize} showAxisLabels={true} />
 </div>

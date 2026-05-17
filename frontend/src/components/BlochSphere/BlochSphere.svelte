@@ -2,12 +2,9 @@
 	import type { BlochVector } from '$lib/quantum/bloch';
 
 	export let vector: BlochVector;
-	export let label = 'Qubit';
 	export let size = 150;
 	export let showDetails = true;
 	export let showAxisLabels = false;
-	export let axisLabelColor = 'rgba(255,255,255,0.8)';
-
 	$: CENTER = size / 2;
 	$: R = size * 0.35;
 

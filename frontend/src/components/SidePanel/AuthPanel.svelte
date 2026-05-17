@@ -109,11 +109,8 @@
 	<button class="btn-secondary" on:click={openDrawer}>Sign In/Up</button>
 {:else}
 	<div class="relative flex flex-col items-end gap-1 dropdown-container">
-		<button
-			class="btn-secondary flex items-center gap-1.5"
-			on:click={() => (dropdownOpen = !dropdownOpen)}
-		>
-			<span>{$session.user?.first_name}</span>
+		<button class="flex items-center gap-2 cursor-pointer" on:click={() => (dropdownOpen = !dropdownOpen)}>
+			<span class="text-white font-semibold text-sm">{$session.user?.first_name}</span>
 			<Icon
 				icon="icon-park-solid:down-one"
 				width="16"
@@ -125,19 +122,15 @@
 		</button>
 
 		{#if signoutMessage}
-			<p class="text-xs text-green-400 font-bold whitespace-nowrap">{signoutMessage}</p>
+			<p class="text-xs text-red-400 font-bold whitespace-nowrap">{signoutMessage}</p>
 		{/if}
 
 		{#if dropdownOpen}
-			<div class="absolute top-full right-0 mt-1 bg-white border rounded-sm shadow-xl z-[100] min-w-full">
+			<div class="absolute top-full w-[130%] right-0 mt-1 bg-white rounded-sm shadow-md z-100">
 				<button
-					on:click={() => logoutAndClose()}
-					disabled={loading}
-					class="flex items-center gap-2 px-4 py-2.5 w-full text-sm text-ternary-2 active:bg cursor-pointer whitespace-nowrap"
-				>
-					<Icon icon="material-symbols:logout" width="16" height="16" />
-					{loading ? 'Signing out…' : 'Sign out'}
-				</button>
+					on:click={() => { logoutAndClose(); dropdownOpen = false; }}
+					class="px-2 py-1 items-center w-full border rounded-sm bg-white text-ternary-2 border-white active:border-2 active:text-ternary-3 active:border-ternary-3 cursor-pointer"
+				>Sign out</button>
 			</div>
 		{/if}
 	</div>
@@ -145,7 +138,7 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-[100] bg-slate-950/60"
+		class="fixed inset-0 z-100 bg-slate-950/60"
 		role="button"
 		tabindex="0"
 		aria-label="Close authentication drawer"
@@ -214,8 +207,7 @@
 							{:else if activeView === 'signup'}
 								<SignUp
 									onSignedUp={(email) => { prefilledSignInEmail = email; activeView = 'signin'; }}
-									onSwitchToSignIn={() => (activeView = 'signin')}
-								/>
+						/>
 							{:else if activeView === 'forgot'}
 								<ForgotPassword onOtpSent={(email) => { resetEmail = email; activeView = 'otp'; }} />
 							{:else if activeView === 'otp'}
