@@ -2,7 +2,6 @@
 	import { signUp } from '$lib/session';
 
     export let onSignedUp: (email: string) => void = () => {};
-	export let onSwitchToSignIn: () => void = () => {};
 
 	let generalErrorMsg = '';
 	let successMsg = '';

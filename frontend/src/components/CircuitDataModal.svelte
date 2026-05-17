@@ -4,7 +4,7 @@
 	import { fade, scale } from 'svelte/transition';
 
 	export let open = false;
-	export let activeView: DataViewMode = 'json';
+	export let activeView: DataViewMode = 'cir';
 	export let value = '';
 	export let message = '';
 	export let errorMessage = '';
@@ -50,16 +50,6 @@
 		>
 			<div class="flex items-center justify-between mb-3">
 				<div class="flex items-center gap-2">
-					<button
-						type="button"
-						on:click={() => onTabChange('json')}
-						class:!bg-white={activeView === 'json'}
-						class:!text-secondary-2={activeView === 'json'}
-						class="rounded-sm px-3 py-1.5 text-sm border border-white text-white cursor-pointer"
-					>
-						JSON
-					</button>
-
 					<button
 						type="button"
 						on:click={() => onTabChange('cir')}

@@ -127,7 +127,7 @@
 		{/if}
 
 		{#if dropdownOpen}
-			<div class="absolute top-full w-[130%] right-0 mt-1 bg-white rounded-sm shadow-md z-[100]">
+			<div class="absolute top-full w-[130%] right-0 mt-1 bg-white rounded-sm shadow-md z-100">
 				<button
 					on:click={() => { logoutAndClose(); dropdownOpen = false; }}
 					class="px-2 py-1 items-center w-full border rounded-sm bg-white text-ternary-2 border-white active:border-2 active:text-ternary-3 active:border-ternary-3 cursor-pointer"
@@ -139,7 +139,7 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-[100] bg-slate-950/60"
+		class="fixed inset-0 z-100 bg-slate-950/60"
 		role="button"
 		tabindex="0"
 		aria-label="Close authentication drawer"
@@ -208,8 +208,7 @@
 							{:else if activeView === 'signup'}
 								<SignUp
 									onSignedUp={(email) => { prefilledSignInEmail = email; activeView = 'signin'; }}
-									onSwitchToSignIn={() => (activeView = 'signin')}
-								/>
+						/>
 							{:else if activeView === 'forgot'}
 								<ForgotPassword onOtpSent={(email) => { resetEmail = email; activeView = 'otp'; }} />
 							{:else if activeView === 'otp'}

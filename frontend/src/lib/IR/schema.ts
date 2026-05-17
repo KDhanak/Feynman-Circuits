@@ -1,3 +1,5 @@
+import { type BlochVector } from "../quantum/bloch";
+
 export type CanonicalUnitaryGate = 'x' | 'y' | 'z' | 'h' | 's' | 't';
 
 export type OperationKind = 'unitary' | 'measure' | 'reset' | 'barrier';
@@ -44,3 +46,20 @@ export interface CircuitIR {
     qubitLabels: string[];
     operations: CircuitOperation[];
 }
+
+export interface SimulationResult {
+    probabilities: { [state: string]: number };
+    formattedState?: string;
+    formattedQuantumStateApproximate?: string;
+    formattedStatePolar?: string;
+    blochVectors?: BlochVector[];
+    measuredQubits?: number[];
+    classicalBits?: Map<number, number>;
+};
+
+export interface GateData {
+    source: 'palette' | 'wire';
+    gateType?: string;
+    gateId?: string; 
+    isCopy?: boolean; 
+};

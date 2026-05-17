@@ -1,7 +1,7 @@
 import type { CircuitIR } from "./IR/schema";
 import { circuitIR } from "./IR/stores";
-import type { SimulationResult } from "./stores";
-import { circuit, SimulationResults } from '../lib/stores';
+import type { SimulationResult } from "./IR/schema";
+import { simulationResult } from "./IR/stores";
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
 import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix } from "./quantum/matrix";
@@ -138,7 +138,7 @@ const qubits = current.registers.q || 1;
 		magnitude: 1
 	}));
 
-	SimulationResults.set({
+	simulationResult.set({
 		probabilities,
 		formattedState: `1.00|${'0'.repeat(qubits)}⟩`,
 		blochVectors

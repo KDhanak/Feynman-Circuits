@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { SimulationResults, circuit } from '../lib/stores';
+	import { simulationResult } from '$lib/IR/stores';
+	import { circuitIR } from '$lib/IR/stores';
 	import { onMount, onDestroy } from 'svelte';
 
 	let popupWindow: Window | null = null;
@@ -19,9 +20,9 @@
 	}
 
 	// Only used for inline view (1-2 qubits)
-	$: probabilitiesArray = toEntriesArray($SimulationResults?.probabilities);
+	$: probabilitiesArray = toEntriesArray($simulationResult?.probabilities);
 	$: columns = chunkArray(probabilitiesArray, 16);
-	$: shouldShowPopupButton = $circuit.numQubits >= 3;
+	$: shouldShowPopupButton = $circuitIR.registers.q >= 3;
 
 	// ─────────────────────────────────────────────────────────────
 	// Open / focus popup
@@ -49,19 +50,19 @@
 		if (!popupWindow || popupWindow.closed) return;
 
 		const classicalHtml =
-			$SimulationResults.classicalBits && $SimulationResults.classicalBits.size > 0
+			$simulationResult.classicalBits && $simulationResult.classicalBits.size > 0
 				? `
 			<p style="margin:12px 0 20px;">
 				<strong>Classical bits after measurement:</strong> 
 				<span style="color:#67e8f9;font-weight:600;">
-					${Array.from($SimulationResults.classicalBits.entries())
+					${Array.from($simulationResult.classicalBits.entries())
 						.map(([q, v]) => `q${q}=${v}`)
 						.join(', ')}
 				</span>
 			</p>`
 				: '';
 
-		const probRows = toEntriesArray($SimulationResults?.probabilities)
+		const probRows = toEntriesArray($simulationResult?.probabilities)
 			.map((item) => {
 				const isZero = item.prob === 0;
 				return `
@@ -76,7 +77,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Live Quantum Results — ${$circuit.numQubits} qubits</title>
+	<title>Live Quantum Results — ${$circuitIR.registers.q} qubits</title>
 	<style>
 		body { font-family: system-ui, sans-serif; background:#020618; color:#e2e8f0; padding:24px; margin:0; }
 		.container { max-width:920px; margin:0 auto; }
@@ -120,7 +121,7 @@
 <body>
 	<div class="container">
 		<h3>Live Simulation Results <span class="live-dot"></span></h3>
-		<p class="quantum-state"><strong>Quantum State:</strong> <span class="state">${$SimulationResults.formattedState ?? 'Calculating...'}</span></p>
+		<p class="quantum-state"><strong>Quantum State:</strong> <span class="state">${$simulationResult.formattedState ?? 'Calculating...'}</span></p>
 
 		${classicalHtml}
 
@@ -145,18 +146,18 @@
 	}
 
 	// Auto-close popup when qubits drop to ≤2
-	$: if (popupWindow && !popupWindow.closed && $circuit.numQubits < 3) {
+	$: if (popupWindow && !popupWindow.closed && $circuitIR.registers.q < 3) {
 		popupWindow.close();
 		popupWindow = null;
 	}
 
 	// Live subscriptions (this eliminates the 1-step lag)
 	onMount(() => {
-		const unsubCircuit = circuit.subscribe(() => {
+		const unsubCircuit = circuitIR.subscribe(() => {
 			if (popupWindow && !popupWindow.closed) updatePopupContent();
 		});
 
-		const unsubSim = SimulationResults.subscribe(() => {
+		const unsubSim = simulationResult.subscribe(() => {
 			if (popupWindow && !popupWindow.closed) updatePopupContent();
 		});
 
@@ -175,7 +176,7 @@
 <div class="text-white">
 	{#if shouldShowPopupButton}
 		<div class="p-5 border border-secondary-3 rounded-sm bg-secondary-4/20 text-center">
-			<p class="text-base font-medium">{$circuit.numQubits} qubits — Many states</p>
+			<p class="text-base font-medium">{$circuitIR.registers.q} qubits — Many states</p>
 			<button
 				type="button"
 				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium border border-white rounded-sm"
@@ -189,15 +190,15 @@
 		<p class="text-base font-medium">
 			Quantum State:
 			<span class="text-sm font-normal">
-				{$SimulationResults.formattedState ?? 'Calculating...'}
+				{$simulationResult.formattedState ?? 'Calculating...'}
 			</span>
 		</p>
 
-		{#if $SimulationResults.classicalBits && $SimulationResults.classicalBits.size > 0}
+		{#if $simulationResult.classicalBits && $simulationResult.classicalBits.size > 0}
 			<p class="text-md font-medium mt-3">
 				Classical bits after measurement:
 				<span class="text-ternary-1 font-semibold">
-					{Array.from($SimulationResults.classicalBits.entries())
+					{Array.from($simulationResult.classicalBits.entries())
 						.map(([qubit, value]) => `q${qubit} = ${value}`)
 						.join(', ')}
 				</span>

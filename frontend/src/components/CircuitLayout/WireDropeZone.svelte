@@ -1,7 +1,8 @@
 <script lang="ts">
+	import type { CircuitOperation, UnitaryOperation } from '$lib/IR/schema';
 	import { tick } from 'svelte';
-	import { circuit, circuitLayout, isDragging } from '$lib/stores';
-	import type { CircuitState, GateInstance } from '$lib/stores';
+	import { circuitLayout, isDragging } from '$lib/stores';
+	import { circuitIR } from '$lib/IR/stores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -11,10 +12,10 @@
 		handleTouchStart,
 		handleTouchMove,
 		handleTouchEnd,
-		triggerSimulation
+		triggerSimulation,
+		pendingControls
 	} from '$lib/dragDropUtils';
 	import { updateQubitLabel } from '$lib/qubitLables';
-	import Icon from '@iconify/svelte';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 
 	let columnWidth = 58;
@@ -49,33 +50,37 @@
 		const boardRect = boardEl.getBoundingClientRect();
 		const next: Connector[] = [];
 
-		for (const control of $circuit.gates.filter((g) => g.gateType === 'CONTROL')) {
-			const targets =
-				control.targetQubits ?? (control.targetQubit !== undefined ? [control.targetQubit] : []);
+		// Iterate unitary operations with controls
+		for (const op of $circuitIR.operations) {
+			if (op.kind !== 'unitary') continue;
+			const unitOp = op as UnitaryOperation;
+			if (unitOp.controls.length === 0) continue;
 
-			if (!targets.length) continue;
-
-			const controlEl = boardEl.querySelector(
-				`[data-col="${control.columnIndex}"][data-qubit="${control.qubit}"][data-type="CONTROL"]`
-			);
-			if (!controlEl) continue;
-
-			const c = getCenter(controlEl, boardRect);
-
-			for (const tq of targets) {
+			// For each target qubit
+			for (const targetQubit of unitOp.targets) {
 				const targetEl = boardEl.querySelector(
-					`[data-col="${control.columnIndex}"][data-qubit="${tq}"]:not([data-type="CONTROL"])`
+					`[data-col="${unitOp.column}"][data-qubit="${targetQubit}"]:not([data-type="CONTROL"])`
 				);
 				if (!targetEl) continue;
 
 				const t = getCenter(targetEl, boardRect);
 
-				next.push({
-					key: `${control.id}-${tq}`,
-					left: c.x,
-					top: Math.min(c.y, t.y),
-					height: Math.abs(c.y - t.y)
-				});
+				// Draw connector from each control to this target
+				for (const ctrl of unitOp.controls) {
+					const controlEl = boardEl.querySelector(
+						`[data-col="${unitOp.column}"][data-qubit="${ctrl}"][data-type="CONTROL"]`
+					);
+					if (!controlEl) continue;
+
+					const c = getCenter(controlEl, boardRect);
+
+					next.push({
+						key: `${unitOp.id}-${ctrl}-${targetQubit}`,
+						left: c.x,
+						top: Math.min(c.y, t.y),
+						height: Math.abs(c.y - t.y)
+					});
+				}
 			}
 		}
 
@@ -91,14 +96,14 @@
 		});
 	}
 
-	$: $circuit.gates, $circuitLayout, scheduleConnectorRecompute();
+	$: $circuitIR.operations, $circuitLayout, scheduleConnectorRecompute();
 
-	$: wires = Array.from({ length: $circuit.numQubits }, (_, i) => ({
+	$: wires = Array.from({ length: $circuitIR.registers.q }, (_, i) => ({
 		id: `wire-${i}`,
 		qubit: i
 	}));
 
-	$: showGhostWire = $isDragging && $circuit.numQubits < MAX_QUBITS;
+	$: showGhostWire = $isDragging && $circuitIR.registers.q < MAX_QUBITS;
 
 	$: if (showGhostWire && scrollContainer) {
 		(async () => {
@@ -111,53 +116,50 @@
 	}
 
 	function hasGatesOnWire(qubitIndex: number) {
-		return $circuit.gates.some(
-			(g) =>
-				g.qubit === qubitIndex ||
-				g.targetQubit === qubitIndex ||
-				g.targetQubits?.includes(qubitIndex)
-		);
+		return $circuitIR.operations.some((op) => {
+			if ('targets' in op && (op.targets as number[]).includes(qubitIndex)) return true;
+			if (op.kind === 'unitary' && (op as UnitaryOperation).controls.includes(qubitIndex))
+				return true;
+			return false;
+		});
 	}
 
 	function removeQubitWire(qubitIndex: number) {
-		const current = $circuit;
-		if (current.numQubits <= 1) return;
+		const ir = $circuitIR;
+		if (ir.registers.q <= 1) return;
 		if (hasGatesOnWire(qubitIndex)) return;
 
-		const newNumQubits = current.numQubits - 1;
+		// Remap all operations: shift qubits above the removed one down by 1
+		const remappedOps = ir.operations
+			.map((op) => {
+				const remapQubit = (q: number) => (q > qubitIndex ? q - 1 : q);
+				const remapQubits = (qs: number[]) => qs.map(remapQubit).filter((q) => q !== qubitIndex);
 
-		const newGates = current.gates
-			.filter((g) => g.qubit !== qubitIndex)
-			.map((gate) => {
-				const newQubit = gate.qubit > qubitIndex ? gate.qubit - 1 : gate.qubit;
-				const newTargetQubit =
-					gate.targetQubit !== undefined
-						? gate.targetQubit > qubitIndex
-							? gate.targetQubit - 1
-							: gate.targetQubit
-						: undefined;
-				const newTargetQubits = gate.targetQubits
-					? gate.targetQubits
-							.filter((t) => t !== qubitIndex)
-							.map((t) => (t > qubitIndex ? t - 1 : t))
-					: undefined;
-
-				return { ...gate, qubit: newQubit, targetQubit: newTargetQubit, targetQubits: newTargetQubits } as GateInstance;
+				if (op.kind === 'unitary') {
+					return {
+						...op,
+						targets: remapQubits((op as UnitaryOperation).targets),
+						controls: remapQubits((op as UnitaryOperation).controls)
+					};
+				}
+				if ('targets' in op) {
+					return { ...op, targets: remapQubits(op.targets as number[]) };
+				}
+				return op;
+			})
+			.filter((op) => {
+				// Remove ops with empty targets
+				if ('targets' in op) return (op.targets as number[]).length > 0;
+				return true;
 			});
 
-		const newQubitLabels = current.qubitLabels
-			? current.qubitLabels.filter((_, i) => i !== qubitIndex)
-			: Array.from({ length: newNumQubits }, (_, i) => `Qubit ${i}`);
-
-		const updatedCircuit: CircuitState = {
-			...current,
-			numQubits: newNumQubits,
-			gates: newGates,
-			qubitLabels: newQubitLabels
-		};
-
-		circuit.set(updatedCircuit);
-		triggerSimulation(updatedCircuit);
+		circuitIR.set({
+			...ir,
+			registers: { ...ir.registers, q: ir.registers.q - 1 },
+			qubitLabels: ir.qubitLabels.filter((_, i) => i !== qubitIndex),
+			operations: remappedOps
+		});
+		triggerSimulation($circuitIR);
 	}
 </script>
 
@@ -169,7 +171,7 @@
 >
 	<div
 		class="border border-ternary-2 rounded-sm transition-all duration-300 ease-in-out overflow-hidden"
-		style="height: {(Math.min($circuit.numQubits, 6) + (showGhostWire ? 1 : 0)) * 64 + 16}px;"
+		style="height: {(Math.min($circuitIR.registers.q, 6) + (showGhostWire ? 1 : 0)) * 64 + 16}px;"
 	>
 		<div class="space-y-1 p-2 overflow-y-auto overflow-x-hidden h-full" bind:this={scrollContainer}>
 			<!-- Connectors -->
@@ -187,8 +189,8 @@
 					tabindex="-1"
 					class="relative flex h-16 items-center"
 					data-qubit={wire.qubit}
-					on:mouseenter={() => hoveredWire = wire.qubit}
-					on:mouseleave={() => hoveredWire = null}
+					on:mouseenter={() => (hoveredWire = wire.qubit)}
+					on:mouseleave={() => (hoveredWire = null)}
 				>
 					<!-- Wire line -->
 					<div
@@ -211,7 +213,7 @@
 					</div>
 
 					<!-- Qubit circle with hover-reveal delete button -->
-					<div class="relative mr-2 z-10 flex-shrink-0">
+					<div class="relative mr-2 z-10 shrink-0">
 						<div
 							class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 bg-ternary-2 border-ternary-3 text-base text-white shadow-lg ${
 								wire.qubit >= 1
@@ -230,60 +232,108 @@
 								class:opacity-0={hoveredWire !== wire.qubit}
 								class:opacity-100={hoveredWire === wire.qubit}
 								on:click={() => removeQubitWire(wire.qubit)}
-								aria-label="Remove qubit {wire.qubit}"
-							>×</button>
+								aria-label="Remove qubit {wire.qubit}">×</button
+							>
 						{/if}
 					</div>
 
 					<input
 						type="text"
-						value={$circuit.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
+						value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 						on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 						placeholder="Label"
-						class="qubit-label z-10 w-[60px] h-[26px] px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-sm bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
+						class="qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border border-ternary-3 text-black text-center rounded-sm bg-purple-100 shadow-lg focus:outline-none focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
 					/>
 
 					<!-- Gates -->
-					{#each $circuit.gates as gate (gate.id)}
-						{#if gate.qubit === wire.qubit}
-							<div
-								data-gate-id={gate.id}
-								data-col={gate.columnIndex}
-								data-qubit={gate.qubit}
-								data-type={gate.gateType}
-								role="button"
-								aria-label={`Remove ${gate.gateType} gate`}
-								tabindex="0"
-								draggable="true"
-								on:dragstart={(e) => handleGateDragStart(e, gate.id)}
-								on:dragend={() => isDragging.set(false)}
-								on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
-								on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
-								on:touchstart={(e) =>
-									handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gateType })}
-								on:touchmove={handleTouchMove}
-								on:touchend={handleTouchEnd}
-								class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-white text-secondary-4 hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow transition-colors duration-100"
-								style="left: {gateOffset + (gate.columnIndex + 0.5) * columnWidth}px;"
-							>
-								{#if gate.gateType === 'CONTROL'}
-									<span class="inline-block w-3 h-3 rounded-full bg-secondary-4"></span>
-								{:else if gate.gateType === 'MEASURE'}
-									<span class="text-secondary-4">
-										<Icon icon="si:meter-fill" width="20" height="20" />
-									</span>
-								{:else}
-									<span class="gate-label">{gate.gateType}</span>
-								{/if}
-							</div>
+					{#each $circuitIR.operations as op (op.id)}
+						{#if op.kind === 'unitary'}
+							{@const gate = op as UnitaryOperation}
+
+							{#if gate.targets.includes(wire.qubit)}
+								<div
+									data-gate-id={gate.id}
+									data-col={gate.column}
+									data-qubit={wire.qubit}
+									data-type="GATE"
+									role="button"
+									aria-label={`Remove ${gate.gate} gate`}
+									tabindex="0"
+									draggable="true"
+									on:dragstart={(e) => handleGateDragStart(e, gate.id)}
+									on:dragend={() => isDragging.set(false)}
+									on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
+									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
+									on:touchstart={(e) =>
+										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gate })}
+									on:touchmove={handleTouchMove}
+									on:touchend={handleTouchEnd}
+									class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-white text-secondary-4 hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow transition-colors duration-100"
+									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
+								>
+									{gate.gate.toUpperCase()}
+								</div>
+							{/if}
+
+							{#if gate.controls.includes(wire.qubit)}
+								<div
+									data-gate-id={gate.id}
+									data-col={gate.column}
+									data-qubit={wire.qubit}
+									data-type="CONTROL"
+									role="button"
+									aria-label="Control gate"
+									tabindex="0"
+									draggable="true"
+									on:dragstart={(e) => handleGateDragStart(e, gate.id)}
+									on:dragend={() => isDragging.set(false)}
+									on:keydown={(e) => e.key === 'Delete' && removeGate(gate.id)}
+									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
+									on:touchstart={(e) =>
+										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: 'CONTROL' })}
+									on:touchmove={handleTouchMove}
+									on:touchend={handleTouchEnd}
+									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border bg-white active:bg-secondary-3 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
+								>
+									<div class="w-3 h-3 rounded-full bg-secondary-4"></div>
+								</div>
+							{/if}
 						{/if}
+					{/each}
+
+					<!-- Pending control gate boxes (uncommitted controls) -->
+					{#each Array.from($pendingControls.entries()) as [col, qubits]}
+						{#each qubits as controlQubit}
+							{#if controlQubit === wire.qubit}
+								<div
+									data-col={col}
+									data-qubit={controlQubit}
+									data-type="CONTROL"
+									role="button"
+									aria-label="Pending control (place a gate in this column to attach)"
+									tabindex="0"
+									on:keydown={(e) => e.key === 'Delete' && pendingControls.update(map => {
+										const next = new Map(map);
+										const qubits = next.get(col) ?? [];
+										next.set(col, qubits.filter(q => q !== controlQubit));
+										if (next.get(col)?.length === 0) next.delete(col);
+										return next;
+									})}
+									class="gate z-10 select-none rounded-sm h-11 w-10 py-3 text-base border bg-yellow-300 hover:bg-yellow-400 border-yellow-500 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
+									style="left: {gateOffset + (col + 0.5) * columnWidth}px;"
+								>
+									<div class="w-3 h-3 rounded-full bg-yellow-600"></div>
+								</div>
+							{/if}
+						{/each}
 					{/each}
 				</div>
 			{/each}
 
 			<!-- Ghost wire -->
 			{#if showGhostWire}
-				<div class="ghost-wire relative flex h-14 items-center" data-qubit={$circuit.numQubits}>
+				<div class="ghost-wire relative flex h-14 items-center" data-qubit={$circuitIR.registers.q}>
 					<div
 						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-gray-300 opacity-30"
 					>
@@ -293,7 +343,7 @@
 								aria-label={`Add qubit and drop gate at column ${colIndex + 1}`}
 								role="button"
 								tabindex="0"
-								on:drop={(e) => handleDrop(e, colIndex, $circuit.numQubits)}
+								on:drop={(e) => handleDrop(e, colIndex, $circuitIR.registers.q)}
 								on:dragover={handleDragOver}
 								style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
 							></div>
@@ -308,9 +358,9 @@
 
 					<input
 						type="text"
-						value="Qubit {$circuit.numQubits}"
+						value="Qubit {$circuitIR.registers.q}"
 						disabled
-						class="z-10 w-[60px] h-[30px] px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
+						class="z-10 w-15 h-7.5 px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
 					/>
 				</div>
 			{/if}

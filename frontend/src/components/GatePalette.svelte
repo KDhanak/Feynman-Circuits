@@ -1,28 +1,25 @@
 <script lang="ts">
+	import type { CircuitIR, GateData } from '$lib/IR/schema';
 	import {
 		handlePaletteDrop,
 		handleDoubleClick,
 		handleTouchStart,
 		handleTouchEnd,
 		handleTouchMove,
-
 		triggerSimulation
-
 	} from '$lib/dragDropUtils';
-	import type { GateData, GateType, CircuitState, ImportedCircuit } from '$lib/stores';
-	import { circuit, isDragging } from '$lib/stores';
+	import { isDragging } from '$lib/stores';
 	import { resetCircuit } from '$lib/simulator';
 	import { importCircuit } from '$lib/IE';
 	import { onMount } from 'svelte';
 	import Icon from '@iconify/svelte';
 
 	import CircuitDataModal from './CircuitDataModal.svelte';
-	import { buildJsonString, buildCanonicalString, type DataViewMode } from '$lib/circuitDataModal';
-	import type { CircuitIR } from '$lib/IR/schema';
+	import { buildCanonicalString, type DataViewMode } from '$lib/circuitDataModal';
 	import { validateCanonicalIR } from '$lib/IR/validate';
-	import { toCircuitState } from '$lib/IR/toCircuitState';
+	import { circuitIR } from '$lib/IR/stores';
 
-	export const gates: { type: GateType; name: string; category: string }[] = [
+	export const gates: { type: string; name: string; category: string }[] = [
 		{ type: 'X', name: 'X', category: 'single' },
 		{ type: 'Y', name: 'Y', category: 'single' },
 		{ type: 'Z', name: 'Z', category: 'single' },
@@ -35,7 +32,7 @@
 
 	let dropdownOpen = false;
 	let isEnlarged = false;
-	let activeView: DataViewMode = 'json';
+	let activeView: DataViewMode = 'cir';
 	let editorContent = '';
 	let message = '';
 	let errorMessage = '';
@@ -44,7 +41,7 @@
 	let dragEnterCount = 0;
 
 	// Hide CONTROL gate when there's only 1 qubit (clean beginner experience)
-	$: isSingleQubit = $circuit.numQubits === 1;
+	$: isSingleQubit = $circuitIR.registers.q === 1;
 
 	function flash(opts: { text: string; isError?: boolean; duration?: number }) {
 		const { text, isError = false, duration = 2000 } = opts;
@@ -70,8 +67,8 @@
 	}
 
 	function openCircuitDataModal() {
-		activeView = 'json';
-		editorContent = buildJsonString($circuit);
+		activeView = 'cir';
+		editorContent = buildCanonicalString($circuitIR);
 		isEnlarged = true;
 		dropdownOpen = false;
 	}
@@ -82,58 +79,29 @@
 
 	function handleTabChange(mode: DataViewMode) {
 		activeView = mode;
-
-		if (mode === 'json') {
-			editorContent = buildJsonString($circuit);
-			return;
-		}
-
 		if (mode === 'cir') {
-			editorContent = buildCanonicalString($circuit);
+			editorContent = buildCanonicalString($circuitIR);
 		}
 	}
 
 	function importJson() {
-		if (activeView === 'json') {
-			try {
-				const input: ImportedCircuit = JSON.parse(editorContent);
-				const result = importCircuit(input);
+		try {
+			const input: unknown = JSON.parse(editorContent);
+			const result = importCircuit(input);
 
-				if ('detail' in result) {
-					flash({ text: result.detail ?? 'Unknown error', isError: true });
-					return;
-				}
-
-				circuit.set(result as CircuitState);
-				triggerSimulation(result as CircuitState);
-				editorContent = buildJsonString(result as CircuitState);
-				flash({ text: 'Circuit loaded successfully!' });
-			} catch {
-				flash({ text: 'Invalid JSON format', isError: true });
+			// Type guard: check if it's an error response
+			if ('detail' in result && !('version' in result)) {
+				flash({ text: result.detail ?? 'Unknown error', isError: true });
+				return;
 			}
-		}
 
-		if (activeView === 'cir') {
-			try {
-				const input: unknown = JSON.parse(editorContent);
-				const validationResult = validateCanonicalIR(input);
-				if (!validationResult.valid) {
-					flash({
-						text: validationResult.errors.join('\n'),
-						isError: true
-					});
-					return;
-				}
-
-				const legacyCircuit = toCircuitState(input as CircuitIR);
-				circuit.set(legacyCircuit);
-				triggerSimulation(legacyCircuit);
-				editorContent = JSON.stringify(input, null, 2);
-
-				flash({ text: 'Canonical IR loaded successfully!' });
-			} catch {
-				flash({ text: 'Invalid Canonical IR JSON format', isError: true });
-			}
+			// Now TypeScript knows result is CircuitIR
+			circuitIR.set(result as CircuitIR);
+			triggerSimulation(result as CircuitIR);
+			editorContent = buildCanonicalString(result as CircuitIR);
+			flash({ text: 'Canonical IR loaded successfully!' });
+		} catch {
+			flash({ text: 'Invalid JSON format', isError: true });
 		}
 
 		isEnlarged = false;
@@ -154,20 +122,10 @@
 	}
 
 	function exportCurrentView() {
-		if (activeView === 'json') {
-			const content = buildJsonString($circuit);
-			editorContent = content;
-			downloadFile('circuit.json', content, 'application/json');
-			flash({ text: 'JSON downloaded!' });
-			return;
-		}
-
-		if (activeView === 'cir') {
-			const content = buildCanonicalString($circuit);
-			editorContent = content;
-			downloadFile('circuit.json', content, 'text/plain');
-			flash({ text: 'Canonical IR downloaded!' });
-		}
+		const content = buildCanonicalString($circuitIR);
+		editorContent = content;
+		downloadFile('circuit.cir', content, 'text/plain');
+		flash({ text: 'Canonical IR downloaded!' });
 	}
 
 	async function copyToClipboard() {
@@ -194,10 +152,20 @@
 <div
 	aria-label="Quantum Circuit Gate Palette"
 	role="region"
-	on:drop={(e) => { handlePaletteDrop(e); dragEnterCount = 0; e.currentTarget.classList.remove('drop-target-active'); }}
+	on:drop={(e) => {
+		handlePaletteDrop(e);
+		dragEnterCount = 0;
+		e.currentTarget.classList.remove('drop-target-active');
+	}}
 	on:dragover={(e) => e.preventDefault()}
-	on:dragenter={(e) => { dragEnterCount++; e.currentTarget.classList.add('drop-target-active'); }}
-	on:dragleave={(e) => { dragEnterCount--; if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active'); }}
+	on:dragenter={(e) => {
+		dragEnterCount++;
+		e.currentTarget.classList.add('drop-target-active');
+	}}
+	on:dragleave={(e) => {
+		dragEnterCount--;
+		if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active');
+	}}
 	class="relative mb-4 w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm border border-secondary-3"
 >
 	{#each gates as gate}
@@ -258,7 +226,7 @@
 
 		{#if dropdownOpen}
 			<div
-				class="absolute top-full right-0 mt-1 bg-white border border-secondary-3 rounded-sm shadow-md z-60 min-w-[120px]"
+				class="absolute top-full right-0 mt-1 bg-white border border-secondary-3 rounded-sm shadow-md z-60 min-w-30"
 			>
 				<button
 					type="button"
