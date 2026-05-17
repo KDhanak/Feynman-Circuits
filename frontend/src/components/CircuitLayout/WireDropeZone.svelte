@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CircuitOperation, UnitaryOperation } from '$lib/IR/schema';
+	import type { CircuitOperation, UnitaryOperation, MeasureOperation } from '$lib/IR/schema';
 	import { tick } from 'svelte';
 	import { circuitLayout, isDragging } from '$lib/stores';
 	import { circuitIR } from '$lib/IR/stores';
@@ -297,6 +297,33 @@
 									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 								>
 									<div class="w-3 h-3 rounded-full bg-secondary-4"></div>
+								</div>
+							{/if}
+						{:else if op.kind === 'measure'}
+							{@const measureOp = op as MeasureOperation}
+
+							{#if (measureOp.targets as number[]).includes(wire.qubit)}
+								<div
+									data-gate-id={measureOp.id}
+									data-col={measureOp.column}
+									data-qubit={wire.qubit}
+									data-type="GATE"
+									role="button"
+									aria-label="Remove measure gate"
+									tabindex="0"
+									draggable="true"
+									on:dragstart={(e) => handleGateDragStart(e, measureOp.id)}
+									on:dragend={() => isDragging.set(false)}
+									on:keydown={(e) => e.key === 'Delete' && removeGate(measureOp.id)}
+									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: measureOp.id })}
+									on:touchstart={(e) =>
+										handleTouchStart(e, { source: 'wire', gateId: measureOp.id, gateType: 'MEASURE' })}
+									on:touchmove={handleTouchMove}
+									on:touchend={handleTouchEnd}
+									class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-orange-100 text-orange-700 hover:bg-orange-200 hover:border-orange-400 active:bg-orange-400 border-orange-300 active:text-white active:border-white shadow transition-colors duration-100"
+									style="left: {gateOffset + (measureOp.column + 0.5) * columnWidth}px;"
+								>
+									M
 								</div>
 							{/if}
 						{/if}
