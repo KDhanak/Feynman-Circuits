@@ -68,7 +68,7 @@
 <div>
 	<form class="space-y-4" on:submit|preventDefault={handleSignIn}>
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="signin-email">
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signin-email">
 				Email
 			</label>
 			<input
@@ -84,12 +84,12 @@
 				class="input-field"
 			/>
 			{#if signinErrors.email}
-				<p class="mt-1 text-sm text-red-400 font-bold">{signinErrors.email}</p>
+				<p class="mt-1 text-sm font-bold text-red-500">{signinErrors.email}</p>
 			{/if}
 		</div>
 
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="signin-password">
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signin-password">
 				Password
 			</label>
 			<input
@@ -105,7 +105,7 @@
 				class="input-field"
 			/>
 			{#if signinErrors.password}
-				<p class="mt-1 text-sm text-red-400 font-bold">{signinErrors.password}</p>
+				<p class="mt-1 text-sm font-bold text-red-500">{signinErrors.password}</p>
 			{/if}
 		</div>
 
@@ -118,23 +118,24 @@
 		</button>
 
 		{#if signinErrors.detail}
-			<p class="mt-2 text-sm text-red-400 font-bold">{signinErrors.detail}</p>
+			<p class="mt-2 text-sm font-bold text-red-500">{signinErrors.detail}</p>
 		{/if}
 
 		{#if generalErrorMsg}
-			<p class="mt-2 text-sm text-red-400 font-bold">{generalErrorMsg}</p>
+			<p class="mt-2 text-sm font-bold text-red-500">{generalErrorMsg}</p>
 		{/if}
 		{#if successMsg}
-			<p class="mt-2 text-sm text-green-400 font-bold">{successMsg}</p>
+			<p class="mt-2 text-sm font-bold text-green-500">{successMsg}</p>
 		{/if}
 	</form>
 
 	<div>
-		<p class="mt-4 text-sm text-secondary-1">
+		<p class="mt-4 text-sm" style="color: var(--color-text);">
 			Forgot your password?
 			<button
 				type="button"
-				class="text-ternary-1 font-bold active:text-ternary-3 cursor-pointer underline underline-offset-4"
+				class="font-bold cursor-pointer underline underline-offset-4"
+				style="color: var(--color-ternary-1);"
 				on:click={onSwitchToForgot}
 			>
 				Reset it

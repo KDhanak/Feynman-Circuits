@@ -191,9 +191,9 @@
 </script>
 
 <div>
-	<p class="mb-4 text-sm text-secondary-1">
+	<p class="mb-4 text-sm" style="color: var(--color-text);">
 		Enter the 6-digit OTP sent to
-		<span class="font-semibold text-white underline-offset-4 underline">{email}</span>
+		<span class="font-semibold underline-offset-4 underline" style="color: var(--color-text);">{email}</span>
 	</p>
 
 	<div class="flex items-center justify-between gap-2" on:paste={handlePaste}>
@@ -204,7 +204,8 @@
 				inputmode="numeric"
 				autocomplete="one-time-code"
 				maxlength="1"
-				class="h-12 w-12 rounded-sm border border-secondary-2 bg-white text-center text-lg font-semibold text-black outline-none focus:border-secondary-3"
+				class="h-12 w-12 rounded-sm border border-secondary-2 text-center text-lg font-semibold outline-none focus:border-secondary-3"
+				style="background-color: var(--color-surface); color: var(--color-text);"
 				bind:value={otp[index]}
 				on:input={(e) => handleInput(index, e)}
 				on:keydown={(e) => handleKeydown(index, e)}
@@ -230,23 +231,23 @@
 	</div>
 
 	{#if resendMsg}
-		<p class="mt-2 text-sm font-bold text-green-400">{resendMsg}</p>
+		<p class="mt-2 text-sm font-bold text-green-500">{resendMsg}</p>
 	{/if}
 
 	{#if otpErrors.otp}
-		<p class="mt-3 text-sm font-bold text-red-400">{otpErrors.otp}</p>
+		<p class="mt-3 text-sm font-bold text-red-500">{otpErrors.otp}</p>
 	{/if}
 
 	{#if otpErrors.detail}
-		<p class="mt-3 text-sm font-bold text-red-400">{otpErrors.detail}</p>
+		<p class="mt-3 text-sm font-bold text-red-500">{otpErrors.detail}</p>
 	{/if}
 
 	{#if generalErrorMsg}
-		<p class="mt-3 text-sm font-bold text-red-400">{generalErrorMsg}</p>
+		<p class="mt-3 text-sm font-bold text-red-500">{generalErrorMsg}</p>
 	{/if}
 
 	{#if successMsg}
-		<p class="mt-3 text-sm font-bold text-green-400">{successMsg}</p>
+		<p class="mt-3 text-sm font-bold text-green-500">{successMsg}</p>
 	{/if}
 
 	<div class="mt-5 flex items-center justify-between">

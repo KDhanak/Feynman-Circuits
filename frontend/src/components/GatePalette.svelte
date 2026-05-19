@@ -136,7 +136,7 @@ import { showNotification } from '$lib/notificationUtils';
 		dragEnterCount--;
 		if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active');
 	}}
-	class="relative mb-4 w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm shadow-sm shadow-secondary-2 bg-secondary-4/40"
+	class="relative mb-4 w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm shadow-sm shadow-secondary-2 bg-secondary-3/20"
 >
 	{#each gates as gate}
 		<!-- Separator before multi-qubit gates -->

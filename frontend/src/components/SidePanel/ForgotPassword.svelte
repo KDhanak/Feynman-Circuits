@@ -60,7 +60,7 @@
 <div>
 	<form class="space-y-4" on:submit|preventDefault={handlePasswordReset}>
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="reset-email">
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="reset-email">
 				Email
 			</label>
 			<input
@@ -78,7 +78,7 @@
 			/>
 
 			{#if resetErrors.email}
-				<p class="mt-1 text-sm text-red-400 font-bold">{resetErrors.email}</p>
+				<p class="mt-1 text-sm text-red-500 font-bold">{resetErrors.email}</p>
 			{/if}
 		</div>
 
@@ -91,15 +91,15 @@
 		</button>
 
 		{#if resetErrors.detail}
-			<p class="mt-2 text-sm text-red-400 font-bold">{resetErrors.detail}</p>
+			<p class="mt-2 text-sm text-red-500 font-bold">{resetErrors.detail}</p>
 		{/if}
 
 		{#if generalErrorMsg}
-			<p class="mt-2 text-sm text-red-400 font-bold">{generalErrorMsg}</p>
+			<p class="mt-2 text-sm text-red-500 font-bold">{generalErrorMsg}</p>
 		{/if}
 
 		{#if successMsg}
-			<p class="mt-2 text-sm text-green-400 font-bold">{successMsg}</p>
+			<p class="mt-2 text-sm text-green-500 font-bold">{successMsg}</p>
 		{/if}
 	</form>
 </div>

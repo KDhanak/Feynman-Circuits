@@ -73,7 +73,7 @@
 <div>
 	<form class="space-y-4" on:submit|preventDefault={handleResetPassword}>
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="reset-password">
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="reset-password">
 				New Password
 			</label>
 			<input
@@ -90,12 +90,12 @@
 				class="input-field"
 			/>
 			{#if resetPasswordErrors.password}
-				<p class="mt-1 text-sm font-bold text-red-400">{resetPasswordErrors.password}</p>
+				<p class="mt-1 text-sm font-bold text-red-500">{resetPasswordErrors.password}</p>
 			{/if}
 		</div>
 
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="reset-password2">
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="reset-password2">
 				Confirm Password
 			</label>
 			<input
@@ -112,7 +112,7 @@
 				class="input-field"
 			/>
 			{#if resetPasswordErrors.password2}
-				<p class="mt-1 text-sm font-bold text-red-400">{resetPasswordErrors.password2}</p>
+				<p class="mt-1 text-sm font-bold text-red-500">{resetPasswordErrors.password2}</p>
 			{/if}
 		</div>
 
@@ -125,15 +125,15 @@
 		</button>
 
 		{#if resetPasswordErrors.detail}
-			<p class="mt-2 text-sm font-bold text-red-400">{resetPasswordErrors.detail}</p>
+			<p class="mt-2 text-sm font-bold text-red-500">{resetPasswordErrors.detail}</p>
 		{/if}
 
 		{#if generalErrorMsg}
-			<p class="mt-2 text-sm font-bold text-red-400">{generalErrorMsg}</p>
+			<p class="mt-2 text-sm font-bold text-red-500">{generalErrorMsg}</p>
 		{/if}
 
 		{#if successMsg}
-			<p class="mt-2 text-sm font-bold text-green-400">{successMsg}</p>
+			<p class="mt-2 text-sm font-bold text-green-500">{successMsg}</p>
 		{/if}
 	</form>
 </div>

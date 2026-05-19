@@ -4,37 +4,69 @@
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 
-    /* Brand colors — "secondary" is the interactive purple brand, "ternary" is emphasis/destructive red */
-    --color-primary-1: #f6f54d;
-    --color-primary-2: #dddc45;
-    --color-primary-3: #c4c43d;
-    --color-primary-4: #acab35;
-    --color-ternary-0: #FF474D;
-    --color-ternary-1: #FF204E;
-    --color-ternary-2: #A0153E;
-    --color-ternary-3: #5D0E41;
+    /* Brand — Purple quantum aesthetic */
     --color-secondary-1: #e9d5ff;
     --color-secondary-2: #a855f7;
     --color-secondary-3: #7e22ce;
     --color-secondary-4: #3b0764;
-    --color-background: #152238;
-    --color-background-2: #000066;
-    --color-success-1: #00bba7;
+
+    /* Accents — Vibrant Blue (interactive, selections, quantum highlights) */
+    --color-ternary-0: #dbeafe;
+    --color-ternary-1: #2563eb;
+    --color-ternary-2: #1d4ed8;
+    --color-ternary-3: #1e40af;
+
+    /* Light theme defaults */
+    --color-background: #dfe7ef;
+    --color-surface: #ffffff;
+    --color-text: #0f172a;
+    --color-border: #e2e8f0;
+    --color-muted: #94a3b8;
+
+    /* Additional semantic colors */
+    --color-line: rgba(0, 0, 0, 0.45);
+    --color-measured: #f97316;
+    --color-probability: #2563eb;
+    --color-muted: #000000;
+    --color-branding: #7e22ce;
+}
+
+html.dark {
+    --color-background: #0f1428;
+    --color-surface: #152238;
+    --color-text: #e0e7ff;
+    --color-border: #1e293b;
+    --color-muted: #ffffff;
+
+    --color-line: rgba(255, 255, 255, 0.9);
+    --color-measured: #fb923c;
+    --color-probability: #06b6d4;
+    --color-branding: #e9d5ff;
+
+    /* Accents — Cyan for dark mode */
+    --color-ternary-0: #cffafe;
+    --color-ternary-1: #06b6d4;
+    --color-ternary-2: #0891b2;
+    --color-ternary-3: #0e7490;
+}
+
+/* Smooth transitions */
+*, *::before, *::after {
+    transition: background-color 0.3s ease, color 0.2s ease,
+                border-color 0.3s ease, fill 0.3s ease, stroke 0.3s ease,
+                height 0.3s ease, min-height 0.3s ease, max-height 0.3s ease;
 }
 
 /* ── Global scrollbar ─────────────────────────────────────── */
 ::-webkit-scrollbar { width: 7px; height: 7px; }
-::-webkit-scrollbar-track { background: #1f2937; border-radius: 20px; }
-::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 20px; }
-::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-
-/* ── Undefined CSS variable used in SimulationResult ─────── */
-:root { --muted-text: #64748b; }
+::-webkit-scrollbar-track { background: var(--color-surface); border-radius: 20px; }
+::-webkit-scrollbar-thumb { background: var(--color-muted); border-radius: 20px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-secondary-1); }
 
 /* ── Drop-target highlight (used by GatePalette dragenter) ── */
 .drop-target-active {
-    border-color: var(--color-secondary-2) !important;
-    background-color: rgba(168, 85, 247, 0.08);
+    border-color: var(--color-ternary-2) !important;
+    background-color: rgba(6, 182, 212, 0.08);
 }
 
 /* ── Shared button & input classes ───────────────────────── */

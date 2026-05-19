@@ -41,6 +41,8 @@
 	let isDragSelecting = false;
 	let dragStart: { x: number; y: number } | null = null;
 	let dragCurrent: { x: number; y: number } | null = null;
+	let gateRectCache: Map<string, DOMRect> = new Map();
+	let dragRafId: number | null = null;
 
 	$: ({ columnWidth, gateOffset } = $circuitLayout);
 
@@ -240,11 +242,25 @@
 		isDragSelecting = true;
 		dragStart = { x: e.clientX, y: e.clientY };
 		dragCurrent = { x: e.clientX, y: e.clientY };
+
+		// Precompute gate bounding rects at start of drag
+		gateRectCache.clear();
+		document.querySelectorAll('[data-gate-id]').forEach((gate) => {
+			const gateId = gate.getAttribute('data-gate-id');
+			if (gateId) {
+				gateRectCache.set(gateId, (gate as HTMLElement).getBoundingClientRect());
+			}
+		});
 	}
 
 	function handleBoardMouseMove(e: MouseEvent) {
 		if (!isDragSelecting || !dragStart) return;
-		dragCurrent = { x: e.clientX, y: e.clientY };
+
+		if (dragRafId !== null) cancelAnimationFrame(dragRafId);
+		dragRafId = requestAnimationFrame(() => {
+			dragCurrent = { x: e.clientX, y: e.clientY };
+			dragRafId = null;
+		});
 	}
 
 	function handleBoardMouseUp(e: MouseEvent) {
@@ -268,23 +284,19 @@
 			isDragSelecting = false;
 			dragStart = null;
 			dragCurrent = null;
+			gateRectCache.clear();
 			return;
 		}
 
-		// Find all gates within the drag rectangle
-		const allGates = document.querySelectorAll('[data-gate-id]');
+		// Use cached rects computed at mousedown
 		const selectedInDrag = new Set<string>();
 
-		allGates.forEach((gate) => {
-			const rect = gate.getBoundingClientRect();
-			const gateId = gate.getAttribute('data-gate-id');
-
+		gateRectCache.forEach((rect, gateId) => {
 			if (
 				rect.right > minX &&
 				rect.left < maxX &&
 				rect.bottom > minY &&
-				rect.top < maxY &&
-				gateId
+				rect.top < maxY
 			) {
 				selectedInDrag.add(gateId);
 			}
@@ -301,6 +313,7 @@
 		isDragSelecting = false;
 		dragStart = null;
 		dragCurrent = null;
+		gateRectCache.clear();
 	}
 
 	function deleteSelectedGates() {
@@ -363,9 +376,11 @@
 	on:mousemove={handleBoardMouseMove}
 	on:mouseup={handleBoardMouseUp}
 	on:mouseleave={() => {
+		if (dragRafId !== null) cancelAnimationFrame(dragRafId);
 		isDragSelecting = false;
 		dragStart = null;
 		dragCurrent = null;
+		gateRectCache.clear();
 	}}
 	on:click={(e) => {
 		closeContextMenu();
@@ -442,7 +457,8 @@
 				>
 					<!-- Wire line -->
 					<div
-						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-gray-300"
+						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform"
+						style="background-color: var(--color-muted);"
 					>
 						{#each Array(MAX_COLUMNS) as _, colIndex}
 							<div
@@ -463,13 +479,13 @@
 					<!-- Qubit circle with hover-reveal delete button -->
 					<div class="relative mr-2 z-10 shrink-0">
 						<div
-							class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 text-base shadow-lg ${
+							class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 text-base shadow-sm ${
 								$simulationResult?.measuredQubits?.includes(wire.qubit)
 									? 'bg-orange-300 border-orange-700 text-orange-800'
-									: 'bg-ternary-2 border-ternary-3 text-white'
+									: 'bg-ternary-2 border-white text-white'
 							} ${
 								wire.qubit >= 1
-									? 'cursor-pointer border-dotted active:border-solid active:border-amber-700'
+									? 'cursor-pointer border-dashed active:border-solid active:border-amber-700'
 									: 'cursor-default'
 							}`}
 							role="button"
@@ -494,7 +510,7 @@
 						value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 						on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 						placeholder="Label"
-						class={`qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border text-center rounded-sm shadow-lg focus:outline-none focus:ring-1 select-auto ${
+						class={`qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border text-center rounded-sm shadow-sm focus:outline-none focus:ring-1 select-auto ${
 							$simulationResult?.measuredQubits?.includes(wire.qubit)
 								? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
 								: 'border-ternary-3 text-black bg-purple-100 focus:ring-purple-600 focus:border-purple-600'
@@ -717,7 +733,8 @@
 			{#if showGhostWire}
 				<div class="ghost-wire relative flex h-14 items-center" data-qubit={$circuitIR.registers.q}>
 					<div
-						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform bg-gray-300 opacity-30"
+						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30"
+						style="background-color: var(--color-muted);"
 					>
 						{#each Array(MAX_COLUMNS) as _, colIndex}
 							<div

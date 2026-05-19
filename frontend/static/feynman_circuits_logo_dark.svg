@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="500" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradF" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="700" height="450" fill="transparent"/>
+
+  <!-- FC letters -->
+  <text x="250" y="220" font-family="Georgia, serif" font-size="250" fill="url(#gradF)">F</text>
+  <text x="365" y="220" font-family="Georgia, serif" font-size="250" fill="#000000">C</text>
+
+  <!-- Quantum / circuit line -->
+  <line x1="198" y1="300" x2="650" y2="300" stroke="#000000" stroke-width="5"/>
+
+  <!-- Node -->
+  <circle cx="650" cy="300" r="8" fill="#a855f7"/>
+
+  <!-- Branch -->
+  <line x1="200" y1="300" x2="180" y2="255" stroke="#a855f7" stroke-width="5"/>
+  <line x1="200" y1="300" x2="180" y2="340" stroke="#a855f7" stroke-width="5"/>
+
+    <!-- Branch -->
+  <line x1="90" y1="260" x2="90" y2="335" stroke="#a855f7" stroke-width="5"/>
+
+  <!-- Psi symbol (approx) -->
+  <text x="100" y="330" font-family="serif" font-size="100" fill="#a855f7">Ψ</text>
+</svg>

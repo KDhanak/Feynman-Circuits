@@ -109,27 +109,27 @@
 	<button class="btn-secondary" on:click={openDrawer}>Sign In/Up</button>
 {:else}
 	<div class="relative flex flex-col items-end gap-1 dropdown-container">
-		<button class="flex items-center gap-2 cursor-pointer" on:click={() => (dropdownOpen = !dropdownOpen)}>
-			<span class="text-white font-semibold text-sm">{$session.user?.first_name}</span>
+		<button class="flex items-center gap-2 cursor-pointer min-w-28" on:click={() => (dropdownOpen = !dropdownOpen)}>
+			<span class="font-semibold text-sm truncate" style="color: var(--color-text);">{$session.user?.first_name}</span>
 			<Icon
 				icon="icon-park-solid:down-one"
 				width="16"
 				height="16"
-				style={dropdownOpen
+				style="color: var(--color-text);{dropdownOpen
 					? 'transform: rotate(180deg); transition: transform 0.2s ease;'
-					: 'transition: transform 0.2s ease;'}
+					: 'transition: transform 0.2s ease;'}"
 			/>
 		</button>
 
 		{#if signoutMessage}
-			<p class="text-xs text-red-400 font-bold whitespace-nowrap">{signoutMessage}</p>
+			<p class="text-xs font-bold whitespace-nowrap" style="color: var(--color-measured);">{signoutMessage}</p>
 		{/if}
 
 		{#if dropdownOpen}
-			<div class="absolute top-full w-[130%] right-0 mt-1 bg-white rounded-sm shadow-md z-100">
+			<div class="absolute top-full w-[130%] right-0 mt-1 rounded-sm z-100" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
 				<button
 					on:click={() => { logoutAndClose(); dropdownOpen = false; }}
-					class="px-2 py-1 items-center w-full border rounded-sm bg-white text-ternary-2 border-white active:border-2 active:text-ternary-3 active:border-ternary-3 cursor-pointer"
+					class="px-2 py-1 items-center w-full border rounded-sm cursor-pointer font-medium bg-white border-secondary-3 text-red-600 transition-colors"
 				>Sign out</button>
 			</div>
 		{/if}
@@ -138,7 +138,8 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-100 bg-slate-950/60"
+		class="fixed inset-0 z-100"
+		style="background-color: (var(--color-background) / 0.5); backdrop-filter: blur(4px);"
 		role="button"
 		tabindex="0"
 		aria-label="Close authentication drawer"
@@ -147,26 +148,28 @@
 		transition:fade={{ duration: 300 }}
 	>
 		<aside
-			class="absolute right-0 top-0 h-full w-full sm:max-w-md bg-slate-950 border-l border-t border-b rounded-sm border-gray-500 shadow-2xl"
+			class="absolute right-0 top-0 h-full w-full sm:max-w-md border-l border-t border-b rounded-sm shadow-2xl"
+			style="background-color: var(--color-surface); border-color: var(--color-text);"
 			aria-label="Authentication"
 			transition:fly={{ x: 400, duration: 300 }}
 		>
-			<div class="flex items-center justify-between border-b border-gray-500 px-6 py-4">
+			<div class="flex items-center justify-between px-6 py-4" style="border-bottom: 1px solid var(--color-border);">
 				<div class="flex items-center gap-3">
 					{#if currentView.showBack}
 						<button
 							type="button"
-							class="cursor-pointer text-white active:text-ternary-2"
+							class="cursor-pointer transition-colors"
+							style="color: var(--color-text);"
 							on:click={goBack}
 						>
 							<Icon icon="material-symbols:arrow-back" width="22" height="22" />
 						</button>
 					{/if}
-					<h2 class="text-lg font-semibold text-white">{currentView.title}</h2>
+					<h2 class="text-lg font-semibold" style="color: var(--color-text);">{currentView.title}</h2>
 				</div>
 
 				<button type="button" aria-label="Close dialog" on:click={closeDrawer}>
-					<Icon icon="material-symbols:close" class="text-ternary-0 cursor-pointer" width="24" height="24" />
+					<Icon icon="material-symbols:close" class="cursor-pointer text-red-500" width="24" height="24" />
 				</button>
 			</div>
 
@@ -174,8 +177,8 @@
 				{#if currentView.showTabs}
 					<div class="mb-6 relative rounded-sm border border-secondary-2 bg-white overflow-hidden">
 						<div
-							class="absolute top-0 bottom-0 w-1/2 bg-secondary-4 transition-all duration-300 ease-in-out rounded-sm"
-							style="transform: translateX({activeView === 'signin' ? '0%' : '100%'});"
+							class="absolute top-0 bottom-0 w-1/2 transition-all duration-300 ease-in-out rounded-sm"
+							style="background-color: var(--color-secondary-4); transform: translateX({activeView === 'signin' ? '0%' : '100%'});"
 						></div>
 						<div class="grid grid-cols-2 relative">
 							<button

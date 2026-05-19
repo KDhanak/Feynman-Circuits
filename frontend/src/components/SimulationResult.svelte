@@ -18,9 +18,34 @@
 		return out;
 	}
 
-	function coloredStateHtml(stateText: string, measuredQubits: number[]): string {
+	function hexToRgb(hex: string): string {
+		const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+		return result ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}` : '0,0,0';
+	}
+
+	function getThemeColors() {
+		const s = getComputedStyle(document.documentElement);
+		const get = (v: string) => s.getPropertyValue(v).trim();
+		return {
+			bg: get('--color-background'),
+			surface: get('--color-surface'),
+			text: get('--color-text'),
+			border: get('--color-border'),
+			muted: get('--color-muted'),
+			secondary1: get('--color-secondary-1'),
+			secondary2: get('--color-secondary-2'),
+			secondary3: get('--color-secondary-3'),
+			secondary4: get('--color-secondary-4'),
+			ternary1: get('--color-ternary-1'),
+			ternary2: get('--color-ternary-2'),
+			ternary3: get('--color-ternary-3'),
+			measured: get('--color-measured'),
+			probability: get('--color-probability'),
+		};
+	}
+
+	function coloredStateHtml(stateText: string, measuredQubits: number[], measuredColor: string): string {
 		let bitsStr = stateText;
-		// If formatted with | and ⟩, extract just the bits
 		const pipeIndex = stateText.indexOf('|');
 		if (pipeIndex !== -1) {
 			const closingIndex = stateText.indexOf('⟩');
@@ -30,7 +55,7 @@
 		const coloredBits = Array.from(bitsStr)
 			.map((bit, i) => {
 				if (measuredQubits.includes(i)) {
-					return `<span style="color:#ea580c;font-weight:600;">${bit}</span>`;
+					return `<span style="color:${measuredColor};font-weight:600;">${bit}</span>`;
 				}
 				return bit;
 			})
@@ -39,14 +64,10 @@
 		return `|${coloredBits}⟩`;
 	}
 
-	// Only used for inline view (1-2 qubits)
 	$: probabilitiesArray = toEntriesArray($simulationResult?.probabilities);
 	$: columns = chunkArray(probabilitiesArray, 16);
 	$: shouldShowPopupButton = $circuitIR.registers.q >= 3;
 
-	// ─────────────────────────────────────────────────────────────
-	// Open / focus popup
-	// ─────────────────────────────────────────────────────────────
 	function openResultsInNewWindow() {
 		if (popupWindow && !popupWindow.closed) {
 			popupWindow.focus();
@@ -63,18 +84,17 @@
 		updatePopupContent();
 	}
 
-	// ─────────────────────────────────────────────────────────────
-	// Update popup with latest data + highlight non-zero probs
-	// ─────────────────────────────────────────────────────────────
 	function updatePopupContent() {
 		if (!popupWindow || popupWindow.closed) return;
+
+		const colors = getThemeColors();
 
 		const measuredQubitsHtml =
 			$simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0
 				? `
 			<p style="margin:12px 0 8px;">
 				<strong>Measured Qubits:</strong>
-				<span style="color:#ea580c;font-weight:600;background:rgba(234,88,12,0.15);padding:4px 8px;border-radius:4px;display:inline-block;">
+				<span style="color:${colors.measured};font-weight:600;background:rgba(${hexToRgb(colors.measured)},0.15);padding:4px 8px;border-radius:4px;display:inline-block;">
 					${$simulationResult.measuredQubits.map(q => `q${q}`).join(', ')}
 				</span>
 			</p>`
@@ -85,7 +105,7 @@
 				? `
 			<p style="margin:12px 0 20px;">
 				<strong>Classical bits after measurement:</strong>
-				<span style="color:#ea580c;font-weight:600;background:rgba(234,88,12,0.15);padding:4px 8px;border-radius:4px;display:inline-block;">
+				<span style="color:${colors.measured};font-weight:600;background:rgba(${hexToRgb(colors.measured)},0.15);padding:4px 8px;border-radius:4px;display:inline-block;">
 					${Array.from($simulationResult.classicalBits.entries())
 						.map(([q, v]) => `q${q}=${v}`)
 						.join(', ')}
@@ -97,7 +117,7 @@
 			.map((item) => {
 				const isZero = item.prob === 0;
 				const measuredQubits = $simulationResult.measuredQubits || [];
-				const coloredBits = coloredStateHtml(item.state, measuredQubits).substring(1).slice(0, -1);
+				const coloredBits = coloredStateHtml(item.state, measuredQubits, colors.measured).substring(1).slice(0, -1);
 				return `
 			<div class="row">
 				<span class="prob ${isZero ? 'zero' : 'nonzero'}">|${coloredBits}⟩</span>
@@ -112,34 +132,34 @@
 <head>
 	<title>Live Quantum Results — ${$circuitIR.registers.q} qubits</title>
 	<style>
-		body { font-family: system-ui, sans-serif; background:#020618; color:#e2e8f0; padding:24px; margin:0; }
+		body { font-family: system-ui, sans-serif; background:${colors.bg}; color:${colors.text}; padding:24px; margin:0; }
 		.container { max-width:920px; margin:0 auto; }
-		h3 { color:#e9d5ff; text-align:center; }
-		.live-dot { display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%; animation: pulse 2s infinite; }
+		h3 { color:${colors.text}; text-align:center; }
+		.live-dot { display:inline-block; width:8px; height:8px; background:${colors.ternary2}; border-radius:50%; animation: pulse 2s infinite; }
 		.state { font-family:ui-monospace,monospace; text-align: center; }
 		.quantum-state {text-align: center;}
-		.row { 
-			display:flex; 
-			justify-content:space-between; 
-			padding:6px 10px; 
-			border-bottom:1px solid #334155; 
-			font-family:ui-monospace,monospace; 
+		.row {
+			display:flex;
+			justify-content:space-between;
+			padding:6px 10px;
+			border-bottom:1px solid ${colors.border};
+			font-family:ui-monospace,monospace;
 			font-size:0.92rem;
-			max-width: 380px;     /* ← Narrower row width */
+			max-width: 380px;
 			margin: 0 auto;
 		}
 		.prob { font-weight:600; }
-		.nonzero { color:#67e8f9; }   /* bright cyan for non-zero */
-		.zero { color:#64748b; }      /* muted for zero */
-		.note { margin-top:32px; font-size:0.9rem; opacity:0.75; border-top:1px solid #334155; padding-top:16px; }
+		.nonzero { color:${colors.probability}; }
+		.zero { color:${colors.muted}; }
+		.note { margin-top:32px; font-size:0.9rem; opacity:0.75; border-top:1px solid ${colors.border}; padding-top:16px; }
 		.header-row {
 			display: flex;
 			justify-content: space-between;
 			padding: 8px 10px;
-			border-bottom: 2px solid #c026d3;   /* purple accent */
+			border-bottom: 2px solid ${colors.secondary2};
 			margin-bottom: 4px;
 			font-weight: 700;
-			color: #e9d5ff;
+			color: ${colors.text};
 			max-width: 380px;
 			margin-left: auto;
 			margin-right: auto;
@@ -147,6 +167,13 @@
 
 		.header {
 			font-size: 0.95rem;
+		}
+		.probabilities-container {
+			background: rgba(${hexToRgb(colors.ternary3)}, 0.15);
+			border-radius: 4px;
+			padding: 16px;
+			margin-top: 16px;
+			box-shadow: 0 1px 2px rgba(${hexToRgb(colors.ternary1)}, 0.3);
 		}
 		@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
 	</style>
@@ -156,19 +183,21 @@
 		<h3>Live Simulation Results <span class="live-dot"></span></h3>
 		<p class="quantum-state"><strong>Quantum State:</strong> <span class="state">${
 			$simulationResult.formattedState && $simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0
-				? coloredStateHtml($simulationResult.formattedState, $simulationResult.measuredQubits)
+				? coloredStateHtml($simulationResult.formattedState, $simulationResult.measuredQubits, colors.measured)
 				: $simulationResult.formattedState ?? 'Calculating...'
 		}</span></p>
 
 		${measuredQubitsHtml}
 		${classicalHtml}
 
-		<div class="header-row">
-			<span class="header">States</span>
-			<span class="header">Probabilities</span>
-		</div>
+		<div class="probabilities-container">
+			<div class="header-row">
+				<span class="header">States</span>
+				<span class="header">Probabilities</span>
+			</div>
 
-		${probRows}
+			${probRows}
+		</div>
 
 		<p class="note">
 			Keep this window open.<br>
@@ -183,13 +212,11 @@
 		popupWindow.document.close();
 	}
 
-	// Auto-close popup when qubits drop to ≤2
 	$: if (popupWindow && !popupWindow.closed && $circuitIR.registers.q < 3) {
 		popupWindow.close();
 		popupWindow = null;
 	}
 
-	// Live subscriptions (this eliminates the 1-step lag)
 	onMount(() => {
 		const unsubCircuit = circuitIR.subscribe(() => {
 			if (popupWindow && !popupWindow.closed) updatePopupContent();
@@ -207,13 +234,13 @@
 	});
 </script>
 
-<div class="text-white">
+<div style="color: var(--color-text)">
 	{#if shouldShowPopupButton}
-		<div class="p-5 rounded-sm bg-secondary-4/40 shadow-sm shadow-secondary-3 text-center">
-			<p class="text-base font-medium">{$circuitIR.registers.q} qubits — Many states</p>
+		<div class="p-5 rounded-sm text-center">
+			<p class="text-base font-medium" style="color: var(--color-branding);">{$circuitIR.registers.q} Qubits — Many States</p>
 			<button
 				type="button"
-				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium border border-white rounded-sm"
+				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium rounded-sm border" style="color: var(--color-branding); border-color: var(--color-branding); transition-colors"
 				on:click={openResultsInNewWindow}
 			>
 				Open Live Results in New Window
@@ -231,7 +258,7 @@
 					{@const bitsStr = stateText.substring(pipeIndex + 1, closingIndex)}
 					{stateText.substring(0, pipeIndex + 1)}
 					{#each Array.from(bitsStr) as bit, i (i)}
-						<span class={$simulationResult.measuredQubits?.includes(i) ? 'text-orange-500 font-semibold' : ''}>
+						<span style={$simulationResult.measuredQubits?.includes(i) ? 'color: var(--color-measured); font-weight: 600;' : ''}>
 							{bit}
 						</span>
 					{/each}
@@ -245,7 +272,7 @@
 		{#if $simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0}
 			<p class="text-md font-medium mt-3">
 				Measured Qubits:
-				<span class="text-orange-500 font-semibold bg-orange-500/10 px-2 py-1 rounded">
+				<span class="font-semibold px-2 py-1 rounded" style="color: var(--color-measured); background-color: color-mix(in srgb, var(--color-measured) 15%, transparent);">
 					{$simulationResult.measuredQubits.map(q => `q${q}`).join(', ')}
 				</span>
 			</p>
@@ -254,7 +281,7 @@
 		{#if $simulationResult.classicalBits && $simulationResult.classicalBits.size > 0}
 			<p class="text-md font-medium mt-3">
 				Classical bits after measurement:
-				<span class="text-orange-500 font-semibold bg-orange-500/10 px-2 py-1 rounded">
+				<span class="font-semibold px-2 py-1 rounded" style="color: var(--color-measured); background-color: color-mix(in srgb, var(--color-measured) 15%, transparent);">
 					{Array.from($simulationResult.classicalBits.entries())
 						.map(([qubit, value]) => `q${qubit} = ${value}`)
 						.join(', ')}
@@ -270,10 +297,10 @@
 					<div class="prob-column" role="listitem">
 						{#each column as item}
 							<div class="prob-row">
-								<span class:text-cyan-300={item.prob > 0} class:text-slate-500={item.prob === 0}
+								<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;"
 									>|{item.state}⟩</span
 								>
-								<span class:text-cyan-300={item.prob > 0} class:text-slate-500={item.prob === 0}>
+								<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">
 									{(item.prob * 100).toFixed(2)}%
 								</span>
 							</div>
@@ -304,7 +331,7 @@
 		display: flex;
 		justify-content: space-between;
 		padding: 0.12rem 0;
-		border-bottom: 1.5px solid rgb(174, 0, 255);
+		border-bottom: 1.5px solid var(--color-ternary-2);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;
 		font-size: 0.95rem;
 	}

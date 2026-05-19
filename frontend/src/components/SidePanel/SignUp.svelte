@@ -87,7 +87,7 @@
 <div>
 	<form class="space-y-4" on:submit|preventDefault={handleSignUp}>
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-first-name"
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-first-name"
 				>First Name</label
 			>
 			<input
@@ -102,11 +102,11 @@
 				class="input-field"
 			/>
 			{#if signupErrors.first_name}
-				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.first_name}</p>
+				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.first_name}</p>
 			{/if}
 		</div>
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-last-name"
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-last-name"
 				>Last Name</label
 			>
 			<input
@@ -121,11 +121,11 @@
 				class="input-field"
 			/>
 			{#if signupErrors.last_name}
-				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.last_name}</p>
+				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.last_name}</p>
 			{/if}
 		</div>
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-email">Email</label
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-email">Email</label
 			>
 			<input
 				id="signup-email"
@@ -139,11 +139,11 @@
 				class="input-field"
 			/>
 			{#if signupErrors.email}
-				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.email}</p>
+				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.email}</p>
 			{/if}
 		</div>
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-password"
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-password"
 				>Password</label
 			>
 			<input
@@ -158,11 +158,11 @@
 				class="input-field"
 			/>
 			{#if signupErrors.password}
-				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.password}</p>
+				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.password}</p>
 			{/if}
 		</div>
 		<div>
-			<label class="mb-1 block text-sm font-medium text-secondary-1" for="signup-password2"
+			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-password2"
 				>Confirm Password</label
 			>
 			<input
@@ -177,7 +177,7 @@
 				class="input-field"
 			/>
 			{#if signupErrors.password2}
-				<p class="mt-1 text-sm text-red-400 font-bold">{signupErrors.password2}</p>
+				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.password2}</p>
 			{/if}
 		</div>
 		<button
@@ -187,13 +187,13 @@
 			{loading ? 'Creating...' : 'Create Account'}
 		</button>
 		{#if signupErrors.non_field_errors}
-			<p class="mt-2 text-sm text-red-400 font-bold">{signupErrors.non_field_errors}</p>
+			<p class="mt-2 text-sm text-red-500 font-bold">{signupErrors.non_field_errors}</p>
 		{/if}
 		{#if generalErrorMsg}
-			<p class="mt-2 text-sm text-red-400 font-bold">{generalErrorMsg}</p>
+			<p class="mt-2 text-sm text-red-500 font-bold">{generalErrorMsg}</p>
 		{/if}
 		{#if successMsg}
-			<p class="mt-2 text-sm text-green-400 font-bold">{successMsg}</p>
+			<p class="mt-2 text-sm text-green-500 font-bold">{successMsg}</p>
 		{/if}
 	</form>
 </div>

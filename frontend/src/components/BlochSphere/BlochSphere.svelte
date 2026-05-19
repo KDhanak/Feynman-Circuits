@@ -61,40 +61,40 @@
 		min-width: 100px;
 	}
 	.sphere {
-		fill: #020618;
-		border-color: #7e22ce;
-		stroke: #7e22ce;
+		fill: var(--color-background);
+		border-color: var(--color-secondary-2);
+		stroke: var(--color-secondary-2);
 		stroke-width: 2;
 	}
 	.equator {
 		fill: none;
-		stroke: rgba(255, 255, 255, 1);
+		stroke: var(--color-line);
 		stroke-width: 1;
 		stroke-dasharray: 3 3;
 	}
 	.axis {
-		stroke: rgba(255, 255, 255, 1);
+		stroke: var(--color-line);
 		stroke-width: 1;
 	}
 	.vector {
-		stroke: #ff204e;
+		stroke: var(--color-ternary-1);
 		stroke-width: 2;
 	}
 	.tip {
-		fill: #ff204e;
+		fill: var(--color-ternary-1);
 	}
 	.origin {
-		fill: rgba(255, 255, 255, 0.8);
+		fill: var(--color-line);
 	}
 	.coords,
 	.purity {
 		font-size: 0.75rem;
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 		opacity: 0.75;
-		color: white;
+		color: var(--color-text);
 	}
 	.axis-label {
-		fill: rgba(255, 255, 255, 0.8);
+		fill: var(--color-line);
 		font-size: 0.7rem;
 		font-weight: 700;
 		pointer-events: none;
