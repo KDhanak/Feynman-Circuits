@@ -16,6 +16,6 @@
 	});
 </script>
 
-<div class="flex flex-col items-center text-[--color-text] text-xs tracking-wider font-light">
+<div>
 	<BlochSphere vector={overall} size={sphereSize} showAxisLabels={true} />
 </div>

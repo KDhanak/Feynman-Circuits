@@ -37,7 +37,7 @@
 			<button
 				on:click={toggleTheme}
 				aria-label="Toggle theme"
-				class="shrink-0 p-2 rounded-full cursor-pointer hover:bg-secondary-3/20 transition-colors"
+				class="shrink-0 p-2 rounded-full cursor-pointer transition-colors"
 			>
 				<Icon
 					icon={$theme === 'dark' ? 'ph:sun-bold' : 'ph:moon-bold'}

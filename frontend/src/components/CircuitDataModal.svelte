@@ -23,7 +23,7 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 bg-transparent flex items-center justify-center z-60"
+		class="fixed inset-0 flex items-center justify-center z-60"
 		role="button"
 		transition:fade={{ duration: 200 }}
 		tabindex="0"
@@ -34,7 +34,8 @@
 		}}
 	>
 		<div
-			class="bg-slate-950 border border-gray-500 p-4 rounded-sm shadow-md max-w-4xl w-[95vw] sm:w-full max-h-[85vh] flex flex-col"
+			class="backdrop-blur-2xl p-4 rounded-sm shadow-sm shadow-ternary-3 max-w-4xl w-[95vw] sm:w-full max-h-[85vh] flex flex-col"
+			style="background-color: var(--color-surface);"
 			role="dialog"
 			aria-modal="true"
 			tabindex="0"
@@ -50,17 +51,28 @@
 					<button
 						type="button"
 						on:click={() => onTabChange('cir')}
-						class:!bg-white={activeView === 'cir'}
-						class:!text-secondary-2={activeView === 'cir'}
-						class="rounded-sm px-3 py-1.5 text-sm border border-white text-white cursor-pointer"
+						class:!bg-ternary-2={activeView === 'cir'}
+						class:!text-white={activeView === 'cir'}
+						class:!border-ternary-2={activeView === 'cir'}
+						class="rounded-sm px-3 py-1.5 text-sm border border-secondary-2 bg-white text-secondary-2 cursor-pointer"
 					>
 						Canonical IR
 					</button>
+					<button
+						type="button"
+						on:click={() => onTabChange('qasm')}
+						class:!bg-ternary-2={activeView === 'qasm'}
+						class:!text-white={activeView === 'qasm'}
+						class:!border-ternary-2={activeView === 'qasm'}
+						class="rounded-sm px-3 py-1.5 text-sm border border-secondary-2 bg-white text-secondary-2 cursor-pointer"
+					>
+						OpenQASM
+					</button>
 				</div>
 
-				<div class="flex items-center gap-2">
+				<div class="flex items-center gap-2" style="color: var(--color-text)">
 					<div class="flex flex-col justify-center items-center">
-						<button type="button" on:click={onCopy} class="rounded-sm text-sm text-white">
+						<button type="button" on:click={onCopy} class="rounded-sm text-sm">
 							<Icon
 								icon="solar:copy-bold"
 								width="24"
@@ -68,10 +80,10 @@
 								class="active:text-green-400 cursor-pointer"
 							/>
 						</button>
-						<span class="font-extralight text-gray-300 text-[10px]">Copy</span>
+						<span class="font-medium text-[11px]">Copy</span>
 					</div>
 					<div class="flex flex-col justify-center items-center">
-						<button type="button" on:click={onDownload} class="rounded-sm text-sm text-white">
+						<button type="button" on:click={onDownload} class="rounded-sm text-sm">
 							<Icon
 								icon="mingcute:download-fill"
 								width="24"
@@ -79,10 +91,10 @@
 								class="active:text-green-400 cursor-pointer"
 							/>
 						</button>
-						<span class="font-extralight text-gray-300 text-[10px]">Download</span>
+						<span class="font-medium text-[11px]">Download</span>
 					</div>
 					<div class="flex flex-col">
-						<button type="button" on:click={onImport} class="rounded-sm text-sm text-white">
+						<button type="button" on:click={onImport} class="rounded-sm text-sm">
 							<Icon
 								icon="mdi:file-import"
 								width="24"
@@ -90,14 +102,14 @@
 								class="active:text-green-400 cursor-pointer"
 							/>
 						</button>
-						<span class="font-extralight text-gray-300 text-[10px]">Import</span>
+						<span class="font-medium text-[11px]">Import</span>
 					</div>
-					<button type="button" aria-label="Close dialog" on:click={onClose}>
+					<button type="button" aria-label="Close dialog" on:click={onClose} class="mb-3">
 						<Icon
 							icon="material-symbols:close"
-							class="text-ternary-0 cursor-pointer"
-							width="24"
-							height="24"
+							class="text-red-500 cursor-pointer"
+							width="28"
+							height="28"
 						/>
 					</button>
 				</div>
@@ -105,9 +117,9 @@
 
 			<textarea
 				bind:value
-				class="rounded-sm bg-transparent border border-white w-full h-[60vh] text-white p-3 resize-none active:outline-none focus:outline-none"
+				style="color: var(--color-text); background-color: var(--color-background);"
+				class="rounded-sm shadow-ternary-2 shadow-sm w-full h-[60vh] p-3 resize-none active:outline-none focus:outline-none"
 			></textarea>
 		</div>
 	</div>
 {/if}
-

@@ -43,6 +43,9 @@ import { showNotification } from '$lib/notificationUtils';
 		activeView = mode;
 		if (mode === 'cir') {
 			circuitDataModalContent.set(buildCanonicalString($circuitIR));
+		} else if (mode === 'qasm') {
+			// Placeholder for QASM generation
+			circuitDataModalContent.set('QASM view coming soon...');
 		}
 	}
 

@@ -61,7 +61,7 @@
 		min-width: 100px;
 	}
 	.sphere {
-		fill: var(--color-background);
+		fill: var(--color-surface);
 		border-color: var(--color-secondary-2);
 		stroke: var(--color-secondary-2);
 		stroke-width: 2;
@@ -90,7 +90,6 @@
 	.purity {
 		font-size: 0.75rem;
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-		opacity: 0.75;
 		color: var(--color-text);
 	}
 	.axis-label {

@@ -13,7 +13,10 @@ import type {
 const VALID_VERSION = '1.0';
 
 // List of valid unitary gates we currently support
-const VALID_UNITARY_GATES: CanonicalUnitaryGate[] = ['x', 'y', 'z', 'h', 's', 't'];
+const VALID_UNITARY_GATES: CanonicalUnitaryGate[] = ['x', 'y', 'z', 'h', 's', 't', 'rx', 'rz'] as const;
+
+// Parametric gates that require parameters
+const PARAMETRIC_GATES = new Set(['rx', 'rz']);
 
 // Allowed operation types
 const VALID_KINDS = ['unitary', 'measure', 'reset', 'barrier'] as const satisfies readonly OperationKind[];
@@ -175,6 +178,11 @@ function validateUnitaryOperation(
     // Params must be numbers
     if (!Array.isArray(op.params) || !op.params.every((p) => typeof p === 'number')) {
         errors.push(`${opLabel}: "params" must be numbers.`);
+    }
+
+    // Parametric gates must have at least one parameter
+    if (PARAMETRIC_GATES.has(op.gate as string) && (!Array.isArray(op.params) || op.params.length === 0)) {
+        errors.push(`${opLabel}: parametric gate "${String(op.gate)}" requires at least one parameter.`);
     }
 
     const targets = op.targets;
