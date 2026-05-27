@@ -1,6 +1,6 @@
 import { type BlochVector } from "../quantum/bloch";
 
-export type CanonicalUnitaryGate = 'x' | 'y' | 'z' | 'h' | 's' | 't';
+export type CanonicalUnitaryGate = 'x' | 'y' | 'z' | 'h' | 's' | 't' | 'rx' | 'rz';
 
 export type OperationKind = 'unitary' | 'measure' | 'reset' | 'barrier';
 

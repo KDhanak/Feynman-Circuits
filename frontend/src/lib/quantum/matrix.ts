@@ -1,7 +1,6 @@
 import { createComplex, type Complex } from "./complex";
 import { type QuantumState } from "./vector";
 import { add, multiply } from "./complex";
-import { all } from "axios";
 
 export type QuantumMatrix = Complex[][];
 

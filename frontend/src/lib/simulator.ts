@@ -2,10 +2,10 @@ import type { CircuitIR } from "./IR/schema";
 import { circuitIR } from "./IR/stores";
 import type { SimulationResult } from "./IR/schema";
 import { simulationResult } from "./IR/stores";
-import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale } from "./quantum/complex";
+import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale, type Complex } from "./quantum/complex";
 import { type QuantumState, createState } from "./quantum/vector";
 import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix, computeMultiControlledUMatrixWithAntiControls } from "./quantum/matrix";
-import { GATE_MAP } from "./quantum/gates";
+import { GATE_MAP, createRXGate, createRZGate } from "./quantum/gates";
 import { get } from "svelte/store";
 import { computeBlochVectorsFromState } from './quantum/bloch';
 
@@ -83,16 +83,39 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 			if (op.kind === 'unitary') {
 				if (measuredQubits.has(op.targets[0])) continue; // skip gates on measured qubits
 
-				const gateDef = GATE_MAP[op.gate];
-				if (!gateDef) continue;
+				let matrix: Complex[][];
 
-				let matrix: typeof gateDef.matrix;
-				if (op.controls.length === 0 && op.antiControls.length === 0) {
-					matrix = extendGateMatrix(gateDef.matrix, op.targets[0], numQubits);
-				} else if (op.antiControls.length === 0) {
-					matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, gateDef.matrix);
+				if (op.gate === 'rx') {
+					const angle = op.params[0] ?? 0;
+					const rxGate = createRXGate(angle);
+					if (op.controls.length === 0 && op.antiControls.length === 0) {
+						matrix = extendGateMatrix(rxGate.matrix, op.targets[0], numQubits);
+					} else if (op.antiControls.length === 0) {
+						matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, rxGate.matrix);
+					} else {
+						matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, rxGate.matrix);
+					}
+				} else if (op.gate === 'rz') {
+					const angle = op.params[0] ?? 0;
+					const rzGate = createRZGate(angle);
+					if (op.controls.length === 0 && op.antiControls.length === 0) {
+						matrix = extendGateMatrix(rzGate.matrix, op.targets[0], numQubits);
+					} else if (op.antiControls.length === 0) {
+						matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, rzGate.matrix);
+					} else {
+						matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, rzGate.matrix);
+					}
 				} else {
-					matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, gateDef.matrix);
+					const gateDef = GATE_MAP[op.gate];
+					if (!gateDef) continue;
+
+					if (op.controls.length === 0 && op.antiControls.length === 0) {
+						matrix = extendGateMatrix(gateDef.matrix, op.targets[0], numQubits);
+					} else if (op.antiControls.length === 0) {
+						matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, gateDef.matrix);
+					} else {
+						matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, gateDef.matrix);
+					}
 				}
 				state = applyMatrix(matrix, state);
 			}

@@ -25,21 +25,15 @@ import { showNotification } from '$lib/notificationUtils';
 		{ type: 'H', name: 'H', category: 'single' },
 		{ type: 'S', name: 'S', category: 'single' },
 		{ type: 'T', name: 'T', category: 'single' },
+		{ type: 'RX', name: 'RX', category: 'parametric' },
+		{ type: 'RZ', name: 'RZ', category: 'parametric' },
 		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' },
 		{ type: 'ANTI_CONTROL', name: 'ANTI_CONTROL', category: 'multi' },
-		{ type: 'MEASURE', name: 'MEASURE', category: 'single' }
+		{ type: 'MEASURE', name: 'MEASURE', category: 'single' },
 	];
 
-	let dropdownOpen = false;
 	let activeView: DataViewMode = 'cir';
 	let dragEnterCount = 0;
-
-	function openCircuitDataModal() {
-		activeView = 'cir';
-		circuitDataModalContent.set(buildCanonicalString($circuitIR));
-		showCircuitDataModal.set(true);
-		dropdownOpen = false;
-	}
 
 	function closeModal() {
 		showCircuitDataModal.set(false);
@@ -106,17 +100,6 @@ import { showNotification } from '$lib/notificationUtils';
 			showNotification('Failed to copy text. Please copy manually.', 'error');
 		}
 	}
-
-	onMount(() => {
-		const handleClick = (event: MouseEvent) => {
-			if (event.target && !(event.target as HTMLElement).closest('.dropdown-container')) {
-				dropdownOpen = false;
-			}
-		};
-
-		document.addEventListener('click', handleClick);
-		return () => document.removeEventListener('click', handleClick);
-	});
 </script>
 
 <div
@@ -140,7 +123,10 @@ import { showNotification } from '$lib/notificationUtils';
 >
 	{#each gates as gate}
 		<!-- Separator before multi-qubit gates -->
-		{#if gate.category === 'multi' && gate.type === 'CONTROL'}
+		{#if (gate.category === 'multi' || gate.category === 'two-qubit') && (gate.type === 'CONTROL' || gate.type === 'RZZ')}
+			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
+		{/if}
+		{#if gate.category === 'parametric' && gate.type === 'RX'}
 			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
 		{/if}
 		<div
@@ -160,6 +146,8 @@ import { showNotification } from '$lib/notificationUtils';
 			class={`cursor-grab select-none border bg-white hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
 				['CONTROL', 'ANTI_CONTROL', 'MEASURE'].includes(gate.type)
 					? 'h-11 w-10 rounded-sm border-secondary-4'
+					: ['RX', 'RZ'].includes(gate.type)
+					? 'h-11 w-11 rounded-sm border-secondary-4 text-sm font-medium text-secondary-2'
 					: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
 			}`}
 		>
