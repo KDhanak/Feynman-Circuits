@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { signIn } from '$lib/session';
+	import { signIn } from '$lib/auth/session';
 
 	export let initialEmail: string = '';
 	export let onSignedIn: () => void = () => {};

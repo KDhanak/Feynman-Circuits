@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { COLUMN_WIDTH, GATE_OFFSET } from './constants';
+import { COLUMN_WIDTH, GATE_OFFSET } from '../utils/constants';
 
 // UI drag state
 export const isDragging = writable<boolean>(false);

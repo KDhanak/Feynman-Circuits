@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { requestPasswordReset } from '$lib/session';
+	import { requestPasswordReset } from '$lib/auth/session';
 
     export let onOtpSent: (email: string) => void = () => {};
 

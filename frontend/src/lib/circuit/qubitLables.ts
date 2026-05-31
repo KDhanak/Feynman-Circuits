@@ -1,4 +1,4 @@
-import { circuitIR } from "./IR/stores";
+import { circuitIR } from "../IR/stores";
 
 export function generateDefaultQubitLabels(numQubits: number): string[] {
     return Array.from({ length: numQubits }, (_, i) => `Qubit ${i}`);

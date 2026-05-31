@@ -8,7 +8,7 @@
 		showCircuitDataModal,
 		circuitDataModalContent,
 		notification as notificationStore
-	} from '$lib/uiStores';
+	} from '$lib/stores/uiStores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -21,13 +21,13 @@
 		triggerSimulation,
 		pendingControls,
 		pendingAntiControls
-	} from '$lib/dragDropUtils';
-	import { updateQubitLabel } from '$lib/qubitLables';
-	import { buildCanonicalString } from '$lib/circuitDataModal';
+	} from '$lib/circuit/dragDropUtils';
+	import { updateQubitLabel } from '$lib/circuit/qubitLables';
+	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import Icon from '@iconify/svelte';
-	import { showNotification } from '$lib/notificationUtils';
-	import { MAX_COLUMNS, MAX_QUBITS, COLUMN_WIDTH, GATE_OFFSET } from '$lib/constants';
+	import { showNotification } from '$lib/utils/notificationUtils';
+	import { MAX_COLUMNS, MAX_QUBITS, COLUMN_WIDTH, GATE_OFFSET } from '$lib/utils/constants';
 
 	let columnWidth: number;
 	let gateOffset: number;
@@ -292,12 +292,7 @@
 		const selectedInDrag = new Set<string>();
 
 		gateRectCache.forEach((rect, gateId) => {
-			if (
-				rect.right > minX &&
-				rect.left < maxX &&
-				rect.bottom > minY &&
-				rect.top < maxY
-			) {
+			if (rect.right > minX && rect.left < maxX && rect.bottom > minY && rect.top < maxY) {
 				selectedInDrag.add(gateId);
 			}
 		});
@@ -337,7 +332,7 @@
 	function resetAndClose() {
 		closeContextMenu();
 		// Import resetCircuit from simulator
-		import('$lib/simulator').then(({ resetCircuit }) => {
+		import('$lib/circuit/simulator').then(({ resetCircuit }) => {
 			resetCircuit();
 		});
 	}
@@ -390,9 +385,9 @@
 			!target.classList.contains('gate') &&
 			!target.classList.contains('qubit-label') &&
 			(target.classList.contains('wire-container') ||
-			target.classList.contains('dropzone') ||
-			target.classList.contains('wire-bloch-anchor') ||
-			target === boardEl)
+				target.classList.contains('dropzone') ||
+				target.classList.contains('wire-bloch-anchor') ||
+				target === boardEl)
 		) {
 			selectedGateIds.clear();
 			selectedGateIds = selectedGateIds; // trigger reactivity
@@ -429,7 +424,8 @@
 		{@const maxY = Math.max(dragStart.y, dragCurrent.y)}
 		<div
 			class="selection-box fixed pointer-events-none border border-blue-400 border-dashed"
-			style="left: {minX}px; top: {minY}px; width: {maxX - minX}px; height: {maxY - minY}px; z-index: 100; background-color: rgba(59, 130, 246, 0.5);"
+			style="left: {minX}px; top: {minY}px; width: {maxX - minX}px; height: {maxY -
+				minY}px; z-index: 100; background-color: rgba(59, 130, 246, 0.5);"
 		></div>
 	{/if}
 	<div

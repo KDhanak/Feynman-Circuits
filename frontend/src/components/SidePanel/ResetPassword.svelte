@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { confirmPasswordReset } from '$lib/session';
+	import { confirmPasswordReset } from '$lib/auth/session';
 
 	export let resetToken: string = '';
 	export let onResetDone: () => void = () => {};

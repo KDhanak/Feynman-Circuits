@@ -1,4 +1,4 @@
-import { notification } from './uiStores';
+import { notification } from '../stores/uiStores';
 
 let notificationTimeoutId: ReturnType<typeof setTimeout> | null = null;
 

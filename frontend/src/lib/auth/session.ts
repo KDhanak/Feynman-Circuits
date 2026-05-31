@@ -1,5 +1,5 @@
 import { writable } from "svelte/store";
-import { api } from "./axios";
+import { api } from "../api/axios";
 
 export type Me = {
 	id: number;

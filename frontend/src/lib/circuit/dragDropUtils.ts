@@ -1,10 +1,10 @@
-import type { CircuitIR, UnitaryOperation, MeasureOperation, CircuitOperation, GateData } from './IR/schema';
+import type { CircuitIR, UnitaryOperation, MeasureOperation, CircuitOperation, GateData } from '../IR/schema';
 import { writable, get } from 'svelte/store';
-import { circuitIR, simulationResult } from './IR/stores';
-import { isDragging } from './uiStores';
-import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } from './IR/operations';
+import { circuitIR, simulationResult } from '../IR/stores';
+import { isDragging } from '../stores/uiStores';
+import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } from '../IR/operations';
 import { simulateMultipleQubits } from './simulator';
-import { LABEL_WIDTH, GATE_OFFSET, COLUMN_WIDTH, MAX_COLUMNS } from './constants';
+import { LABEL_WIDTH, GATE_OFFSET, COLUMN_WIDTH, MAX_COLUMNS } from '../utils/constants';
 
 // UI-only: tracks controls placed in a column before any unitary op exists there
 export const pendingControls = writable<Map<number, number[]>>(new Map());

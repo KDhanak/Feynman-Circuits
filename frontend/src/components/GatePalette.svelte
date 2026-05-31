@@ -7,16 +7,17 @@
 		handleTouchEnd,
 		handleTouchMove,
 		triggerSimulation
-	} from '$lib/dragDropUtils';
+	} from '$lib/circuit/dragDropUtils';
 	import { circuitIR } from '$lib/IR/stores';
-	import { isDragging, showCircuitDataModal, circuitDataModalContent } from '$lib/uiStores';
-import { showNotification } from '$lib/notificationUtils';
-	import { importCircuit } from '$lib/IE';
-	import { onMount } from 'svelte';
+	import { isDragging, showCircuitDataModal, circuitDataModalContent } from '$lib/stores/uiStores';
+	import { showNotification } from '$lib/utils/notificationUtils';
+	import { importCircuit } from '$lib/circuit/IE';
+	import { manualSave } from '$lib/circuit/autoSave';
+	import { currentCircuitName } from '$lib/IR/stores';
 	import Icon from '@iconify/svelte';
 
 	import CircuitDataModal from './CircuitDataModal.svelte';
-	import { buildCanonicalString, type DataViewMode } from '$lib/circuitDataModal';
+	import { buildCanonicalString, type DataViewMode } from '$lib/circuit/circuitDataModal';
 
 	export const gates: { type: string; name: string; category: string }[] = [
 		{ type: 'X', name: 'X', category: 'single' },
@@ -29,7 +30,7 @@ import { showNotification } from '$lib/notificationUtils';
 		{ type: 'RZ', name: 'RZ', category: 'parametric' },
 		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' },
 		{ type: 'ANTI_CONTROL', name: 'ANTI_CONTROL', category: 'multi' },
-		{ type: 'MEASURE', name: 'MEASURE', category: 'single' },
+		{ type: 'MEASURE', name: 'MEASURE', category: 'single' }
 	];
 
 	let activeView: DataViewMode = 'cir';
@@ -95,6 +96,15 @@ import { showNotification } from '$lib/notificationUtils';
 		showNotification('Canonical IR downloaded!', 'success');
 	}
 
+	async function saveCircuit() {
+		const newName = prompt('Enter a name for your circuit:', $currentCircuitName);
+		if (newName === null) return;
+
+		currentCircuitName.set(newName);
+		await manualSave();
+		showNotification('Circuit saved!', 'success');
+	}
+
 	async function copyToClipboard() {
 		try {
 			await navigator.clipboard.writeText($circuitDataModalContent);
@@ -150,8 +160,8 @@ import { showNotification } from '$lib/notificationUtils';
 				['CONTROL', 'ANTI_CONTROL', 'MEASURE'].includes(gate.type)
 					? 'h-11 w-10 rounded-sm border-secondary-4'
 					: ['RX', 'RZ'].includes(gate.type)
-					? 'h-11 w-11 rounded-sm border-secondary-4 text-sm font-medium text-secondary-2'
-					: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
+						? 'h-11 w-11 rounded-sm border-secondary-4 text-sm font-medium text-secondary-2'
+						: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
 			}`}
 		>
 			{#if gate.type === 'CONTROL'}
@@ -167,6 +177,7 @@ import { showNotification } from '$lib/notificationUtils';
 			{/if}
 		</div>
 	{/each}
+	<button class="btn-secondary" on:click={saveCircuit}>Save Circuit</button>
 </div>
 
 <CircuitDataModal

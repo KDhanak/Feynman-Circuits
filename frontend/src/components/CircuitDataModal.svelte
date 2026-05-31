@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
-	import type { DataViewMode } from '$lib/circuitDataModal';
+	import type { DataViewMode } from '$lib/circuit/circuitDataModal';
 	import { fade, scale } from 'svelte/transition';
 
 	export let open = false;

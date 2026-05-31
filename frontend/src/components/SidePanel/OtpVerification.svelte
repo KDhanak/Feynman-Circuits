@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { verifyPasswordResetOtp } from '$lib/session';
-	import { requestPasswordReset } from '$lib/session';
+	import { verifyPasswordResetOtp, requestPasswordReset } from '$lib/auth/session';
 
 	export let email = '';
 	export let onVerified: (resetToken: string) => void = () => {};

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { session, signOut, loadSession } from '$lib/session';
+	import { session, signOut, loadSession } from '$lib/auth/session';
 	import Icon from '@iconify/svelte';
 	import { fly, fade } from 'svelte/transition';
 	import SignIn from './SignIn.svelte';

@@ -1,13 +1,13 @@
-import type { CircuitIR } from "./IR/schema";
-import { circuitIR } from "./IR/stores";
-import type { SimulationResult } from "./IR/schema";
-import { simulationResult } from "./IR/stores";
-import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale, type Complex } from "./quantum/complex";
-import { type QuantumState, createState } from "./quantum/vector";
-import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix, computeMultiControlledUMatrixWithAntiControls } from "./quantum/matrix";
-import { GATE_MAP, createRXGate, createRZGate } from "./quantum/gates";
+import type { CircuitIR } from "../IR/schema";
+import { circuitIR } from "../IR/stores";
+import type { SimulationResult } from "../IR/schema";
+import { simulationResult } from "../IR/stores";
+import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale, type Complex } from "../quantum/complex";
+import { type QuantumState, createState } from "../quantum/vector";
+import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix, computeMultiControlledUMatrixWithAntiControls } from "../quantum/matrix";
+import { GATE_MAP, createRXGate, createRZGate } from "../quantum/gates";
 import { get } from "svelte/store";
-import { computeBlochVectorsFromState } from './quantum/bloch';
+import { computeBlochVectorsFromState } from '../quantum/bloch';
 
 
 /**

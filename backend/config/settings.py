@@ -103,6 +103,7 @@ else:
 
 INSTALLED_APPS = [
     "accounts",
+    "circuits",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { circuitLayout } from '$lib/uiStores';
+	import { circuitLayout } from '$lib/stores/uiStores';
 	import WireDropeZone from './WireDropeZone.svelte';
-	import { LABEL_WIDTH } from '$lib/constants';
+	import { LABEL_WIDTH } from '$lib/utils/constants';
 
 	let containerEl: HTMLDivElement;
 	let containerWidth = 0;

@@ -3,11 +3,17 @@
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import SignUp_In from '../components/SidePanel/AuthPanel.svelte';
 	import { onMount } from 'svelte';
-	import { loadSession } from '$lib/session';
-	import { theme, toggleTheme } from '$lib/themeStore';
+	import { loadSession } from '$lib/auth/session';
+	import { theme, toggleTheme } from '$lib/stores/themeStore';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 	import Icon from '@iconify/svelte';
+	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
+	import '$lib/circuit/autoSave';
+
+	const circuit_id = crypto.randomUUID();
+	currentCircuitId.set(circuit_id);
+	currentCircuitName.set('Untitled Circuit');
 
 	onMount(() => {
 		loadSession();
