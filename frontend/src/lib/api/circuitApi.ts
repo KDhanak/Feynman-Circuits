@@ -14,6 +14,11 @@ export async function upsertCircuit(circuit_id: string, name: string, ir: Circui
     await api.put(`/circuits/api/circuits/${circuit_id}/`, { circuit_id, name, ir });
 }
 
+export async function getNextUntitledName(): Promise<string> {
+    const response = await api.get('/circuits/api/circuits/next-name/');
+    return response.data.name;
+}
+
 export async function listCircuits(): Promise<CircuitSummary[]> {
     const response = await api.get('/circuits/api/circuits/');
     return response.data;

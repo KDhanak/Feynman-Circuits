@@ -3,6 +3,11 @@ from .views import CircuitViewSet
 
 urlpatterns = [
     path(
+        "api/circuits/next-name/",
+        CircuitViewSet.as_view({'get': 'next_name'}),
+        name="circuit-next-name"
+    ),
+    path(
         "api/circuits/",
         CircuitViewSet.as_view({'get': 'list', 'post': 'create'}),
         name="circuit-list"

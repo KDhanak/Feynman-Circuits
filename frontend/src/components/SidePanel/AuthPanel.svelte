@@ -8,11 +8,13 @@
 	import ForgotPassword from './ForgotPassword.svelte';
 	import OtpVerification from './OtpVerification.svelte';
 	import ResetPassword from './ResetPassword.svelte';
+	import MyCircuits from './MyCircuits.svelte';
 	import { showNotification } from '$lib/utils/notificationUtils';
 
 	type AuthView = 'signin' | 'signup' | 'forgot' | 'otp' | 'reset';
 
 	let isOpen = false;
+	let circuitsOpen = false;
 	let activeView: AuthView = 'signin';
 	let dropdownOpen = false;
 	let loading = false;
@@ -138,6 +140,7 @@
 				<button
 					on:click={() => {
 						dropdownOpen = false;
+						circuitsOpen = true;
 					}}
 					class="btn-highlight-item rounded-t-sm"
 					>My Circuits</button
@@ -280,4 +283,8 @@
 			</div>
 		</aside>
 	</div>
+{/if}
+
+{#if circuitsOpen}
+	<MyCircuits onClose={() => (circuitsOpen = false)} />
 {/if}

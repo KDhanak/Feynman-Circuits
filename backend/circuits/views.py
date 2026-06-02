@@ -38,3 +38,7 @@ class CircuitViewSet(ModelViewSet):
         serializer = self.get_serializer(circuit)
         status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response(serializer.data, status=status_code)
+
+    def next_name(self, request):
+        name = Circuit.next_untitled_name(request.user)
+        return Response({'name': name})

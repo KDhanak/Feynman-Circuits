@@ -9,6 +9,7 @@
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 	import Icon from '@iconify/svelte';
 	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
+	import { session } from '$lib/auth/session';
 	import '$lib/circuit/autoSave';
 
 	const circuit_id = crypto.randomUUID();
@@ -40,6 +41,13 @@
 		</div>
 
 		<div class="flex items-center gap-2">
+			{#if $session.status === 'authenticated'}
+				<div class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-sm" style="color: var(--color-muted);">
+					<Icon icon="ph:circuit-board" width="15" height="15" />
+					<span class="text-sm max-w-40 truncate">{$currentCircuitName}</span>
+				</div>
+			{/if}
+
 			<button
 				on:click={toggleTheme}
 				aria-label="Toggle theme"

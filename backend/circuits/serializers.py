@@ -6,16 +6,20 @@ VALID_GATES = {'x', 'y', 'z', 'h', 's', 't', 'rx', 'rz'}
 
 
 class CircuitListSerializer(serializers.ModelSerializer):
+    circuit_id = serializers.UUIDField(source='id', read_only=True)
+
     class Meta:
         model = Circuit
-        fields = ['id', 'name', 'description', 'is_public', 'created_at', 'updated_at']
+        fields = ['circuit_id', 'name', 'description', 'is_public', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
 
 class CircuitDetailSerializer(serializers.ModelSerializer):
+    circuit_id = serializers.UUIDField(source='id', read_only=True)
+
     class Meta:
         model = Circuit
-        fields = ['id', 'name', 'description', 'ir', 'is_public', 'created_at', 'updated_at']
+        fields = ['circuit_id', 'name', 'description', 'ir', 'is_public', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
     def validate_ir(self, value):

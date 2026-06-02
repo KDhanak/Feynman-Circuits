@@ -8,6 +8,7 @@ import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix, computeMu
 import { GATE_MAP, createRXGate, createRZGate } from "../quantum/gates";
 import { get } from "svelte/store";
 import { computeBlochVectorsFromState } from '../quantum/bloch';
+import { markAsReset } from './autoSave';
 
 
 /**
@@ -149,6 +150,7 @@ const current = get(circuitIR);
 const qubits = current.registers.q || 1;
 
 	circuitIR.update(c => ({...c, operations: []}));
+	markAsReset();
 
 	const probabilities: { [state: string]: number } = {};
 	for (let i = 0; i < (1 << qubits); i++) {

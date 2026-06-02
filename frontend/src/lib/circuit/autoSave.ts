@@ -1,17 +1,19 @@
 import { circuitIR, currentCircuitId, currentCircuitName } from "../IR/stores";
 import { showNotification } from "../utils/notificationUtils";
 import { get } from "svelte/store";
-import { upsertCircuit } from "../api/circuitApi";
+import { upsertCircuit, getNextUntitledName } from "../api/circuitApi";
 import { session } from "$lib/auth/session";
 
 let isDirty = false;
+let isReset = false;
+let nameResolved = false;
 let consecutiveFailures = 0;
 let initialized = false;
 const MAX_FAILURES = 3;
 
-//Subscribe to circuitIR changes
 circuitIR.subscribe(() => {
     if (!initialized) { initialized = true; return; }
+    isReset = false;  // any store change after a reset means the user is editing again
     isDirty = true;
 });
 
@@ -21,14 +23,29 @@ setInterval(async () => {
     await attemptAutoSave();
     console.log("Auto-save attempt completed");
 
-}, 5000); // Check every 5 seconds
+}, 10_000); // Check every 10 seconds
+
+export function markAsReset() {
+    isReset = true;
+    isDirty = false;
+}
+
+export function markNameResolved() {
+    nameResolved = true;
+}
 
 async function attemptAutoSave() {
     if (consecutiveFailures >= MAX_FAILURES) return;
     if (get(session).status !== 'authenticated') return;
+    if (isReset) return;
     try {
         const circuit_id = get(currentCircuitId);
-        const name = get(currentCircuitName);
+        let name = get(currentCircuitName);
+        if (!nameResolved && name === 'Untitled Circuit') {
+            name = await getNextUntitledName();
+            currentCircuitName.set(name);
+        }
+        nameResolved = true;
         await upsertCircuit(circuit_id, name, get(circuitIR));
         isDirty = false;
         consecutiveFailures = 0;
