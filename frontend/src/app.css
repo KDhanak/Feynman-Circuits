@@ -63,6 +63,12 @@ html.dark {
 ::-webkit-scrollbar-thumb { background: var(--color-muted); border-radius: 20px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-secondary-1); }
 
+/* ── Theme-aware logo swap (CSS-only, avoids SSR hydration mismatch) ── */
+.logo-light { display: block; }
+.logo-dark  { display: none;  }
+html.dark .logo-light { display: none;  }
+html.dark .logo-dark  { display: block; }
+
 /* ── Drop-target highlight (used by GatePalette dragenter) ── */
 .drop-target-active {
     border-color: var(--color-ternary-2) !important;

@@ -28,11 +28,8 @@
 	<!-- Header -->
 	<header class="relative w-full flex items-center justify-between px-4 sm:px-7 py-2 shrink-0">
 		<a href="/" class="shrink-0">
-			<img
-				src={$theme === 'dark' ? '/feynman_circuits_logo.svg' : '/feynman_circuits_logo_dark.svg'}
-				alt="Feynman Circuits Logo"
-				class="h-16 sm:h-20 w-auto cursor-pointer"
-			/>
+			<img src="/feynman_circuits_logo_dark.svg" alt="Feynman Circuits Logo" class="logo-light h-16 sm:h-20 w-auto cursor-pointer" />
+			<img src="/feynman_circuits_logo.svg"      alt="Feynman Circuits Logo" class="logo-dark  h-16 sm:h-20 w-auto cursor-pointer" />
 		</a>
 
 		<div class="hidden sm:flex flex-row">
