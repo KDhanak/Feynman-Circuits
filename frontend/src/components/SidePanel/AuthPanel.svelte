@@ -8,6 +8,7 @@
 	import ForgotPassword from './ForgotPassword.svelte';
 	import OtpVerification from './OtpVerification.svelte';
 	import ResetPassword from './ResetPassword.svelte';
+	import { showNotification } from '$lib/utils/notificationUtils';
 
 	type AuthView = 'signin' | 'signup' | 'forgot' | 'otp' | 'reset';
 
@@ -90,8 +91,10 @@
 
 		try {
 			await loadSession();
-			signoutMessage = 'Signed out!';
-			setTimeout(() => { signoutMessage = ''; }, 2000);
+			showNotification('Signed out!', 'success');
+			setTimeout(() => {
+				signoutMessage = '';
+			}, 2000);
 		} catch (err: any) {
 			const data = err?.response?.data;
 			const errors = normalizeBackendErrors(data);
@@ -104,33 +107,49 @@
 </script>
 
 {#if $session.status === 'loading'}
-	<button class="btn-secondary" disabled>Loading…</button>
+	<button class="btn-highlight" disabled>Loading…</button>
 {:else if $session.status === 'anonymous'}
-	<button class="btn-secondary" on:click={openDrawer}>Sign In/Up</button>
+	<button class="btn-highlight" on:click={openDrawer}>Sign In/Up</button>
 {:else}
-	<div class="relative flex flex-col items-end gap-1 dropdown-container">
-		<button class="flex items-center gap-2 cursor-pointer min-w-28" on:click={() => (dropdownOpen = !dropdownOpen)}>
-			<span class="font-semibold text-sm truncate" style="color: var(--color-text);">{$session.user?.first_name}</span>
+	<div
+		class="relative flex flex-col items-center justify-center dropdown-container bg-transparent shadow-sm shadow-measured rounded-sm"
+	>
+		<button
+			style="color: var(--color-text);"
+			class="flex items-center justify-center gap-1 p-2 rounded-sm cursor-pointer min-w-28 active:bg-measured active:text-white active:border active:border-white transition-colors duration-200 outline-none"
+			on:click={() => (dropdownOpen = !dropdownOpen)}
+		>
+			<span class="font-semibold text-sm truncate">{$session.user?.first_name}</span>
 			<Icon
 				icon="icon-park-solid:down-one"
 				width="16"
 				height="16"
-				style="color: var(--color-text);{dropdownOpen
+				style={dropdownOpen
 					? 'transform: rotate(180deg); transition: transform 0.2s ease;'
-					: 'transition: transform 0.2s ease;'}"
+					: 'transition: transform 0.2s ease;'}
 			/>
 		</button>
 
-		{#if signoutMessage}
-			<p class="text-xs font-bold whitespace-nowrap" style="color: var(--color-measured);">{signoutMessage}</p>
-		{/if}
-
 		{#if dropdownOpen}
-			<div class="absolute top-full w-[130%] right-0 mt-1 rounded-sm z-100" style="background-color: var(--color-surface); border: 1px solid var(--color-border);">
+			<div
+				transition:fly={{ y: -12, duration: 200 }}
+				class="absolute top-full w-full right-0 mt-1 text-sm rounded-sm z-100 shadow-sm shadow-measured bg-surface"
+			>
 				<button
-					on:click={() => { logoutAndClose(); dropdownOpen = false; }}
-					class="px-2 py-1 items-center w-full border rounded-sm cursor-pointer font-medium bg-white border-secondary-3 text-red-600 transition-colors"
-				>Sign out</button>
+					on:click={() => {
+						dropdownOpen = false;
+					}}
+					class="btn-highlight-item rounded-t-sm"
+					>My Circuits</button
+				>
+				<button
+					on:click={() => {
+						logoutAndClose();
+						dropdownOpen = false;
+					}}
+					class="btn-highlight-danger rounded-b-sm"
+					>Sign out</button
+				>
 			</div>
 		{/if}
 	</div>
@@ -153,7 +172,10 @@
 			aria-label="Authentication"
 			transition:fly={{ x: 400, duration: 300 }}
 		>
-			<div class="flex items-center justify-between px-6 py-4" style="border-bottom: 1px solid var(--color-border);">
+			<div
+				class="flex items-center justify-between px-6 py-4"
+				style="border-bottom: 1px solid var(--color-border);"
+			>
 				<div class="flex items-center gap-3">
 					{#if currentView.showBack}
 						<button
@@ -165,11 +187,18 @@
 							<Icon icon="material-symbols:arrow-back" width="22" height="22" />
 						</button>
 					{/if}
-					<h2 class="text-lg font-semibold" style="color: var(--color-text);">{currentView.title}</h2>
+					<h2 class="text-lg font-semibold" style="color: var(--color-text);">
+						{currentView.title}
+					</h2>
 				</div>
 
 				<button type="button" aria-label="Close dialog" on:click={closeDrawer}>
-					<Icon icon="material-symbols:close" class="cursor-pointer text-red-500" width="24" height="24" />
+					<Icon
+						icon="material-symbols:close"
+						class="cursor-pointer text-red-500"
+						width="24"
+						height="24"
+					/>
 				</button>
 			</div>
 
@@ -178,19 +207,24 @@
 					<div class="mb-6 relative rounded-sm border border-secondary-2 bg-white overflow-hidden">
 						<div
 							class="absolute top-0 bottom-0 w-1/2 transition-all duration-300 ease-in-out rounded-sm"
-							style="background-color: var(--color-secondary-4); transform: translateX({activeView === 'signin' ? '0%' : '100%'});"
+							style="background-color: var(--color-secondary-4); transform: translateX({activeView ===
+							'signin'
+								? '0%'
+								: '100%'});"
 						></div>
 						<div class="grid grid-cols-2 relative">
 							<button
 								type="button"
 								on:click={() => (activeView = 'signin')}
 								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${activeView === 'signin' ? 'text-secondary-1' : 'text-secondary-3'}`}
-							>Sign In</button>
+								>Sign In</button
+							>
 							<button
 								type="button"
 								on:click={() => (activeView = 'signup')}
 								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${activeView === 'signup' ? 'text-secondary-1' : 'text-secondary-3'}`}
-							>Sign Up</button>
+								>Sign Up</button
+							>
 						</div>
 					</div>
 				{/if}
@@ -209,20 +243,35 @@
 								/>
 							{:else if activeView === 'signup'}
 								<SignUp
-									onSignedUp={(email) => { prefilledSignInEmail = email; activeView = 'signin'; }}
-						/>
+									onSignedUp={(email) => {
+										prefilledSignInEmail = email;
+										activeView = 'signin';
+									}}
+								/>
 							{:else if activeView === 'forgot'}
-								<ForgotPassword onOtpSent={(email) => { resetEmail = email; activeView = 'otp'; }} />
+								<ForgotPassword
+									onOtpSent={(email) => {
+										resetEmail = email;
+										activeView = 'otp';
+									}}
+								/>
 							{:else if activeView === 'otp'}
 								<OtpVerification
 									email={resetEmail}
-									onVerified={(token) => { resetToken = token; activeView = 'reset'; }}
+									onVerified={(token) => {
+										resetToken = token;
+										activeView = 'reset';
+									}}
 									onBack={() => (activeView = 'forgot')}
 								/>
 							{:else if activeView === 'reset'}
 								<ResetPassword
 									{resetToken}
-									onResetDone={() => { resetToken = ''; resetEmail = ''; activeView = 'signin'; }}
+									onResetDone={() => {
+										resetToken = '';
+										resetEmail = '';
+										activeView = 'signin';
+									}}
 								/>
 							{/if}
 						</div>

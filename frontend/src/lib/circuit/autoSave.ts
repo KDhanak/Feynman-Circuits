@@ -2,6 +2,7 @@ import { circuitIR, currentCircuitId, currentCircuitName } from "../IR/stores";
 import { showNotification } from "../utils/notificationUtils";
 import { get } from "svelte/store";
 import { upsertCircuit } from "../api/circuitApi";
+import { session } from "$lib/auth/session";
 
 let isDirty = false;
 let consecutiveFailures = 0;
@@ -24,6 +25,7 @@ setInterval(async () => {
 
 async function attemptAutoSave() {
     if (consecutiveFailures >= MAX_FAILURES) return;
+    if (get(session).status !== 'authenticated') return;
     try {
         const circuit_id = get(currentCircuitId);
         const name = get(currentCircuitName);

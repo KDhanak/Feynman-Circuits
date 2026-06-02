@@ -19,6 +19,9 @@
 	import CircuitDataModal from './CircuitDataModal.svelte';
 	import { buildCanonicalString, type DataViewMode } from '$lib/circuit/circuitDataModal';
 
+	import {session} from '$lib/auth/session';
+	import { get } from 'svelte/store';
+
 	export const gates: { type: string; name: string; category: string }[] = [
 		{ type: 'X', name: 'X', category: 'single' },
 		{ type: 'Y', name: 'Y', category: 'single' },
@@ -97,6 +100,10 @@
 	}
 
 	async function saveCircuit() {
+		if (get(session).status !== 'authenticated') {
+			showNotification('Please sign in to save your circuit.', 'error');
+			return;
+		}
 		const newName = prompt('Enter a name for your circuit:', $currentCircuitName);
 		if (newName === null) return;
 
