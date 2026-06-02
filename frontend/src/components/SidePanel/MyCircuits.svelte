@@ -45,6 +45,7 @@
             currentCircuitName.set(circuit.name);
             markNameResolved();
             triggerSimulation(ir);
+            showNotification(`"${circuit.name}" loaded.`, 'success');
             onClose();
         } catch {
             showNotification('Failed to load circuit.', 'error');
