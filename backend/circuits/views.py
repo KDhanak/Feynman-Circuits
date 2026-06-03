@@ -24,6 +24,15 @@ class CircuitViewSet(ModelViewSet):
         serializer.save(user=self.request.user)
 
     def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+
+        if partial:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
         pk = kwargs.get('pk')
         circuit, created = Circuit.objects.update_or_create(
             id=pk,

@@ -1,191 +1,313 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { fly, fade } from 'svelte/transition';
-    import Icon from '@iconify/svelte';
-    import { listCircuits, loadCircuit, deleteCircuit, type CircuitSummary } from '$lib/api/circuitApi';
-    import { circuitIR, currentCircuitId, currentCircuitName } from '$lib/IR/stores';
-    import { triggerSimulation } from '$lib/circuit/dragDropUtils';
-    import { markNameResolved } from '$lib/circuit/autoSave';
-    import { showNotification } from '$lib/utils/notificationUtils';
+	import { onMount } from 'svelte';
+	import { fly, fade } from 'svelte/transition';
+	import Icon from '@iconify/svelte';
+	import {
+		listCircuits,
+		loadCircuit,
+		deleteCircuit,
+		renameCircuit as renameCircuitApi,
+		type CircuitSummary
+	} from '$lib/api/circuitApi';
+	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
+	import { triggerSimulation } from '$lib/circuit/dragDropUtils';
+	import { markNameResolved } from '$lib/circuit/autoSave';
+	import { showNotification } from '$lib/utils/notificationUtils';
+	import { downloadCircuit, copyToClipboard } from '$lib/circuit/circuitActions';
+	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
+	import { circuitIR } from '$lib/IR/stores';
+	import { get } from 'svelte/store';
+	import { tick } from 'svelte';
 
-    export let onClose: () => void;
+	export let onClose: () => void;
 
-    let circuits: CircuitSummary[] = [];
-    let loading = true;
-    let deletingId = '';
-    let openMenuId = '';
+	let circuits: CircuitSummary[] = [];
+	let loading = true;
+	let deletingId = '';
 
-    async function fetchCircuits() {
-        try {
-            circuits = await listCircuits();
-        } catch {
-            showNotification('Failed to load circuits.', 'error');
-        } finally {
-            loading = false;
-        }
-    }
+	let contextMenuVisible = false;
+	let contextMenuX = 0;
+	let contextMenuY = 0;
+	let contextMenuCircuit: CircuitSummary | null = null;
 
-    onMount(() => {
-        fetchCircuits();
+	async function fetchCircuits() {
+		try {
+			circuits = await listCircuits();
+		} catch {
+			showNotification('Failed to load circuits.', 'error');
+		} finally {
+			loading = false;
+		}
+	}
 
-        const handleClickOutside = (e: MouseEvent) => {
-            if (!(e.target as HTMLElement).closest('.circuit-menu')) {
-                openMenuId = '';
-            }
-        };
-        document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
-    });
+	onMount(() => {
+		fetchCircuits();
 
-    async function openCircuit(circuit: CircuitSummary) {
-        try {
-            const ir = await loadCircuit(circuit.circuit_id);
-            circuitIR.set(ir);
-            currentCircuitId.set(circuit.circuit_id);
-            currentCircuitName.set(circuit.name);
-            markNameResolved();
-            triggerSimulation(ir);
-            showNotification(`"${circuit.name}" loaded.`, 'success');
-            onClose();
-        } catch {
-            showNotification('Failed to load circuit.', 'error');
-        }
-    }
+		const handleClickOutside = (e: MouseEvent) => {
+			const menu = document.querySelector('.circuit-context-menu');
+			if (contextMenuVisible && menu && !menu.contains(e.target as HTMLElement)) {
+				closeContextMenu();
+			}
+		};
+		document.addEventListener('click', handleClickOutside);
+		return () => document.removeEventListener('click', handleClickOutside);
+	});
 
-    function toggleMenu(circuit_id: string, event: MouseEvent) {
-        event.stopPropagation();
-        openMenuId = openMenuId === circuit_id ? '' : circuit_id;
-    }
+	function handleContextMenu(circuit: CircuitSummary, e: MouseEvent) {
+		e.preventDefault();
+		contextMenuCircuit = circuit;
+		contextMenuX = e.clientX;
+		contextMenuY = e.clientY;
+		contextMenuVisible = true;
+	}
 
-    async function handleDelete(circuit: CircuitSummary, event: MouseEvent) {
-        event.stopPropagation();
-        openMenuId = '';
-        deletingId = circuit.circuit_id;
-        try {
-            await deleteCircuit(circuit.circuit_id);
-            circuits = circuits.filter(c => c.circuit_id !== circuit.circuit_id);
-            showNotification(`"${circuit.name}" deleted.`, 'success');
-        } catch {
-            showNotification('Failed to delete circuit.', 'error');
-        } finally {
-            deletingId = '';
-        }
-    }
+	function closeContextMenu() {
+		contextMenuVisible = false;
+		contextMenuCircuit = null;
+	}
 
-    function formatDate(iso: string): string {
-        return new Date(iso).toLocaleString(undefined, {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: 'numeric', minute: '2-digit'
-        });
-    }
+	async function openCircuit(circuit: CircuitSummary) {
+		closeContextMenu();
+		try {
+			const ir = await loadCircuit(circuit.circuit_id);
+			circuitIR.set(ir);
+			currentCircuitId.set(circuit.circuit_id);
+			currentCircuitName.set(circuit.name);
+			markNameResolved();
+			triggerSimulation(ir);
+			showNotification(`"${circuit.name}" loaded.`, 'success');
+			onClose();
+		} catch {
+			showNotification('Failed to load circuit.', 'error');
+		}
+	}
 
-    function handleBackdropClick(event: MouseEvent) {
-        if (event.target === event.currentTarget) onClose();
-    }
+	async function renameCircuit(circuit: CircuitSummary) {
+		closeContextMenu();
+		const newName = prompt('Enter a new name for your circuit:', circuit.name);
+		if (newName === null || newName.trim() === '') return;
+		try {
+			await renameCircuitApi(circuit.circuit_id, newName.trim());
+			circuits = circuits.map((c) =>
+				c.circuit_id === circuit.circuit_id ? { ...c, name: newName.trim() } : c
+			);
+			if (circuit.circuit_id === get(currentCircuitId)) {
+				currentCircuitName.set(newName.trim());
+			}
+			showNotification('Circuit renamed!', 'success');
+		} catch {
+			showNotification('Failed to rename circuit.', 'error');
+		}
+	}
+
+	async function handleCopy(circuit: CircuitSummary) {
+		closeContextMenu();
+		try {
+			const ir = circuit.circuit_id === get(currentCircuitId)
+				? get(circuitIR)
+				: await loadCircuit(circuit.circuit_id);
+			await copyToClipboard(buildCanonicalString(ir));
+		} catch {
+			showNotification('Failed to copy circuit.', 'error');
+		}
+	}
+
+	async function handleDownload(circuit: CircuitSummary) {
+		closeContextMenu();
+		try {
+			const ir = circuit.circuit_id === get(currentCircuitId)
+				? get(circuitIR)
+				: await loadCircuit(circuit.circuit_id);
+			downloadCircuit(circuit.name, ir);
+		} catch {
+			showNotification('Failed to download circuit.', 'error');
+		}
+	}
+
+	async function handleDelete(circuit: CircuitSummary) {
+		closeContextMenu();
+		deletingId = circuit.circuit_id;
+		try {
+			await deleteCircuit(circuit.circuit_id);
+			circuits = circuits.filter((c) => c.circuit_id !== circuit.circuit_id);
+			showNotification(`"${circuit.name}" deleted.`, 'success');
+		} catch {
+			showNotification('Failed to delete circuit.', 'error');
+		} finally {
+			deletingId = '';
+		}
+	}
+
+	function formatDate(iso: string): string {
+		return new Date(iso).toLocaleString(undefined, {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit'
+		});
+	}
+
+	async function handleClose() {
+		closeContextMenu();
+		await tick();
+		onClose();
+	}
+
+	function handleBackdropClick(event: MouseEvent) {
+		if (event.target === event.currentTarget) handleClose();
+	}
 </script>
 
 <div
-    class="fixed inset-0 z-100"
-    style="background-color: rgba(0,0,0,0.3); backdrop-filter: blur(4px);"
-    role="button"
-    tabindex="0"
-    aria-label="Close circuits panel"
-    on:click={handleBackdropClick}
-    on:keydown={(e) => e.key === 'Escape' && onClose()}
-    transition:fade={{ duration: 300 }}
+	class="fixed inset-0 z-100"
+	style="background-color: rgba(0,0,0,0.3); backdrop-filter: blur(4px);"
+	role="button"
+	tabindex="0"
+	aria-label="Close circuits panel"
+	on:click={handleBackdropClick}
+	on:keydown={(e) => e.key === 'Escape' && handleClose()}
+	transition:fade={{ duration: 300 }}
 >
-    <aside
-        class="absolute right-0 top-0 h-full w-full sm:max-w-md border-l border-t border-b rounded-sm shadow-2xl flex flex-col"
-        style="background-color: var(--color-surface); border-color: var(--color-text);"
-        transition:fly={{ x: 400, duration: 300 }}
-    >
-        <!-- Header -->
-        <div
-            class="flex items-center justify-between px-6 py-4 shrink-0"
-            style="border-bottom: 1px solid var(--color-border);"
-        >
-            <h2 class="text-lg font-semibold" style="color: var(--color-text);">My Circuits</h2>
-            <button type="button" aria-label="Close" on:click={onClose}>
-                <Icon icon="material-symbols:close" class="cursor-pointer text-red-500" width="24" height="24" />
-            </button>
-        </div>
+	<aside
+		class="absolute right-0 top-0 h-full w-full sm:max-w-md border-l border-t border-b rounded-sm shadow-2xl flex flex-col"
+		style="background-color: var(--color-surface); border-color: var(--color-text);"
+		transition:fly={{ x: 400, duration: 300 }}
+	>
+		<!-- Header -->
+		<div
+			class="flex items-center justify-between px-6 py-4 shrink-0"
+			style="border-bottom: 1px solid var(--color-border);"
+		>
+			<h2 class="text-lg font-semibold" style="color: var(--color-text);">My Circuits</h2>
+			<button type="button" aria-label="Close" on:click={handleClose}>
+				<Icon
+					icon="material-symbols:close"
+					class="cursor-pointer text-red-500"
+					width="24"
+					height="24"
+				/>
+			</button>
+		</div>
 
-        <!-- Body -->
-        <div class="flex-1 overflow-y-auto px-4 py-4">
-            {#if loading}
-                <div class="flex items-center justify-center h-40">
-                    <Icon icon="svg-spinners:ring-resize" width="32" height="32" style="color: var(--color-measured);" />
-                </div>
+		<!-- Body -->
+		<div class="flex-1 overflow-y-auto px-4 py-4">
+			{#if loading}
+				<div class="flex items-center justify-center h-40">
+					<Icon
+						icon="svg-spinners:ring-resize"
+						width="32"
+						height="32"
+						style="color: var(--color-measured);"
+					/>
+				</div>
+			{:else if circuits.length === 0}
+				<div class="flex flex-col items-center justify-center h-40 gap-2">
+					<Icon
+						icon="ph:circuit-board-bold"
+						width="40"
+						height="40"
+						style="color: var(--color-muted);"
+					/>
+					<p class="text-sm" style="color: var(--color-muted);">No saved circuits yet.</p>
+				</div>
+			{:else}
+				<ul class="flex flex-col gap-2">
+					{#each circuits as circuit (circuit.circuit_id)}
+						<li>
+							<div
+								class="w-full text-left px-4 py-3 rounded-sm shadow-sm shadow-measured/40 hover:shadow-measured transition-shadow duration-200 flex items-center justify-between gap-3 cursor-pointer"
+								style="background-color: var(--color-surface);"
+								role="button"
+								tabindex="0"
+								on:click={() => openCircuit(circuit)}
+								on:keydown={(e) => e.key === 'Enter' && openCircuit(circuit)}
+								on:contextmenu={(e) => handleContextMenu(circuit, e)}
+							>
+								<div class="flex flex-col gap-1 min-w-0">
+									<div class="flex items-center gap-2 min-w-0">
+										<span class="text-sm font-semibold truncate" style="color: var(--color-text);">
+											{circuit.name}
+										</span>
+										{#if circuit.circuit_id === $currentCircuitId}
+											<span
+												class="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"
+											>
+												Active
+											</span>
+										{/if}
+									</div>
+									<span class="text-xs" style="color: var(--color-muted);">
+										{formatDate(circuit.updated_at)}
+									</span>
+								</div>
 
-            {:else if circuits.length === 0}
-                <div class="flex flex-col items-center justify-center h-40 gap-2">
-                    <Icon icon="ph:circuit-board-bold" width="40" height="40" style="color: var(--color-muted);" />
-                    <p class="text-sm" style="color: var(--color-muted);">No saved circuits yet.</p>
-                </div>
-
-            {:else}
-                <ul class="flex flex-col gap-2">
-                    {#each circuits as circuit (circuit.circuit_id)}
-                        <li>
-                            <div
-                                class="w-full text-left px-4 py-3 rounded-sm shadow-sm shadow-measured/40 hover:shadow-measured transition-shadow duration-200 flex items-center justify-between gap-3 cursor-pointer"
-                                style="background-color: var(--color-surface);"
-                                role="button"
-                                tabindex="0"
-                                on:click={() => openCircuit(circuit)}
-                                on:keydown={(e) => e.key === 'Enter' && openCircuit(circuit)}
-                            >
-                                <div class="flex flex-col gap-1 min-w-0">
-                                    <div class="flex items-center gap-2 min-w-0">
-                                        <span class="text-sm font-semibold truncate" style="color: var(--color-text);">
-                                            {circuit.name}
-                                        </span>
-                                        {#if circuit.circuit_id === $currentCircuitId}
-                                            <span class="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
-                                                Active
-                                            </span>
-                                        {/if}
-                                    </div>
-                                    <span class="text-xs" style="color: var(--color-muted);">
-                                        {formatDate(circuit.updated_at)}
-                                    </span>
-                                </div>
-
-                                <!-- 3-dot menu -->
-                                <div class="relative shrink-0 circuit-menu">
-                                    <button
-                                        class="p-1 rounded-sm hover:bg-measured/10 transition-colors duration-150 cursor-pointer"
-                                        aria-label="Options for {circuit.name}"
-                                        on:click={(e) => toggleMenu(circuit.circuit_id, e)}
-                                    >
-                                        {#if deletingId === circuit.circuit_id}
-                                            <Icon icon="svg-spinners:ring-resize" width="18" height="18" style="color: var(--color-measured);" />
-                                        {:else}
-                                            <Icon icon="material-symbols:more-vert" width="18" height="18" style="color: var(--color-muted);" />
-                                        {/if}
-                                    </button>
-
-                                    {#if openMenuId === circuit.circuit_id}
-                                        <div
-                                            transition:fly={{ y: -6, duration: 150 }}
-                                            class="absolute right-0 top-full mt-1 w-32 rounded-sm shadow-sm shadow-measured z-10"
-                                            style="background-color: var(--color-surface);"
-                                        >
-                                            <button
-                                                class="btn-highlight-danger rounded-sm w-full text-left flex items-center gap-2"
-                                                on:click={(e) => handleDelete(circuit, e)}
-                                            >
-                                                <Icon icon="material-symbols:delete-outline" width="16" height="16" />
-                                                Delete
-                                            </button>
-                                        </div>
-                                    {/if}
-                                </div>
-                            </div>
-                        </li>
-                    {/each}
-                </ul>
-            {/if}
-        </div>
-    </aside>
+								{#if deletingId === circuit.circuit_id}
+									<Icon
+										icon="svg-spinners:ring-resize"
+										width="18"
+										height="18"
+										style="color: var(--color-measured);"
+									/>
+								{/if}
+							</div>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</div>
+	</aside>
 </div>
+
+<!-- Context menu rendered at root level so it's never clipped by the aside -->
+{#if contextMenuVisible && contextMenuCircuit}
+	<div
+		class="circuit-context-menu ctx-menu z-200"
+		style="left: {contextMenuX}px; top: {contextMenuY}px;"
+		role="menu"
+		tabindex="0"
+		on:click|stopPropagation={() => {}}
+		on:keydown={(e) => e.key === 'Escape' && closeContextMenu()}
+	>
+		<button
+			class="ctx-menu-item rounded-t-sm"
+			role="menuitem"
+			on:click={() => openCircuit(contextMenuCircuit!)}
+		>
+			<Icon icon="ph:folder-open" width="16" height="16" />
+			Load
+		</button>
+		<button
+			class="ctx-menu-item"
+			role="menuitem"
+			on:click={() => renameCircuit(contextMenuCircuit!)}
+		>
+			<Icon icon="bx:rename" width="16" height="16" />
+			Rename
+		</button>
+		<button
+			class="ctx-menu-item"
+			role="menuitem"
+			on:click={() => handleCopy(contextMenuCircuit!)}
+		>
+			<Icon icon="solar:copy-bold" width="16" height="16" />
+			Copy Circuit
+		</button>
+		<button
+			class="ctx-menu-item"
+			role="menuitem"
+			on:click={() => handleDownload(contextMenuCircuit!)}
+		>
+			<Icon icon="mingcute:download-fill" width="16" height="16" />
+			Download
+		</button>
+		<button
+			class="ctx-menu-item-danger rounded-b-sm"
+			role="menuitem"
+			on:click={() => handleDelete(contextMenuCircuit!)}
+		>
+			<Icon icon="material-symbols:delete-outline" width="16" height="16" />
+			Delete
+		</button>
+	</div>
+{/if}

@@ -6,8 +6,7 @@
 		circuitLayout,
 		isDragging,
 		showCircuitDataModal,
-		circuitDataModalContent,
-		notification as notificationStore
+		circuitDataModalContent
 	} from '$lib/stores/uiStores';
 	import {
 		handleDrop,
@@ -24,6 +23,7 @@
 	} from '$lib/circuit/dragDropUtils';
 	import { updateQubitLabel } from '$lib/circuit/qubitLables';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
+	import { copyToClipboard } from '$lib/circuit/circuitActions';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import Icon from '@iconify/svelte';
 	import { showNotification } from '$lib/utils/notificationUtils';
@@ -317,18 +317,6 @@
 		selectedGateIds = selectedGateIds; // trigger reactivity
 	}
 
-	function copyCircuitStructure() {
-		try {
-			const circuitJson = JSON.stringify($circuitIR, null, 2);
-			navigator.clipboard.writeText(circuitJson);
-			closeContextMenu();
-			showNotification('Circuit copied to clipboard!', 'success');
-		} catch {
-			console.error('Failed to copy circuit');
-			showNotification('Failed to copy circuit', 'error');
-		}
-	}
-
 	function resetAndClose() {
 		closeContextMenu();
 		// Import resetCircuit from simulator
@@ -397,25 +385,6 @@
 		if (e.key === 'Escape') closeContextMenu();
 	}}
 >
-	<!-- Notification Toast -->
-	{#if $notificationStore}
-		<div
-			class="notification fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2.5 rounded-sm shadow-lg z-50 text-sm flex items-center gap-2 text-white {$notificationStore.type ===
-			'success'
-				? 'bg-green-500'
-				: 'bg-red-500'}"
-		>
-			<Icon
-				icon={$notificationStore.type === 'success'
-					? 'material-symbols:check-circle'
-					: 'material-symbols:error'}
-				width="18"
-				height="18"
-			/>
-			{$notificationStore.message}
-		</div>
-	{/if}
-
 	<!-- Drag selection box -->
 	{#if isDragSelecting && dragStart && dragCurrent}
 		{@const minX = Math.min(dragStart.x, dragCurrent.x)}
@@ -765,7 +734,7 @@
 	<!-- Context Menu -->
 	{#if contextMenuVisible}
 		<div
-			class="context-menu fixed border border-gray-200 rounded-sm shadow-lg z-100 w-40 bg-white"
+			class="ctx-menu z-100"
 			style="left: {contextMenuX}px; top: {contextMenuY}px;"
 			role="menu"
 			tabindex="0"
@@ -777,7 +746,7 @@
 			<button
 				type="button"
 				role="menuitem"
-				class="w-full text-left px-4 py-2.5 text-sm text-gray-700 cursor-pointer transition-colors rounded-t-sm flex items-center gap-2 border-b border-gray-100 active:bg-gray-100 active:shadow-inner"
+				class="ctx-menu-item rounded-t-sm"
 				on:click={() => {
 					closeContextMenu();
 					circuitDataModalContent.set(buildCanonicalString($circuitIR));
@@ -790,8 +759,8 @@
 			<button
 				type="button"
 				role="menuitem"
-				class="w-full text-left px-4 py-2.5 text-sm text-gray-700 cursor-pointer transition-colors flex items-center gap-2 border-b border-gray-100 active:bg-gray-100 active:shadow-inner"
-				on:click={copyCircuitStructure}
+				class="ctx-menu-item"
+				on:click={() => copyToClipboard(buildCanonicalString($circuitIR))}
 			>
 				<Icon icon="material-symbols:content-copy" width="16" height="16" />
 				Copy Circuit
@@ -799,7 +768,7 @@
 			<button
 				type="button"
 				role="menuitem"
-				class="w-full text-left px-4 py-2.5 text-sm text-red-700 cursor-pointer transition-colors rounded-b-sm flex items-center gap-2 active:bg-red-100 active:shadow-inner"
+				class="ctx-menu-item-danger rounded-b-sm"
 				on:click={resetAndClose}
 			>
 				<Icon icon="material-symbols:restart-alt" width="16" height="16" />
@@ -855,20 +824,6 @@
 		transition: transform 400ms ease-in-out;
 	}
 
-	@keyframes fadeInScale {
-		from {
-			opacity: 0;
-			transform: scale(0.95) translateY(-8px);
-		}
-		to {
-			opacity: 1;
-			transform: scale(1) translateY(0);
-		}
-	}
-
-	.context-menu {
-		animation: fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-	}
 
 	@keyframes slideDown {
 		from {

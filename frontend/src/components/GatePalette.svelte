@@ -1,26 +1,23 @@
 <script lang="ts">
-	import type { CircuitIR, GateData } from '$lib/IR/schema';
+	import type { GateData } from '$lib/IR/schema';
 	import {
 		handlePaletteDrop,
 		handleDoubleClick,
 		handleTouchStart,
 		handleTouchEnd,
 		handleTouchMove,
-		triggerSimulation
 	} from '$lib/circuit/dragDropUtils';
 	import { circuitIR } from '$lib/IR/stores';
 	import { isDragging, showCircuitDataModal, circuitDataModalContent } from '$lib/stores/uiStores';
 	import { showNotification } from '$lib/utils/notificationUtils';
-	import { importCircuit } from '$lib/circuit/IE';
 	import { manualSave } from '$lib/circuit/autoSave';
 	import { currentCircuitName } from '$lib/IR/stores';
 	import Icon from '@iconify/svelte';
-
 	import CircuitDataModal from './CircuitDataModal.svelte';
 	import { buildCanonicalString, type DataViewMode } from '$lib/circuit/circuitDataModal';
-
 	import {session} from '$lib/auth/session';
 	import { get } from 'svelte/store';
+	import { importJson, copyToClipboard, downloadCircuit } from '$lib/circuit/circuitActions';
 
 	export const gates: { type: string; name: string; category: string }[] = [
 		{ type: 'X', name: 'X', category: 'single' },
@@ -53,52 +50,6 @@
 		}
 	}
 
-	function importJson() {
-		try {
-			const input: unknown = JSON.parse($circuitDataModalContent);
-			const result = importCircuit(input);
-
-			// Type guard: check if it's an error response
-			if ('detail' in result && !('version' in result)) {
-				const errorMsg = result.detail ?? 'Unknown error';
-				showNotification(errorMsg, 'error');
-				return;
-			}
-
-			// Now TypeScript knows result is CircuitIR
-			circuitIR.set(result as CircuitIR);
-			triggerSimulation(result as CircuitIR);
-			circuitDataModalContent.set(buildCanonicalString(result as CircuitIR));
-			showNotification('Circuit imported successfully!', 'success');
-		} catch {
-			const errorMsg = 'Invalid JSON format';
-			showNotification(errorMsg, 'error');
-		}
-
-		showCircuitDataModal.set(false);
-	}
-
-	function downloadFile(filename: string, content: string, mimeType = 'text/plain') {
-		const blob = new Blob([content], { type: mimeType });
-		const url = URL.createObjectURL(blob);
-
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = filename;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-
-		URL.revokeObjectURL(url);
-	}
-
-	function exportCurrentView() {
-		const content = buildCanonicalString($circuitIR);
-		circuitDataModalContent.set(content);
-		downloadFile('circuit.cir', content, 'text/plain');
-		showNotification('Canonical IR downloaded!', 'success');
-	}
-
 	async function saveCircuit() {
 		if (get(session).status !== 'authenticated') {
 			showNotification('Please sign in to save your circuit.', 'error');
@@ -112,14 +63,6 @@
 		showNotification('Circuit saved!', 'success');
 	}
 
-	async function copyToClipboard() {
-		try {
-			await navigator.clipboard.writeText($circuitDataModalContent);
-			showNotification('Copied to clipboard!', 'success');
-		} catch {
-			showNotification('Failed to copy text. Please copy manually.', 'error');
-		}
-	}
 </script>
 
 <div
@@ -193,9 +136,9 @@
 	bind:value={$circuitDataModalContent}
 	onClose={closeModal}
 	onTabChange={handleTabChange}
-	onCopy={copyToClipboard}
-	onDownload={exportCurrentView}
-	onImport={importJson}
+	onCopy={() => copyToClipboard($circuitDataModalContent)}
+	onDownload={() => downloadCircuit($currentCircuitName, $circuitIR)}
+	onImport={() => importJson($circuitDataModalContent)}
 />
 
 <style>

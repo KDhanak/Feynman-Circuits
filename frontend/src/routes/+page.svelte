@@ -10,7 +10,7 @@
 	import Icon from '@iconify/svelte';
 	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
 	import { session } from '$lib/auth/session';
-	import { saveStatus } from '$lib/stores/uiStores';
+	import { saveStatus, notification } from '$lib/stores/uiStores';
 	import '$lib/circuit/autoSave';
 	import { get } from 'svelte/store';
 
@@ -102,3 +102,16 @@
 		</div>
 	</div>
 </main>
+
+{#if $notification}
+	<div
+		class="fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-sm shadow-lg z-300 text-sm flex items-center gap-2 text-white {$notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}"
+	>
+		<Icon
+			icon={$notification.type === 'success' ? 'material-symbols:check-circle' : 'material-symbols:error'}
+			width="18"
+			height="18"
+		/>
+		{$notification.message}
+	</div>
+{/if}
