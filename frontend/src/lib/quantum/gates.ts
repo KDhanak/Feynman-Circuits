@@ -67,6 +67,19 @@ export function createRXGate(theta: number): QuantumGate {
     };
 }
 
+export function createRYGate(theta: number): QuantumGate {
+    const halfTheta = theta / 2;
+    const cosHalf = Math.cos(halfTheta);
+    const sinHalf = Math.sin(halfTheta);
+    return {
+        type: "ry",
+        matrix: [
+            [createComplex(cosHalf, 0), createComplex(-sinHalf, 0)], // [cos(θ/2), -sin(θ/2)]
+            [createComplex(sinHalf, 0), createComplex(cosHalf, 0)],  // [sin(θ/2),  cos(θ/2)]
+        ],
+    };
+}
+
 export function createRZGate(theta: number): QuantumGate {
     const halfTheta = theta / 2;
     return {
@@ -79,7 +92,7 @@ export function createRZGate(theta: number): QuantumGate {
 }
 
 export const RX_GATE: QuantumGate = createRXGate(0);
-
+export const RY_GATE: QuantumGate = createRYGate(0);
 export const RZ_GATE: QuantumGate = createRZGate(0);
 
 export const GATE_MAP: Record<CanonicalUnitaryGate, QuantumGate> = {
@@ -90,5 +103,6 @@ export const GATE_MAP: Record<CanonicalUnitaryGate, QuantumGate> = {
     "s": S_GATE,
     "t": T_GATE,
     "rx": RX_GATE,
+    "ry": RY_GATE,
     "rz": RZ_GATE,
 }

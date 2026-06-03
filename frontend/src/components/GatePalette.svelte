@@ -27,6 +27,7 @@
 		{ type: 'S', name: 'S', category: 'single' },
 		{ type: 'T', name: 'T', category: 'single' },
 		{ type: 'RX', name: 'RX', category: 'parametric' },
+		{ type: 'RY', name: 'RY', category: 'parametric' },
 		{ type: 'RZ', name: 'RZ', category: 'parametric' },
 		{ type: 'CONTROL', name: 'CONTROL', category: 'multi' },
 		{ type: 'ANTI_CONTROL', name: 'ANTI_CONTROL', category: 'multi' },
@@ -109,7 +110,7 @@
 			class={`cursor-grab select-none border bg-white hover:bg-secondary-1 hover:border-secondary-3 active:bg-secondary-3 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
 				['CONTROL', 'ANTI_CONTROL', 'MEASURE'].includes(gate.type)
 					? 'h-11 w-10 rounded-sm border-secondary-4'
-					: ['RX', 'RZ'].includes(gate.type)
+					: ['RX', 'RY', 'RZ'].includes(gate.type)
 						? 'h-11 w-11 rounded-sm border-secondary-4 text-sm font-medium text-secondary-2'
 						: 'rounded-sm border-secondary-4 px-3.5 py-2 text-base font-medium text-secondary-2'
 			}`}

@@ -231,6 +231,48 @@ function _dropPaletteGate(
         return;
     }
 
+    if (upperType === 'RY') {
+        const occupied = isCellOccupied(ir, col, qubit);
+        if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
+
+        const angle = parseFloat(prompt('Enter RY angle (in radians):', '1.57') || '0');
+        const pendingInColumn = pending.get(col) ?? [];
+        const antiPendingInColumn = antiPending.get(col) ?? [];
+        const existingControls = new Set<number>();
+        const existingAntiControls = new Set<number>();
+        for (const op of ir.operations) {
+            if (op.kind === 'unitary' && op.column === col) {
+                (op as UnitaryOperation).controls.forEach(c => existingControls.add(c));
+                (op as UnitaryOperation).antiControls.forEach(c => existingAntiControls.add(c));
+            }
+        }
+
+        const allControls = [...new Set([...pendingInColumn, ...existingControls])];
+        const allAntiControls = [...new Set([...antiPendingInColumn, ...existingAntiControls])];
+
+        const unitaryOp: UnitaryOperation = {
+            id: crypto.randomUUID(),
+            kind: 'unitary',
+            gate: 'ry',
+            column: col,
+            targets: [qubit],
+            controls: allControls,
+            antiControls: allAntiControls,
+            params: [angle],
+        };
+        insertOperation(unitaryOp);
+
+        if (pendingInColumn.length > 0) {
+            pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
+        }
+        if (antiPendingInColumn.length > 0) {
+            pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
+        }
+
+        triggerSimulation(get(circuitIR));
+        return;
+    }
+
     if (upperType === 'RZ') {
         const occupied = isCellOccupied(ir, col, qubit);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
@@ -413,7 +455,7 @@ export function handlePaletteDrop(e: DragEvent) {
 /*──────────────────────── double-click ──────────────────*/
 
 export function handleDoubleClick(data: GateData) {
-    const valid = ['X', 'Y', 'Z', 'H', 'S', 'T', 'RX', 'RZ', 'CONTROL', 'ANTI_CONTROL', 'MEASURE'];
+    const valid = ['X', 'Y', 'Z', 'H', 'S', 'T', 'RX', 'RY', 'RZ', 'CONTROL', 'ANTI_CONTROL', 'MEASURE'];
 
     if (data.source === 'palette' && data.gateType) {
         if (!valid.includes(data.gateType.toUpperCase())) return;
