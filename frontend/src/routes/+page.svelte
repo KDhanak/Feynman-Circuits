@@ -50,25 +50,21 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			{#if $session.status === 'authenticated'}
-				<div
-					class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-sm"
-					style="color: var(--color-muted);"
-				>
-					<Icon icon="ph:circuit-board" width="15" height="15" />
+			<div
+				class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-sm"
+				class:invisible={$session.status !== 'authenticated'}
+				style="color: var(--color-muted);"
+			>
+				<Icon icon="ph:circuit-board" width="15" height="15" />
+				<span class="w-3.25 h-3.25 shrink-0 flex items-center justify-center">
 					{#if $saveStatus === 'saving'}
-						<Icon
-							icon="svg-spinners:ring-resize"
-							width="13"
-							height="13"
-							style="color: var(--color-measured);"
-						/>
+						<Icon icon="svg-spinners:ring-resize" width="13" height="13" style="color: var(--color-measured);" />
 					{:else if $saveStatus === 'saved'}
 						<Icon icon="ph:check-bold" width="13" height="13" class="text-green-500" />
 					{/if}
-					<span class="text-sm font-semibold max-w-40 truncate">{$currentCircuitName}</span>
-				</div>
-			{/if}
+				</span>
+				<span class="text-sm font-semibold max-w-40 truncate">{$currentCircuitName}</span>
+			</div>
 
 			<button
 				on:click={toggleTheme}
