@@ -17,3 +17,6 @@ export const circuitDataModalContent = writable<string>('');
 
 // Toast notification
 export const notification = writable<{ message: string; type: 'success' | 'error' } | null>(null);
+
+// Auto-save status
+export const saveStatus = writable<'idle' | 'saving' | 'saved' | 'error'>('idle');

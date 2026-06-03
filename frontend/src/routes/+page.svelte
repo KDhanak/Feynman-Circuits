@@ -10,11 +10,15 @@
 	import Icon from '@iconify/svelte';
 	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
 	import { session } from '$lib/auth/session';
+	import { saveStatus } from '$lib/stores/uiStores';
 	import '$lib/circuit/autoSave';
+	import { get } from 'svelte/store';
 
-	const circuit_id = crypto.randomUUID();
-	currentCircuitId.set(circuit_id);
-	currentCircuitName.set('Untitled Circuit');
+	// Only initialize on first load — stores survive HMR so skip re-init
+	if (!get(currentCircuitId)) {
+		currentCircuitId.set(crypto.randomUUID());
+		currentCircuitName.set('Untitled Circuit');
+	}
 
 	onMount(() => {
 		loadSession();
@@ -28,8 +32,16 @@
 	<!-- Header -->
 	<header class="relative w-full flex items-center justify-between px-4 sm:px-7 py-2 shrink-0">
 		<a href="/" class="shrink-0">
-			<img src="/feynman_circuits_logo_dark.svg" alt="Feynman Circuits Logo" class="logo-light h-16 sm:h-20 w-auto cursor-pointer" />
-			<img src="/feynman_circuits_logo.svg"      alt="Feynman Circuits Logo" class="logo-dark  h-16 sm:h-20 w-auto cursor-pointer" />
+			<img
+				src="/feynman_circuits_logo_dark.svg"
+				alt="Feynman Circuits Logo"
+				class="logo-light h-16 sm:h-20 w-auto cursor-pointer"
+			/>
+			<img
+				src="/feynman_circuits_logo.svg"
+				alt="Feynman Circuits Logo"
+				class="logo-dark h-16 sm:h-20 w-auto cursor-pointer"
+			/>
 		</a>
 
 		<div class="hidden sm:flex flex-row">
@@ -39,9 +51,22 @@
 
 		<div class="flex items-center gap-2">
 			{#if $session.status === 'authenticated'}
-				<div class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-sm" style="color: var(--color-muted);">
+				<div
+					class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-sm"
+					style="color: var(--color-muted);"
+				>
 					<Icon icon="ph:circuit-board" width="15" height="15" />
-					<span class="text-sm max-w-40 truncate">{$currentCircuitName}</span>
+					{#if $saveStatus === 'saving'}
+						<Icon
+							icon="svg-spinners:ring-resize"
+							width="13"
+							height="13"
+							style="color: var(--color-measured);"
+						/>
+					{:else if $saveStatus === 'saved'}
+						<Icon icon="ph:check-bold" width="13" height="13" class="text-green-500" />
+					{/if}
+					<span class="text-sm font-semibold max-w-40 truncate">{$currentCircuitName}</span>
 				</div>
 			{/if}
 
