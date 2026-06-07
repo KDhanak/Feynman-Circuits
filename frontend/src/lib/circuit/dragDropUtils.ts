@@ -162,13 +162,43 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
         const occupied = isCellOccupied(ir, col, qubit, parsed.gateId);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
+        // Collect pending + existing controls in destination column
+        const pendingInColumn = pending.get(col) ?? [];
+        const antiPendingInColumn = antiPending.get(col) ?? [];
+        const existingControls = new Set<number>();
+        const existingAntiControls = new Set<number>();
+        for (const op of ir.operations) {
+            if (op.kind === 'unitary' && op.column === col && op.id !== parsed.gateId) {
+                (op as UnitaryOperation).controls.forEach(c => existingControls.add(c));
+                (op as UnitaryOperation).antiControls.forEach(c => existingAntiControls.add(c));
+            }
+        }
+        const allControls = [...new Set([...pendingInColumn, ...existingControls])];
+        const allAntiControls = [...new Set([...antiPendingInColumn, ...existingAntiControls])];
+
+        const mergeControls = (op: CircuitOperation): CircuitOperation => {
+            if (op.kind !== 'unitary') return { ...op, column: col, ...('targets' in op ? { targets: [qubit] } : {}) } as CircuitOperation;
+            const base = op as UnitaryOperation;
+            const merged = [...new Set([...base.controls, ...allControls])];
+            const mergedAnti = [...new Set([...base.antiControls, ...allAntiControls])];
+            return { ...base, column: col, targets: [qubit], controls: merged, antiControls: mergedAnti };
+        };
+
         if (parsed.isCopy) {
             const original = ir.operations.find(op => op.id === parsed.gateId);
             if (!original) return;
-            insertOperation({ ...original, id: crypto.randomUUID(), column: col, ...('targets' in original ? { targets: [qubit] } : {}) } as CircuitOperation);
+            insertOperation({ ...mergeControls(original), id: crypto.randomUUID() } as CircuitOperation);
         } else {
-            updateOperation(parsed.gateId, op => ({ ...op, column: col, ...('targets' in op ? { targets: [qubit] } : {}) } as CircuitOperation));
+            updateOperation(parsed.gateId, op => mergeControls(op));
         }
+
+        if (pendingInColumn.length > 0) {
+            pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
+        }
+        if (antiPendingInColumn.length > 0) {
+            pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
+        }
+
         triggerSimulation(get(circuitIR));
         return;
     }
