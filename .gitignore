@@ -88,3 +88,4 @@ pnpm-debug.log*
 *.seed
 *.pid.lock
 .gitignore
+CODE_REVIEW.md
