@@ -14,6 +14,8 @@ const MAX_FAILURES = 3;
 
 circuitIR.subscribe(() => {
     if (!initialized) { initialized = true; return; }
+    // Only mark as dirty if user is authenticated
+    if (get(session).status !== 'authenticated') return;
     isReset = false;  // any store change after a reset means the user is editing again
     isDirty = true;
     saveStatus.set('saving');
@@ -23,7 +25,6 @@ setInterval(async () => {
     if (!isDirty) return;
 
     await attemptAutoSave();
-    console.log("Auto-save attempt completed");
 
 }, 10_000); // Check every 10 seconds
 

@@ -3,6 +3,8 @@
 	import type { DataViewMode, OpenQasmVersion } from '$lib/circuit/circuitDataModal';
 	import { fade, scale } from 'svelte/transition';
 
+	let monaco: typeof import('monaco-editor');
+
 	export let open = false;
 	export let activeView: DataViewMode = 'cir';
 	export let value = '';
@@ -16,8 +18,14 @@
 	export let onImport: () => void;
 
 	let showVersionMenu = false;
-	let textareaElement: HTMLTextAreaElement;
-	let lineCount = 1;
+	let editor: any = null;
+	let monacoPromise: Promise<any> | null = null;
+	let isDarkMode = true;
+
+	// Pre-load Monaco in the background
+	if (typeof window !== 'undefined') {
+		monacoPromise = import('monaco-editor').catch(() => null);
+	}
 
 	function handleQasmClick() {
 		onTabChange('qasm');
@@ -25,6 +33,19 @@
 
 	function toggleVersionMenu() {
 		showVersionMenu = !showVersionMenu;
+	}
+
+	$: if (open && !editor) {
+		// Give Svelte time to render the DOM
+		setTimeout(() => {
+			initializeMonaco();
+		}, 100);
+	}
+
+	$: if (!open && editor) {
+		// Dispose editor when modal closes
+		editor.dispose();
+		editor = null;
 	}
 
 	function handleVersionSelect(version: OpenQasmVersion) {
@@ -40,19 +61,141 @@
 		};
 	}
 
-	function updateLineCount() {
-		lineCount = (value.match(/\n/g) || []).length + 1;
+	async function initializeMonaco() {
+		// Query for the editor container div by id
+		const container = document.getElementById('monaco-editor-container') as HTMLDivElement;
+
+		if (!container) {
+			return;
+		}
+
+		// Use pre-loaded Monaco or import if not ready
+		monaco = await monacoPromise;
+		if (!monaco) {
+			monaco = await import('monaco-editor');
+		}
+
+		// Define OpenQASM language (supports both 2.0 and 3.0)
+		monaco.languages.register({ id: 'openqasm' });
+		monaco.languages.setMonarchTokensProvider('openqasm', {
+			keywords: [
+				// OpenQASM 2.0 & 3.0 common
+				'OPENQASM', 'include', 'gate', 'opaque', 'measure', 'reset', 'barrier',
+				// OpenQASM 2.0
+				'qreg', 'creg', 'if',
+				// OpenQASM 3.0
+				'qubit', 'bit', 'int', 'uint', 'float', 'angle', 'bool', 'complex',
+				'def', 'let', 'input', 'output', 'const', 'extern',
+				'for', 'while', 'break', 'continue', 'return', 'box',
+				'if', 'else', 'switch', 'case', 'default',
+				// Gate names
+				'cx', 'u', 'p', 'x', 'y', 'z', 'h', 's', 't', 'sx', 'rx', 'ry', 'rz', 'cz', 'ccx', 'swap', 'cswap'
+			],
+			typeKeywords: [],
+			operators: ['+', '-', '*', '/', '=', '==', '!=', '<', '>', '<=', '>=', '(', ')', '[', ']', '{', '}', ',', ';'],
+			symbols: /[+\-*/%=!<>()[\]{},;]/,
+			escapes: /\\(?:[abfnrtv"\\]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})/,
+			tokenizer: {
+				root: [
+					[/\/\/.*$/, 'comment'],
+					[/"(?:\\.|[^"\\])*"/, 'string'],
+					[/\d+\.?\d*/, 'number'],
+					[/[a-zA-Z_]\w*/, {
+						cases: {
+							'@keywords': 'keyword',
+							'@default': 'identifier'
+						}
+					}],
+					[/@symbols/, 'operator'],
+					[/\s+/, 'whitespace'],
+				]
+			}
+		});
+
+		// Detect if dark mode is active based on background color luminance
+		const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim();
+
+		// Convert hex to RGB and calculate luminance
+		if (bgColor.startsWith('#')) {
+			const hex = bgColor.substring(1);
+			const r = parseInt(hex.substring(0, 2), 16);
+			const g = parseInt(hex.substring(2, 4), 16);
+			const b = parseInt(hex.substring(4, 6), 16);
+			const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+			isDarkMode = luminance < 0.5;
+		}
+
+		const themeToUse = isDarkMode ? 'vs-dark' : 'vs';
+
+		// Define OpenQASM theme colors
+		monaco.editor.defineTheme('openqasm-theme', {
+			base: themeToUse,
+			inherit: true,
+			rules: [
+				{ token: 'keyword', foreground: isDarkMode ? '569cd6' : '0000ff' },
+				{ token: 'string', foreground: isDarkMode ? 'ce9178' : 'a31515' },
+				{ token: 'comment', foreground: isDarkMode ? '6a9955' : '008000' },
+				{ token: 'number', foreground: isDarkMode ? 'b5cea8' : '098658' },
+				{ token: 'operator', foreground: isDarkMode ? 'd4d4d4' : '000000' },
+			],
+			colors: {
+				'editor.background': isDarkMode ? '#1e1e1e' : '#ffffff',
+				'editor.foreground': isDarkMode ? '#d4d4d4' : '#000000',
+			}
+		});
+
+		// Create editor
+		const editorTheme = activeView === 'qasm' ? 'openqasm-theme' : themeToUse;
+		editor = monaco.editor.create(container, {
+			value: value || '',
+			language: activeView === 'qasm' ? 'openqasm' : 'json',
+			theme: editorTheme,
+			readOnly: false,
+			automaticLayout: true,
+			minimap: { enabled: false },
+			fontSize: 13,
+			fontFamily: "'Courier New', monospace",
+			lineNumbers: 'on',
+			scrollBeyondLastLine: false,
+			wordWrap: 'off',
+			tabSize: 2,
+		});
+
+		// Force Monaco to recalculate layout
+		setTimeout(() => {
+			editor.layout();
+		}, 100);
+
+		// Update parent value on editor change
+		editor.onDidChangeModelContent(() => {
+			value = editor?.getValue() || '';
+		});
 	}
 
-	$: value, updateLineCount();
 
-	function handleClickOutside(event: MouseEvent) {
-		const target = event.target as HTMLElement;
-		const menu = document.querySelector('[role="menu"]');
-		const dropdownContainer = menu?.closest('.relative.inline-flex');
+	// Update editor language and content when activeView changes
+	$: if (editor && open) {
+		const newLanguage = activeView === 'qasm' ? 'openqasm' : 'json';
+		const currentLanguage = editor.getModel()?.getLanguageId();
 
-		if (showVersionMenu && menu && !dropdownContainer?.contains(target)) {
-			showVersionMenu = false;
+		if (currentLanguage !== newLanguage) {
+			monaco.editor.setModelLanguage(editor.getModel()!, newLanguage);
+			// Change theme when switching to/from OpenQASM
+			const newTheme = newLanguage === 'openqasm' ? 'openqasm-theme' : (isDarkMode ? 'vs-dark' : 'vs');
+			monaco.editor.setTheme(newTheme);
+		}
+
+		const currentValue = editor.getValue();
+		if (value !== currentValue) {
+			editor.setValue(value);
+		}
+	}
+
+	// Handle version change
+	$: if (editor && activeView === 'qasm' && qasmVersion) {
+		const currentValue = editor.getValue();
+		if (value !== currentValue) {
+			editor.setValue(value);
 		}
 	}
 </script>
@@ -79,7 +222,6 @@
 			use:focusOnMount
 			on:click={(e) => {
 				const target = e.target as HTMLElement;
-				// Close version menu if clicking outside the dropdown container
 				if (showVersionMenu && !target.closest('.relative.inline-flex')) {
 					showVersionMenu = false;
 				}
@@ -89,7 +231,6 @@
 				if (e.key === 'Escape') onClose();
 			}}
 		>
-			<!-- Tab buttons and version selector -->
 			<div class="flex items-center justify-between mb-3">
 				<div class="flex items-center gap-2">
 					<button
@@ -209,67 +350,42 @@
 				</div>
 			</div>
 
-			<!-- Editor with Line Numbers -->
-			<div class="editor-wrapper">
-				<div class="line-numbers">
-					{#each Array(lineCount) as _, i}
-						<div class="line-number">{i + 1}</div>
-					{/each}
-				</div>
-				<textarea
-					bind:this={textareaElement}
-					bind:value
-					style="color: var(--color-text); background-color: var(--color-background);"
-					class="code-textarea"
-					on:keydown|stopPropagation
-				></textarea>
-			</div>
+			<div
+				id="monaco-editor-container"
+				style="
+					width: 100%;
+					height: calc(100vh - 200px);
+					max-height: 60vh;
+					border: 1px solid var(--color-border);
+					border-radius: 0.125rem;
+					overflow: hidden;
+				"
+			></div>
 		</div>
 	</div>
 {/if}
 
 <style>
-	.editor-wrapper {
-		display: flex;
+	:global(.monaco-editor) {
+		font-family: 'Courier New', monospace !important;
+		height: 100% !important;
+		width: 100% !important;
+	}
+
+	:global(.monaco-editor-container) {
+		height: 100%;
 		width: 100%;
-		height: 60vh;
-		border: 1px solid var(--color-border);
+	}
+
+	:global(.monaco-editor .overflow-guard) {
 		border-radius: 0.125rem;
-		overflow: hidden;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 	}
 
-	.line-numbers {
-		display: flex;
-		flex-direction: column;
-		background-color: var(--color-surface);
-		border-right: 1px solid var(--color-border);
-		padding: 0;
-		user-select: none;
-		overflow: hidden;
-		min-width: 50px;
-		text-align: right;
+	:global(.monaco-editor .monaco-scrollable-element) {
+		height: 100%;
 	}
 
-	.line-number {
-		padding: 0 8px;
-		height: 1.5em;
-		line-height: 1.5em;
-		color: var(--color-muted);
-		font-family: 'Courier New', monospace;
-		font-size: 13px;
-		flex-shrink: 0;
-	}
-
-	.code-textarea {
-		flex: 1;
-		border: none;
-		outline: none;
-		padding: 8px 12px;
-		font-family: 'Courier New', monospace;
-		font-size: 13px;
-		line-height: 1.5;
-		resize: none;
-		overflow: auto;
+	:global(.monaco-editor .monaco-editor-background) {
+		background-color: var(--color-background) !important;
 	}
 </style>
