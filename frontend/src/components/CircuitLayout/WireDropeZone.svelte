@@ -26,14 +26,12 @@
 	import { copyToClipboard } from '$lib/circuit/circuitActions';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import Icon from '@iconify/svelte';
-	import { showNotification } from '$lib/utils/notificationUtils';
-	import { MAX_COLUMNS, MAX_QUBITS, COLUMN_WIDTH, GATE_OFFSET } from '$lib/utils/constants';
+	import { MAX_COLUMNS, MAX_QUBITS } from '$lib/utils/constants';
 
 	let columnWidth: number;
 	let gateOffset: number;
 	let scrollContainer: HTMLDivElement | null = null;
 	let hoveredWire: number | null = null;
-	let hoveredPendingGate: string | null = null;
 	let selectedGateIds = new Set<string>();
 	let contextMenuVisible = false;
 	let contextMenuX = 0;
@@ -823,7 +821,6 @@
 		transform: scale(1.05);
 		transition: transform 400ms ease-in-out;
 	}
-
 
 	@keyframes slideDown {
 		from {

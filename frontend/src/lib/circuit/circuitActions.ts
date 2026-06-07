@@ -1,4 +1,4 @@
-import { importCircuit } from './IE';
+import { importCircuit, exportToOpenQasm, importFromOpenQasm } from './IE';
 import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 import type { CircuitIR } from '../IR/schema';
 import { triggerSimulation } from '$lib/circuit/dragDropUtils';
@@ -47,6 +47,30 @@ export function importJson(jsonText: string): void {
         showNotification('Circuit imported successfully!', 'success');
     } catch {
         showNotification('Invalid JSON format', 'error');
+    }
+    showCircuitDataModal.set(false);
+}
+
+export function downloadCircuitAsOpenQasm(name: string, ir: CircuitIR, version: '2.0' | '3.0' = '2.0'): void {
+    const content = exportToOpenQasm(ir, { version, includeComments: true });
+    downloadFile(`${name}.qasm`, content, 'text/plain');
+    showNotification(`Circuit exported as OpenQasm ${version}!`, 'success');
+}
+
+export function importOpenQasm(qasmText: string): void {
+    try {
+        const result = importFromOpenQasm(qasmText);
+        if ('detail' in result && !('version' in result)) {
+            showNotification(result.detail ?? 'Unknown error', 'error');
+            return;
+        }
+        const ir = result as CircuitIR;
+        circuitIR.set(ir);
+        triggerSimulation(ir);
+        circuitDataModalContent.set(exportToOpenQasm(ir, { version: '2.0', includeComments: true }));
+        showNotification('Circuit imported from OpenQasm successfully!', 'success');
+    } catch (err) {
+        showNotification('Invalid OpenQasm format', 'error');
     }
     showCircuitDataModal.set(false);
 }

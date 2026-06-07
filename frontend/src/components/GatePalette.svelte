@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { GateData } from '$lib/IR/schema';
 	import {
 		handlePaletteDrop,
@@ -14,10 +15,10 @@
 	import { currentCircuitName } from '$lib/IR/stores';
 	import Icon from '@iconify/svelte';
 	import CircuitDataModal from './CircuitDataModal.svelte';
-	import { buildCanonicalString, type DataViewMode } from '$lib/circuit/circuitDataModal';
+	import { buildCanonicalString, buildQASMString, type DataViewMode, type OpenQasmVersion } from '$lib/circuit/circuitDataModal';
 	import {session} from '$lib/auth/session';
 	import { get } from 'svelte/store';
-	import { importJson, copyToClipboard, downloadCircuit } from '$lib/circuit/circuitActions';
+	import { importJson, copyToClipboard, downloadCircuit, downloadCircuitAsOpenQasm, importOpenQasm } from '$lib/circuit/circuitActions';
 
 	export const gates: { type: string; name: string; category: string }[] = [
 		{ type: 'X', name: 'X', category: 'single' },
@@ -35,7 +36,22 @@
 	];
 
 	let activeView: DataViewMode = 'cir';
+	let qasmVersion: OpenQasmVersion = '2.0';
 	let dragEnterCount = 0;
+
+	onMount(() => {
+		// Load user's last selected view from localStorage
+		const savedView = localStorage.getItem('circuitDataModalView') as DataViewMode | null;
+		if (savedView && (savedView === 'cir' || savedView === 'qasm')) {
+			activeView = savedView;
+			// Update content to match the saved view
+			if (savedView === 'qasm') {
+				circuitDataModalContent.set(buildQASMString($circuitIR, qasmVersion));
+			} else {
+				circuitDataModalContent.set(buildCanonicalString($circuitIR));
+			}
+		}
+	});
 
 	function closeModal() {
 		showCircuitDataModal.set(false);
@@ -43,11 +59,28 @@
 
 	function handleTabChange(mode: DataViewMode) {
 		activeView = mode;
+		// Save user's preference to localStorage
+		localStorage.setItem('circuitDataModalView', mode);
+
 		if (mode === 'cir') {
 			circuitDataModalContent.set(buildCanonicalString($circuitIR));
 		} else if (mode === 'qasm') {
-			// Placeholder for QASM generation
-			circuitDataModalContent.set('QASM view coming soon...');
+			circuitDataModalContent.set(buildQASMString($circuitIR, qasmVersion));
+		}
+	}
+
+	function handleVersionChange(version: OpenQasmVersion) {
+		qasmVersion = version;
+		// Immediately update textarea content when version changes
+		circuitDataModalContent.set(buildQASMString($circuitIR, version));
+	}
+
+	// Ensure content always matches the active view when modal is open
+	$: if ($showCircuitDataModal) {
+		if (activeView === 'qasm') {
+			circuitDataModalContent.set(buildQASMString($circuitIR, qasmVersion));
+		} else {
+			circuitDataModalContent.set(buildCanonicalString($circuitIR));
 		}
 	}
 
@@ -134,12 +167,26 @@
 <CircuitDataModal
 	open={$showCircuitDataModal}
 	{activeView}
+	{qasmVersion}
 	bind:value={$circuitDataModalContent}
 	onClose={closeModal}
 	onTabChange={handleTabChange}
+	onVersionChange={handleVersionChange}
 	onCopy={() => copyToClipboard($circuitDataModalContent)}
-	onDownload={() => downloadCircuit($currentCircuitName, $circuitIR)}
-	onImport={() => importJson($circuitDataModalContent)}
+	onDownload={() => {
+		if (activeView === 'qasm') {
+			downloadCircuitAsOpenQasm($currentCircuitName, $circuitIR, qasmVersion);
+		} else {
+			downloadCircuit($currentCircuitName, $circuitIR);
+		}
+	}}
+	onImport={() => {
+		if (activeView === 'qasm') {
+			importOpenQasm($circuitDataModalContent);
+		} else {
+			importJson($circuitDataModalContent);
+		}
+	}}
 />
 
 <style>
