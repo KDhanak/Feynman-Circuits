@@ -5,6 +5,27 @@
 	import { fade } from 'svelte/transition';
 	import Icon from '@iconify/svelte';
 
+	let activeTooltip: { quick: string; detail: string; side: 'top' | 'left' } | null = null;
+	let tooltipX = 0;
+	let tooltipY = 0;
+
+	function showTooltip(e: MouseEvent, quick: string, detail: string, side: 'top' | 'left' = 'top') {
+		e.stopPropagation();
+		if (activeTooltip?.quick === quick) {
+			activeTooltip = null;
+			return;
+		}
+		const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+		if (side === 'left') {
+			tooltipX = rect.right;
+			tooltipY = rect.top + rect.height / 2;
+		} else {
+			tooltipX = rect.left + rect.width / 2;
+			tooltipY = rect.top;
+		}
+		activeTooltip = { quick, detail, side };
+	}
+
 	let popupWindow: Window | null = null;
 
 	function toEntriesArray(probObj: Record<string, number> | undefined) {
@@ -247,6 +268,8 @@
 	});
 </script>
 
+<svelte:window on:click={() => (activeTooltip = null)} />
+
 <div class="h-full flex flex-col" style="color: var(--color-text)">
 	<!-- View toggle -->
 	<div class="flex items-center justify-end px-3 pt-2 shrink-0">
@@ -304,9 +327,10 @@
 				{/each}
 			</svg>
 		</div>
-		<p class="text-xs items-center text-center" style="color: var(--color-muted);">
-			Showing 8 top states.
-		</p>
+		<div class="flex items-center justify-center gap-1.5">
+			<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Probability Histogram', 'Each bar shows the probability of measuring that bit string. Taller bars are more likely outcomes. Only the top 8 states are shown — click "View All States" for the full list.', 'left')} aria-label="More info">i</button>
+			<p class="text-xs text-center" style="color: var(--color-muted);">Showing 8 top states.</p>
+		</div>
 	{:else if shouldShowPopupButton}
 		{@const nonZero = probabilitiesArray.filter(p => p.prob > 0)}
 		{@const top3 = [...probabilitiesArray].sort((a, b) => b.prob - a.prob).slice(0, 3)}
@@ -331,28 +355,33 @@
 
 			<!-- Measured qubits -->
 			{#if ($simulationResult.measuredQubits ?? []).length > 0}
-				<p class="text-sm font-medium">
+				<p class="text-sm font-medium flex items-center gap-1.5">
 					Measured:
 					<span class="font-semibold px-1.5 py-0.5 rounded text-sm" style="color: var(--color-measured); background: color-mix(in srgb, var(--color-measured) 15%, transparent);">
 						{($simulationResult.measuredQubits ?? []).map(q => `q${q}`).join(', ')}
 					</span>
+					<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Measured Qubits', 'These qubits have been collapsed to a definite 0 or 1 using Born\'s rule. Their state is no longer in superposition — further gates applied to them will have no quantum effect.')} aria-label="More info">i</button>
 				</p>
 			{/if}
 
 			<!-- Classical bits -->
 			{#if ($simulationResult.classicalBits?.size ?? 0) > 0}
-				<p class="text-sm font-medium">
+				<p class="text-sm font-medium flex items-center gap-1.5">
 					Classical:
 					<span class="font-semibold px-1.5 py-0.5 rounded text-sm" style="color: var(--color-measured); background: color-mix(in srgb, var(--color-measured) 15%, transparent);">
 						{Array.from(($simulationResult.classicalBits ?? new Map()).entries()).map(([q, v]) => `q${q}=${v}`).join(', ')}
 					</span>
+					<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Classical Bits', 'The definite 0 or 1 outcome recorded after measuring each qubit. This is the result a real quantum computer would return to your classical program.')} aria-label="More info">i</button>
 				</p>
 			{/if}
 
 			<!-- Top 3 states -->
 			{#if top3.length > 0}
 				<div>
-					<p class="text-sm font-medium mb-1" style="color: var(--color-muted);">Top states</p>
+					<div class="flex items-center gap-1.5 mb-1">
+						<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Top States', 'The three most probable measurement outcomes. For the full probability distribution across all states, click "View All States" below.')} aria-label="More info">i</button>
+						<p class="text-sm font-medium" style="color: var(--color-muted);">Top states</p>
+					</div>
 					{#each top3 as item}
 						<div class="flex justify-between items-center py-1 border-b text-sm font-mono" style="border-color: var(--color-ternary-2);">
 							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">|{item.state}⟩</span>
@@ -361,6 +390,7 @@
 					{/each}
 				</div>
 			{/if}
+
 
 			<!-- Full results button -->
 			<button
@@ -373,48 +403,56 @@
 		</div>
 	{:else}
 		<!-- Compact inline view for 1-2 qubits -->
-		<p class="text-base font-medium">
-			Quantum State:
-			<span class="text-sm font-normal">
-				{#if $simulationResult.formattedState}
-					{@const stateText = $simulationResult.formattedState}
-					{@const pipeIndex = stateText.indexOf('|')}
-					{@const closingIndex = stateText.indexOf('⟩')}
-					{@const bitsStr = stateText.substring(pipeIndex + 1, closingIndex)}
-					{stateText.substring(0, pipeIndex + 1)}
-					{#each Array.from(bitsStr) as bit, i (i)}
-						<span style={$simulationResult.measuredQubits?.includes(i) ? 'color: var(--color-measured); font-weight: 600;' : ''}>
-							{bit}
-						</span>
-					{/each}
-					⟩
-				{:else}
-					Calculating...
-				{/if}
-			</span>
-		</p>
+		<div class="flex items-center gap-1.5 flex-wrap">
+			<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Quantum State', 'The full state of your qubits in Dirac notation. Each |x⟩ term is a possible outcome — the coefficient in front is its probability amplitude.', 'left')} aria-label="More info">i</button>
+			<p class="text-base font-medium">
+				Quantum State:
+				<span class="text-sm font-normal">
+					{#if $simulationResult.formattedState}
+						{@const stateText = $simulationResult.formattedState}
+						{@const pipeIndex = stateText.indexOf('|')}
+						{@const closingIndex = stateText.indexOf('⟩')}
+						{@const bitsStr = stateText.substring(pipeIndex + 1, closingIndex)}
+						{stateText.substring(0, pipeIndex + 1)}
+						{#each Array.from(bitsStr) as bit, i (i)}
+							<span style={$simulationResult.measuredQubits?.includes(i) ? 'color: var(--color-measured); font-weight: 600;' : ''}>
+								{bit}
+							</span>
+						{/each}
+						⟩
+					{:else}
+						Calculating...
+					{/if}
+				</span>
+			</p>
+		</div>
 
 		{#if $simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0}
-			<p class="text-md font-medium mt-3">
-				Measured Qubits:
+			<div class="flex items-center gap-1.5 mt-3">
+				<p class="text-md font-medium">Measured Qubits:</p>
 				<span class="font-semibold px-2 py-1 rounded" style="color: var(--color-measured); background-color: color-mix(in srgb, var(--color-measured) 15%, transparent);">
 					{$simulationResult.measuredQubits.map(q => `q${q}`).join(', ')}
 				</span>
-			</p>
+				<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Measured Qubits', 'These qubits have been collapsed to a definite 0 or 1 using Born\'s rule. Their state is no longer in superposition — further gates applied to them will have no quantum effect.')} aria-label="More info">i</button>
+			</div>
 		{/if}
 
 		{#if $simulationResult.classicalBits && $simulationResult.classicalBits.size > 0}
-			<p class="text-md font-medium mt-3">
-				Classical bits after measurement:
+			<div class="flex items-center gap-1.5 mt-3">
+				<p class="text-md font-medium">Classical bits:</p>
 				<span class="font-semibold px-2 py-1 rounded" style="color: var(--color-measured); background-color: color-mix(in srgb, var(--color-measured) 15%, transparent);">
 					{Array.from($simulationResult.classicalBits.entries())
 						.map(([qubit, value]) => `q${qubit} = ${value}`)
 						.join(', ')}
 				</span>
-			</p>
+				<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Classical Bits', 'The definite 0 or 1 outcome recorded after measuring each qubit. This is the result a real quantum computer would return to your classical program.')} aria-label="More info">i</button>
+			</div>
 		{/if}
 
-		<p class="text-md font-medium mt-5">Probabilities:</p>
+		<div class="flex items-center gap-1.5 mt-5">
+			<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Probabilities', 'The chance of measuring each possible bit string. All values sum to 100%. States with 0% are theoretically possible but will never occur in practice.', 'left')} aria-label="More info">i</button>
+			<p class="text-md font-medium">Probabilities:</p>
+		</div>
 
 		{#if columns.length > 0}
 			<div class="prob-columns" role="list">
@@ -439,8 +477,37 @@
 	{/if}
 </div>
 
+{#if activeTooltip}
+	<div
+		class="fixed z-200 w-72 rounded-md shadow-lg px-3 py-2 text-xs pointer-events-none"
+		style="left: {tooltipX}px; top: {tooltipY}px;
+			   transform: {activeTooltip.side === 'left' ? 'translate(8px, -50%)' : 'translate(-50%, calc(-100% - 8px))'};
+			   background-color: var(--color-surface);
+			   border: 1px solid var(--color-border);
+			   color: var(--color-text);"
+	>
+		<p class="font-semibold mb-0.5">{activeTooltip.quick}</p>
+		<p style="color: var(--color-muted);">{activeTooltip.detail}</p>
+	</div>
+{/if}
 
 <style>
+	.info-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 0.75rem;
+		height: 0.75rem;
+		border-radius: 9999px;
+		border: 1px solid var(--color-ternary-1);
+		color: var(--color-ternary-1);
+		background: var(--color-surface);
+		font-size: 7px;
+		cursor: pointer;
+		flex-shrink: 0;
+		margin-bottom: 10px;
+	}
+
 	.histogram-bar {
 		transform-box: fill-box;
 		transform-origin: bottom center;

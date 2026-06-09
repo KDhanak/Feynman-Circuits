@@ -14,6 +14,7 @@
 	import '$lib/circuit/autoSave';
 	import { get } from 'svelte/store';
 	import FeedbackModal from '../components/FeedbackModal.svelte';
+	import Tooltip from '../components/Tooltip.svelte';
 
 	let feedbackOpen = false;
 
@@ -61,7 +62,12 @@
 				<Icon icon="ph:circuit-board" width="15" height="15" />
 				<span class="w-3.25 h-3.25 shrink-0 flex items-center justify-center">
 					{#if $saveStatus === 'saving'}
-						<Icon icon="svg-spinners:ring-resize" width="13" height="13" style="color: var(--color-measured);" />
+						<Icon
+							icon="svg-spinners:ring-resize"
+							width="13"
+							height="13"
+							style="color: var(--color-measured);"
+						/>
 					{:else if $saveStatus === 'saved'}
 						<Icon icon="ph:check-bold" width="13" height="13" class="text-green-500" />
 					{/if}
@@ -96,13 +102,24 @@
 		<CircuitLayout />
 	</div>
 	<!-- Results row — fixed height on desktop, never shifts layout -->
-	<div class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5">
-		<div class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-sm overflow-y-auto">
+	<div
+		class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5"
+	>
+		<div
+			class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-sm overflow-y-auto"
+		>
 			<SimulationResult />
 		</div>
-		<div class="shrink-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden">
-			<OverallBlochSphere />
-		</div>
+		<Tooltip
+			quick="Bloch Sphere"
+			detail="A 3D representation of a single qubit's state. The north pole is |0⟩, south pole is |1⟩, and the equator is superposition."
+		>
+			<div
+				class="shrink-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
+			>
+				<OverallBlochSphere />
+			</div>
+		</Tooltip>
 	</div>
 </main>
 
@@ -110,7 +127,7 @@
 <button
 	type="button"
 	on:click={() => (feedbackOpen = true)}
-	class="fixed bottom-5 right-1/2 z-100 flex items-center gap-2 px-4 py-2.5 rounded-sm shadow-lg cursor-pointer text-sm font-semibold transition-all duration-150 border border-secondary-3 bg-white text-secondary-3 hover:bg-secondary-1 hover:text-secondary-4 active:bg-secondary-4 active:text-white active:border-white"
+	class="fixed flex items-center cursor-pointer justify-center bottom-5 right-1/2 z-100 gap-2 border rounded-sm bg-surface px-4 py-2 text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 "
 	aria-label="Open feedback form"
 >
 	<Icon icon="ph:chat-circle-text-bold" width="17" height="17" />
@@ -123,10 +140,15 @@
 
 {#if $notification}
 	<div
-		class="fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-sm shadow-lg z-300 text-sm flex items-center gap-2 text-white {$notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}"
+		class="fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-sm shadow-lg z-300 text-sm flex items-center gap-2 text-white {$notification.type ===
+		'success'
+			? 'bg-green-500'
+			: 'bg-red-500'}"
 	>
 		<Icon
-			icon={$notification.type === 'success' ? 'material-symbols:check-circle' : 'material-symbols:error'}
+			icon={$notification.type === 'success'
+				? 'material-symbols:check-circle'
+				: 'material-symbols:error'}
 			width="18"
 			height="18"
 		/>

@@ -648,10 +648,10 @@ import { updateOperation } from '$lib/IR/operations';
 										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gate })}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
-									class={`gate z-10 cursor-grab select-none rounded-sm border border-secondary-4 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center ${
+									class={`gate z-10 cursor-grab select-none rounded-sm border border-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center ${
 										gate.gate === 'swap'
 											? 'bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white h-11 w-10 font-extralight'
-											: 'bg-white text-secondary-4 active:bg-secondary-3 px-3 py-2 text-base'
+											: 'bg-surface text-text active:bg-ternary-1 px-3 py-2 text-base'
 									}`}
 									class:selected={selectedGateIds.has(gate.id)}
 									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
@@ -708,10 +708,10 @@ import { updateOperation } from '$lib/IR/operations';
 										})}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
-									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border bg-white active:bg-secondary-3 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
 									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 								>
-									<div class="w-3 h-3 rounded-full bg-secondary-4"></div>
+									<div class="w-3 h-3 rounded-full bg-text"></div>
 								</div>
 							{/if}
 
@@ -753,10 +753,10 @@ import { updateOperation } from '$lib/IR/operations';
 										})}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
-									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border bg-white active:bg-secondary-3 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
 									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 								>
-									<div class="w-3 h-3 rounded-full border border-secondary-4"></div>
+									<div class="w-3 h-3 rounded-full border border-text"></div>
 								</div>
 							{/if}
 						{:else if op.kind === 'measure'}
