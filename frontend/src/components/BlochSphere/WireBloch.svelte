@@ -9,5 +9,5 @@
 </script>
 
 <div class="pointer-events-none">
-	<BlochSphere {vector} size={80} showDetails={false} />
+	<BlochSphere {vector} size={70} showDetails={false} />
 </div>

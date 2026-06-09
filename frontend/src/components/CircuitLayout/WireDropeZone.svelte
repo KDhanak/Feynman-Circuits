@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { UnitaryOperation, MeasureOperation } from '$lib/IR/schema';
 	import { tick, onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
 	import { simulationResult, circuitIR } from '$lib/IR/stores';
 	import {
 		circuitLayout,
@@ -126,6 +127,57 @@
 			recomputeConnectors();
 			rafId = null;
 		});
+	}
+
+	// Synchronous version for scroll events — avoids the one-frame flicker
+	function recomputeConnectorsSync() {
+		if (!boardEl) return;
+		const boardRect = boardEl.getBoundingClientRect();
+		const next: Connector[] = [];
+
+		for (const op of $circuitIR.operations) {
+			if (op.kind !== 'unitary') continue;
+			const unitOp = op as UnitaryOperation;
+			if (unitOp.controls.length === 0 && unitOp.antiControls.length === 0) continue;
+
+			for (const targetQubit of unitOp.targets) {
+				const targetEl = boardEl.querySelector(
+					`[data-col="${unitOp.column}"][data-qubit="${targetQubit}"]:not([data-type="CONTROL"]):not([data-type="ANTI_CONTROL"])`
+				);
+				if (!targetEl) continue;
+				const t = getCenter(targetEl, boardRect);
+
+				for (const ctrl of unitOp.controls) {
+					const controlEl = boardEl.querySelector(
+						`[data-col="${unitOp.column}"][data-qubit="${ctrl}"][data-type="CONTROL"]`
+					);
+					if (!controlEl) continue;
+					const c = getCenter(controlEl, boardRect);
+					next.push({
+						key: `${unitOp.id}-ctrl-${ctrl}-${targetQubit}`,
+						left: c.x,
+						top: Math.min(c.y, t.y),
+						height: Math.abs(c.y - t.y)
+					});
+				}
+
+				for (const antiCtrl of unitOp.antiControls) {
+					const antiControlEl = boardEl.querySelector(
+						`[data-col="${unitOp.column}"][data-qubit="${antiCtrl}"][data-type="ANTI_CONTROL"]`
+					);
+					if (!antiControlEl) continue;
+					const c = getCenter(antiControlEl, boardRect);
+					next.push({
+						key: `${unitOp.id}-antictrl-${antiCtrl}-${targetQubit}`,
+						left: c.x,
+						top: Math.min(c.y, t.y),
+						height: Math.abs(c.y - t.y)
+					});
+				}
+			}
+		}
+
+		connectors = next;
 	}
 
 	$: ($circuitIR.operations, $circuitLayout, scheduleConnectorRecompute());
@@ -350,7 +402,7 @@
 
 <div
 	role="none"
-	class="w-full relative mx-auto z-50 select-none"
+	class="w-full h-full relative mx-auto z-50 select-none"
 	bind:this={boardEl}
 	on:contextmenu={handleContextMenu}
 	on:mousedown={handleBoardMouseDown}
@@ -395,11 +447,8 @@
 				minY}px; z-index: 100; background-color: rgba(59, 130, 246, 0.5);"
 		></div>
 	{/if}
-	<div
-		class="rounded-sm transition-all duration-300 ease-in-out overflow-hidden"
-		style="height: {(Math.min($circuitIR.registers.q, 6) + (showGhostWire ? 1 : 0)) * 64 + 16}px;"
-	>
-		<div class="space-y-1 p-2 overflow-y-auto overflow-x-hidden h-full" bind:this={scrollContainer}>
+	<div class="rounded-sm overflow-hidden h-full">
+		<div class="space-y-1 p-2 overflow-y-auto overflow-x-hidden h-full" bind:this={scrollContainer} on:scroll={recomputeConnectorsSync}>
 			<!-- Connectors -->
 			{#each connectors as line (line.key)}
 				<div
@@ -695,7 +744,7 @@
 
 			<!-- Ghost wire -->
 			{#if showGhostWire}
-				<div class="ghost-wire relative flex h-14 items-center" data-qubit={$circuitIR.registers.q}>
+				<div class="ghost-wire relative flex h-14 items-center" data-qubit={$circuitIR.registers.q} transition:slide={{ duration: 300 }}>
 					<div
 						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30"
 						style="background-color: var(--color-muted);"
