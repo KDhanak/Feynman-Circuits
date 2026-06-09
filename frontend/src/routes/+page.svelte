@@ -13,6 +13,9 @@
 	import { saveStatus, notification } from '$lib/stores/uiStores';
 	import '$lib/circuit/autoSave';
 	import { get } from 'svelte/store';
+	import FeedbackModal from '../components/FeedbackModal.svelte';
+
+	let feedbackOpen = false;
 
 	// Only initialize on first load — stores survive HMR so skip re-init
 	if (!get(currentCircuitId)) {
@@ -102,6 +105,21 @@
 		</div>
 	</div>
 </main>
+
+<!-- Floating feedback button -->
+<button
+	type="button"
+	on:click={() => (feedbackOpen = true)}
+	class="fixed bottom-5 right-1/2 z-100 flex items-center gap-2 px-4 py-2.5 rounded-sm shadow-lg cursor-pointer text-sm font-semibold transition-all duration-150 border border-secondary-3 bg-white text-secondary-3 hover:bg-secondary-1 hover:text-secondary-4 active:bg-secondary-4 active:text-white active:border-white"
+	aria-label="Open feedback form"
+>
+	<Icon icon="ph:chat-circle-text-bold" width="17" height="17" />
+	Feedback
+</button>
+
+{#if feedbackOpen}
+	<FeedbackModal onClose={() => (feedbackOpen = false)} />
+{/if}
 
 {#if $notification}
 	<div

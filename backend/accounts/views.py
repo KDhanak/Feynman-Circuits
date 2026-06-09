@@ -17,7 +17,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
 )
 import secrets
-from .services import send_password_reset_otp_email, send_password_reset_confirmation_email, send_password_change_notification_email
+from .services import send_password_reset_otp_email, send_password_reset_confirmation_email, send_password_change_notification_email, send_feedback_email
 
 User = get_user_model()
 
@@ -327,3 +327,38 @@ class PasswordResetConfirmView(APIView):
         return Response(
             {"detail": "Password reset successful."}, status=status.HTTP_200_OK
         )
+
+
+class FeedbackView(APIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "feedback"
+
+    def post(self, request):
+        feedback_type = request.data.get("type", "").strip()
+        if feedback_type not in ("bug", "feature"):
+            return Response({"detail": "Invalid feedback type."}, status=status.HTTP_400_BAD_REQUEST)
+
+        area = request.data.get("area", "").strip()
+        description = request.data.get("description", "").strip()
+
+        if not area or not description:
+            return Response({"detail": "Area and description are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(description) > 2000 or len(area) > 100:
+            return Response({"detail": "Input too long."}, status=status.HTTP_400_BAD_REQUEST)
+
+        context = {
+            "type": feedback_type,
+            "area": area,
+            "description": description,
+            "expected": request.data.get("expected", "").strip()[:2000],
+            "actual": request.data.get("actual", "").strip()[:2000],
+            "impact": request.data.get("impact", "").strip()[:2000],
+            "extra": request.data.get("extra", "").strip()[:2000],
+            "name": request.data.get("name", "").strip()[:100],
+            "email": request.data.get("email", "").strip()[:254],
+        }
+
+        send_feedback_email(context)
+        return Response({"detail": "Feedback received. Thank you!"}, status=status.HTTP_200_OK)

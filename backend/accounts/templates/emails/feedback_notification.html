@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Feynman Circuits — Feedback</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0; padding:0; font-family:Arial, Helvetica, sans-serif; background-color:#f4f6f8; color:#111111;">
+    <div style="width:100%; background-color:#f4f6f8; padding:32px 16px;">
+        <div style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius:12px; padding:36px 32px; box-shadow:0 4px 18px rgba(0,0,0,0.06);">
+
+            <h2 style="margin:0 0 4px 0; font-size:28px; line-height:1.2; color:#111111;">
+                Feynman Circuits
+            </h2>
+            <p style="margin:0 0 28px 0; font-size:13px; color:#6b7280;">feynmancircuits.com</p>
+
+            <!-- Type badge -->
+            {% if type == 'bug' %}
+            <div style="display:inline-block; margin:0 0 20px 0; padding:6px 14px; border-radius:20px; background-color:#fef2f2; border:1px solid #fca5a5; font-size:13px; font-weight:700; color:#dc2626;">
+                🐛 Bug Report
+            </div>
+            {% else %}
+            <div style="display:inline-block; margin:0 0 20px 0; padding:6px 14px; border-radius:20px; background-color:#f5f3ff; border:1px solid #c4b5fd; font-size:13px; font-weight:700; color:#7c3aed;">
+                ✨ Feature Request
+            </div>
+            {% endif %}
+
+            <!-- Area -->
+            <div style="margin:0 0 24px 0; padding:14px 18px; background-color:#f8fafc; border-left:4px solid #a855f7; border-radius:0 8px 8px 0;">
+                <p style="margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; font-weight:600;">Area</p>
+                <p style="margin:4px 0 0 0; font-size:16px; font-weight:700; color:#111111;">{{ area }}</p>
+            </div>
+
+            {% if type == 'bug' %}
+
+            <!-- What were you trying to do -->
+            <div style="margin:0 0 20px 0;">
+                <p style="margin:0 0 6px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; font-weight:600;">What were you trying to do?</p>
+                <p style="margin:0; font-size:15px; line-height:1.7; color:#111111; padding:12px 16px; background-color:#f8fafc; border-radius:8px; border:1px solid #e5e7eb;">{{ description }}</p>
+            </div>
+
+            <!-- What did you expect -->
+            {% if expected %}
+            <div style="margin:0 0 20px 0;">
+                <p style="margin:0 0 6px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; font-weight:600;">What did you expect to happen?</p>
+                <p style="margin:0; font-size:15px; line-height:1.7; color:#111111; padding:12px 16px; background-color:#f8fafc; border-radius:8px; border:1px solid #e5e7eb;">{{ expected }}</p>
+            </div>
+            {% endif %}
+
+            <!-- What actually happened -->
+            {% if actual %}
+            <div style="margin:0 0 20px 0;">
+                <p style="margin:0 0 6px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; font-weight:600;">What actually happened?</p>
+                <p style="margin:0; font-size:15px; line-height:1.7; color:#111111; padding:12px 16px; background-color:#fef2f2; border-radius:8px; border:1px solid #fca5a5;">{{ actual }}</p>
+            </div>
+            {% endif %}
+
+            {% else %}
+
+            <!-- Feature description -->
+            <div style="margin:0 0 20px 0;">
+                <p style="margin:0 0 6px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; font-weight:600;">What would you like Feynman Circuits to be able to do?</p>
+                <p style="margin:0; font-size:15px; line-height:1.7; color:#111111; padding:12px 16px; background-color:#f8fafc; border-radius:8px; border:1px solid #e5e7eb;">{{ description }}</p>
+            </div>
+
+            <!-- How would this help -->
+            {% if impact %}
+            <div style="margin:0 0 20px 0;">
+                <p style="margin:0 0 6px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; font-weight:600;">How would this change the way you use it?</p>
+                <p style="margin:0; font-size:15px; line-height:1.7; color:#111111; padding:12px 16px; background-color:#f5f3ff; border-radius:8px; border:1px solid #c4b5fd;">{{ impact }}</p>
+            </div>
+            {% endif %}
+
+            {% endif %}
+
+            <!-- Anything else -->
+            {% if extra %}
+            <div style="margin:0 0 24px 0;">
+                <p style="margin:0 0 6px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; font-weight:600;">Anything else</p>
+                <p style="margin:0; font-size:15px; line-height:1.7; color:#111111; padding:12px 16px; background-color:#f8fafc; border-radius:8px; border:1px solid #e5e7eb;">{{ extra }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Sender info -->
+            {% if name or email %}
+            <div style="margin:28px 0 0 0; padding:16px 18px; background-color:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+                <p style="margin:0 0 8px 0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#6b7280; font-weight:600;">From</p>
+                {% if name %}<p style="margin:0 0 4px 0; font-size:15px; font-weight:600; color:#111111;">{{ name }}</p>{% endif %}
+                {% if email %}<p style="margin:0; font-size:14px; color:#2563eb;">{{ email }}</p>{% endif %}
+            </div>
+            {% else %}
+            <div style="margin:28px 0 0 0; padding:14px 18px; background-color:#f8fafc; border:1px solid #e5e7eb; border-radius:8px;">
+                <p style="margin:0; font-size:13px; color:#6b7280; font-style:italic;">Submitted anonymously — no reply address provided.</p>
+            </div>
+            {% endif %}
+
+            <hr style="border:none; border-top:1px solid #e5e7eb; margin:28px 0;">
+            <p style="margin:0; font-size:12px; color:#6b7280;">This feedback was submitted via the Feynman Circuits feedback form.</p>
+
+        </div>
+    </div>
+</body>
+</html>

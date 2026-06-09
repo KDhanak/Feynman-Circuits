@@ -34,6 +34,7 @@ if not DEBUG and not SECRET_KEY:
     raise RuntimeError("SECRET_KEY environment variable must be set in production.")
 
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+FEEDBACK_TO_EMAIL = os.getenv("FEEDBACK_TO_EMAIL", "kishan.dhanak.tech@gmail.com")
 
 def env_bool(name: str, default: str = "False") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
@@ -165,6 +166,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "password_reset": "5/hour",
+        "feedback": "10/hour",
     },
 }
 

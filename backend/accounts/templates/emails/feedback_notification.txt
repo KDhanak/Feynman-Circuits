@@ -1,0 +1,46 @@
+FEYNMAN CIRCUITS — FEEDBACK
+===========================
+
+Type: {% if type == 'bug' %}Bug Report{% else %}Feature Request{% endif %}
+Area: {{ area }}
+
+{% if type == 'bug' %}
+WHAT WERE YOU TRYING TO DO?
+{{ description }}
+
+{% if expected %}
+WHAT DID YOU EXPECT TO HAPPEN?
+{{ expected }}
+{% endif %}
+
+{% if actual %}
+WHAT ACTUALLY HAPPENED?
+{{ actual }}
+{% endif %}
+
+{% else %}
+WHAT WOULD YOU LIKE FEYNMAN CIRCUITS TO DO?
+{{ description }}
+
+{% if impact %}
+HOW WOULD THIS CHANGE THE WAY YOU USE IT?
+{{ impact }}
+{% endif %}
+
+{% endif %}
+
+{% if extra %}
+ANYTHING ELSE
+{{ extra }}
+{% endif %}
+
+---
+{% if name or email %}
+FROM:
+{% if name %}Name: {{ name }}{% endif %}
+{% if email %}Email: {{ email }}{% endif %}
+{% else %}
+Submitted anonymously.
+{% endif %}
+
+Feynman Circuits feedback form.
