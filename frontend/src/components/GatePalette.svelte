@@ -91,10 +91,22 @@
 		}
 		const newName = prompt('Enter a name for your circuit:', $currentCircuitName);
 		if (newName === null) return;
+		if (newName.trim() === '') {
+			showNotification('Circuit name cannot be empty.', 'error');
+			return;
+		}
 
-		currentCircuitName.set(newName);
-		await manualSave();
-		showNotification('Circuit saved!', 'success');
+		const previousName = $currentCircuitName;
+		currentCircuitName.set(newName.trim());
+		try {
+			await manualSave();
+			showNotification('Circuit saved!', 'success');
+		} catch (err: unknown) {
+			currentCircuitName.set(previousName);
+			const apiMessage =
+				(err as { response?: { data?: { name?: string[] } } })?.response?.data?.name?.[0];
+			showNotification(apiMessage ?? 'Failed to save circuit. Please try again.', 'error');
+		}
 	}
 
 </script>

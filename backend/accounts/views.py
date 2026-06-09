@@ -10,6 +10,8 @@ from .serializers import (
     SignUpSerializer,
     SignInSerializer,
     MeSerializer,
+    UpdateProfileSerializer,
+    ChangePasswordSerializer,
     PasswordResetRequestSerializer,
     PasswordResetOTPVerifySerializer,
     PasswordResetConfirmSerializer,
@@ -152,6 +154,34 @@ class RefreshView(APIView):
                 {"detail": "Error refreshing token"},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+
+class UpdateProfileView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(MeSerializer(request.user).data)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if not request.user.check_password(serializer.validated_data['current_password']):
+            return Response(
+                {'current_password': 'Current password is incorrect.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request.user.set_password(serializer.validated_data['password'])
+        request.user.save(update_fields=['password'])
+        return Response({'detail': 'Password changed successfully.'})
 
 
 class PasswordResetRequestView(APIView):

@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { requestPasswordReset } from '$lib/auth/session';
 
+    export let initialEmail: string = '';
     export let onOtpSent: (email: string) => void = () => {};
 
-	let resetEmail = '';
+	let resetEmail = initialEmail;
 	let loading = false;
 	let generalErrorMsg = '';
 	let successMsg = '';

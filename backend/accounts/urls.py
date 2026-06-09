@@ -8,6 +8,8 @@ from .views import (
     SignUpView,
     SignInView,
     RefreshView,
+    UpdateProfileView,
+    ChangePasswordView,
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -17,6 +19,8 @@ urlpatterns = [
     path("api/auth/me/", MeView.as_view()),
     path("api/auth/refresh/", RefreshView.as_view()),
     path("api/auth/signout/", SignOutView.as_view()),
+    path("api/auth/profile/", UpdateProfileView.as_view()),
+    path("api/auth/change-password/", ChangePasswordView.as_view()),
     path("api/auth/password-reset/", PasswordResetRequestView.as_view()),
     path("api/auth/password-reset/verify-otp/", PasswordResetOTPVerifyView.as_view()),
     path("api/auth/password-reset/confirm/", PasswordResetConfirmView.as_view()),

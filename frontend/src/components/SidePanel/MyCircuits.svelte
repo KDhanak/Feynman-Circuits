@@ -95,8 +95,10 @@
 				currentCircuitName.set(newName.trim());
 			}
 			showNotification('Circuit renamed!', 'success');
-		} catch {
-			showNotification('Failed to rename circuit.', 'error');
+		} catch (err: unknown) {
+			const apiMessage =
+				(err as { response?: { data?: { name?: string[] } } })?.response?.data?.name?.[0];
+			showNotification(apiMessage ?? 'Failed to rename circuit.', 'error');
 		}
 	}
 

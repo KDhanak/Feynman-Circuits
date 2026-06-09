@@ -73,6 +73,19 @@ export async function signOut() {
 	session.set({ status: "anonymous", user: null });
 }
 
+export async function updateProfile(data: { first_name: string; last_name: string }) {
+    const res = await api.patch('/accounts/api/auth/profile/', data);
+    session.update(s => s.status === 'authenticated' ? { ...s, user: res.data } : s);
+}
+
+export async function changePassword(data: {
+    current_password: string;
+    password: string;
+    password2: string;
+}) {
+    await api.post('/accounts/api/auth/change-password/', data);
+}
+
 export async function requestPasswordReset(email: string) {
 	return api.post("/accounts/api/auth/password-reset/", { email });
 }

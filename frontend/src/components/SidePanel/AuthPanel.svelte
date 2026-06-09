@@ -9,19 +9,19 @@
 	import OtpVerification from './OtpVerification.svelte';
 	import ResetPassword from './ResetPassword.svelte';
 	import MyCircuits from './MyCircuits.svelte';
+	import MyAccount from './MyAccount.svelte';
 	import { showNotification } from '$lib/utils/notificationUtils';
 
-	type AuthView = 'signin' | 'signup' | 'forgot' | 'otp' | 'reset';
+	type AuthView = 'signin' | 'signup' | 'forgot' | 'otp' | 'reset' | 'account';
 
 	let isOpen = false;
 	let circuitsOpen = false;
 	let activeView: AuthView = 'signin';
 	let dropdownOpen = false;
-	let loading = false;
-	let signoutMessage = '';
 	let prefilledSignInEmail = '';
 	let resetEmail = '';
 	let resetToken = '';
+	let resetReturnView: AuthView = 'signin';
 
 	const viewMeta: Record<
 		AuthView,
@@ -36,7 +36,8 @@
 		signup: { title: 'Create Account', showTabs: true, showBack: false },
 		forgot: { title: 'Forgot Password', showTabs: false, showBack: true, backTo: 'signin' },
 		otp: { title: 'Verify OTP', showTabs: false, showBack: true, backTo: 'forgot' },
-		reset: { title: 'Reset Password', showTabs: false, showBack: true, backTo: 'otp' }
+		reset: { title: 'Reset Password', showTabs: false, showBack: true, backTo: 'otp' },
+		account: { title: 'My Account', showTabs: false, showBack: false }
 	};
 
 	$: currentView = viewMeta[activeView];
@@ -61,10 +62,13 @@
 		activeView = 'signin';
 		resetEmail = '';
 		resetToken = '';
+		resetReturnView = 'signin';
 	}
 
 	function goBack() {
-		if (currentView.backTo) {
+		if (activeView === 'forgot' && $session.status === 'authenticated') {
+			activeView = 'account';
+		} else if (currentView.backTo) {
 			activeView = currentView.backTo;
 		}
 		resetToken = '';
@@ -88,21 +92,15 @@
 
 	async function logoutAndClose() {
 		await signOut();
-		signoutMessage = '';
-		loading = true;
 
 		try {
 			await loadSession();
 			showNotification('Signed out!', 'success');
-			setTimeout(() => {
-				signoutMessage = '';
-			}, 2000);
 		} catch (err: any) {
 			const data = err?.response?.data;
 			const errors = normalizeBackendErrors(data);
-			signoutMessage = errors.detail || 'Sign out failed';
+			showNotification(errors.detail || 'Sign out failed', 'error');
 		} finally {
-			loading = false;
 			dropdownOpen = false;
 		}
 	}
@@ -142,16 +140,29 @@
 						dropdownOpen = false;
 						circuitsOpen = true;
 					}}
-					class="btn-highlight-item rounded-t-sm"
-					>My Circuits</button
+					class="btn-highlight-item rounded-t-sm">My Circuits</button
+				>
+				<button
+					on:click={() => {
+						dropdownOpen = false;
+						activeView = 'account';
+						openDrawer();
+					}}
+					class="btn-highlight-item">My Account</button
+				>
+				<button
+					on:click={() => {
+						dropdownOpen = false;
+						openDrawer();
+					}}
+					class="btn-highlight-item">Settings</button
 				>
 				<button
 					on:click={() => {
 						logoutAndClose();
 						dropdownOpen = false;
 					}}
-					class="btn-highlight-danger rounded-b-sm"
-					>Sign out</button
+					class="btn-highlight-danger rounded-b-sm">Sign out</button
 				>
 			</div>
 		{/if}
@@ -170,7 +181,7 @@
 		transition:fade={{ duration: 300 }}
 	>
 		<aside
-			class="absolute right-0 top-0 h-full w-full sm:max-w-md border-l border-t border-b rounded-sm shadow-2xl"
+			class="absolute right-0 top-0 h-full w-full sm:max-w-md border-l border-t border-b rounded-sm shadow-2xl overflow-y-auto"
 			style="background-color: var(--color-surface); border-color: var(--color-text);"
 			aria-label="Authentication"
 			transition:fly={{ x: 400, duration: 300 }}
@@ -253,6 +264,7 @@
 								/>
 							{:else if activeView === 'forgot'}
 								<ForgotPassword
+									initialEmail={resetEmail}
 									onOtpSent={(email) => {
 										resetEmail = email;
 										activeView = 'otp';
@@ -271,9 +283,19 @@
 								<ResetPassword
 									{resetToken}
 									onResetDone={() => {
+										const returnTo = resetReturnView;
 										resetToken = '';
 										resetEmail = '';
-										activeView = 'signin';
+										resetReturnView = 'signin';
+										activeView = returnTo;
+									}}
+								/>
+							{:else if activeView === 'account'}
+								<MyAccount
+									onResetPassword={() => {
+										resetEmail = $session.user?.email ?? '';
+										resetReturnView = 'account';
+										activeView = 'forgot';
 									}}
 								/>
 							{/if}

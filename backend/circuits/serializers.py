@@ -22,6 +22,17 @@ class CircuitDetailSerializer(serializers.ModelSerializer):
         fields = ['circuit_id', 'name', 'description', 'ir', 'is_public', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
+    def validate_name(self, value):
+        user = self.context['request'].user
+        qs = Circuit.objects.filter(user=user, name=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "A circuit with this name already exists. Please choose a different name."
+            )
+        return value
+
     def validate_ir(self, value):
         if value.get('version') != '1.0':
             raise serializers.ValidationError("IR must have version '1.0'")

@@ -304,8 +304,8 @@
 				{/each}
 			</svg>
 		</div>
-		<p class="text-xs text-muted" style="color: var(--color-muted);">
-			Accurate for 3 Qubits only. For more qubits, please click the button in the top-right to toggle.
+		<p class="text-xs items-center text-center" style="color: var(--color-muted);">
+			Showing 8 top states.
 		</p>
 	{:else if shouldShowPopupButton}
 		{@const nonZero = probabilitiesArray.filter(p => p.prob > 0)}

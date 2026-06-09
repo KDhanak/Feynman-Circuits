@@ -10,6 +10,7 @@ let isReset = false;
 let nameResolved = false;
 let consecutiveFailures = 0;
 let initialized = false;
+let lastSaveError: unknown = null;
 const MAX_FAILURES = 3;
 
 circuitIR.subscribe(() => {
@@ -38,10 +39,10 @@ export function markNameResolved() {
     nameResolved = true;
 }
 
-async function attemptAutoSave() {
-    if (consecutiveFailures >= MAX_FAILURES) return;
-    if (get(session).status !== 'authenticated') return;
-    if (isReset) return;
+async function attemptAutoSave(): Promise<boolean> {
+    if (consecutiveFailures >= MAX_FAILURES) return false;
+    if (get(session).status !== 'authenticated') return false;
+    if (isReset) return false;
     try {
         const circuit_id = get(currentCircuitId);
         let name = get(currentCircuitName);
@@ -56,17 +57,22 @@ async function attemptAutoSave() {
         consecutiveFailures = 0;
         saveStatus.set('saved');
         setTimeout(() => saveStatus.set('idle'), 2000);
-    } catch {
+        return true;
+    } catch (err) {
+        lastSaveError = err;
         consecutiveFailures++;
         saveStatus.set('error');
         if (consecutiveFailures >= MAX_FAILURES) {
             showNotification("Auto-save failed multiple times. Please check your connection or save manually.", "error");
         }
+        return false;
     }
 }
 
 export async function manualSave(): Promise<void> {
     consecutiveFailures = 0;
-    await attemptAutoSave();
+    lastSaveError = null;
+    const success = await attemptAutoSave();
     isDirty = false;
+    if (!success) throw lastSaveError ?? new Error('Save failed');
 }
