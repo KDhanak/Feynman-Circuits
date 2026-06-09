@@ -6,10 +6,10 @@
 
 	$: overall = computeOverallBlochVector($simulationResult.blochVectors ?? []);
 
-	let sphereSize = 200;
+	let sphereSize = 250;
 
 	onMount(() => {
-		const update = () => { sphereSize = window.innerWidth < 768 ? 140 : 200; };
+		const update = () => { sphereSize = window.innerWidth < 768 ? 140 : 250; };
 		update();
 		window.addEventListener('resize', update);
 		return () => window.removeEventListener('resize', update);

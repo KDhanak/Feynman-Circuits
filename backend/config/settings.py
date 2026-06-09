@@ -71,9 +71,11 @@ CORS_ALLOW_CREDENTIALS = True
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    # Render terminates SSL at the edge; backend receives HTTP internally.
+    # This header tells Django to trust the X-Forwarded-Proto header from Render's proxy.
+    # SECURE_SSL_REDIRECT must NOT be set — it would redirect Render's health checks and crash the service.
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 AUTH_USER_MODEL = "accounts.User"

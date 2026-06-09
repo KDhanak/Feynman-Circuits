@@ -2,6 +2,8 @@
 	import { simulationResult } from '$lib/IR/stores';
 	import { circuitIR } from '$lib/IR/stores';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
+	import Icon from '@iconify/svelte';
 
 	let popupWindow: Window | null = null;
 
@@ -65,8 +67,19 @@
 	}
 
 	$: probabilitiesArray = toEntriesArray($simulationResult?.probabilities);
-	$: columns = chunkArray(probabilitiesArray, 16);
-	$: shouldShowPopupButton = $circuitIR.registers.q >= 3;
+	$: columns = chunkArray(probabilitiesArray, 4);
+	$: shouldShowPopupButton = $circuitIR.registers.q >= 4;
+
+	let showHistogram = false;
+	$: isMeasured = ($simulationResult.measuredQubits ?? []).length > 0;
+	$: barColor = isMeasured ? 'var(--color-measured)' : 'var(--color-probability)';
+	$: histogramStates = shouldShowPopupButton
+		? [...probabilitiesArray].sort((a, b) => b.prob - a.prob).slice(0, 8)
+		: probabilitiesArray;
+	const CHART_H = 115;
+	const CHART_TOP = 28;
+	const CHART_LEFT = 35;
+	const CHART_W = 257;
 
 	function openResultsInNewWindow() {
 		if (popupWindow && !popupWindow.closed) {
@@ -234,16 +247,125 @@
 	});
 </script>
 
-<div style="color: var(--color-text)">
-	{#if shouldShowPopupButton}
-		<div class="p-5 rounded-sm text-center">
-			<p class="text-base font-medium" style="color: var(--color-branding);">{$circuitIR.registers.q} Qubits — Many States</p>
+<div class="h-full flex flex-col" style="color: var(--color-text)">
+	<!-- View toggle -->
+	<div class="flex items-center justify-end px-3 pt-2 shrink-0">
+		<button
+			type="button"
+			on:click={() => showHistogram = !showHistogram}
+			class="p-1 rounded cursor-pointer transition-colors"
+			style="color: var(--color-muted);"
+			title={showHistogram ? 'Switch to list view' : 'Switch to histogram'}
+		>
+			<Icon icon={showHistogram ? 'ph:list-bold' : 'ph:chart-bar-bold'} width="20" height="20" />
+		</button>
+	</div>
+
+	{#if showHistogram}
+		<!-- Histogram view — shows top 8 states for 4+ qubits, all states otherwise -->
+		{@const n = histogramStates.length}
+		{@const slotW = n > 0 ? CHART_W / n : CHART_W}
+		{@const barW = slotW * 0.55}
+		<div class="flex-1 min-h-0 px-2 pb-2" transition:fade={{ duration: 400 }}>
+			<svg viewBox="0 0 300 215" class="w-full h-full" role="img" aria-label="Probability histogram">
+				<!-- Gridlines at 0%, 25%, 50%, 75%, 100% -->
+				{#each [0, 0.25, 0.5, 0.75, 1] as tick}
+					{@const y = CHART_TOP + CHART_H - tick * CHART_H}
+					<line x1={CHART_LEFT} x2={CHART_LEFT + CHART_W} y1={y} y2={y}
+						stroke="var(--color-ternary-2)" stroke-width={tick === 0 ? 1 : 0.5} />
+					<text x={CHART_LEFT - 3} y={y + 4} text-anchor="end" font-size="13"
+						fill="var(--color-muted)">{Math.round(tick * 100)}%</text>
+				{/each}
+				<!-- Bars -->
+				{#each histogramStates as item, i}
+					{@const barH = item.prob * CHART_H}
+					{@const x = CHART_LEFT + i * slotW + (slotW - barW) / 2}
+					{@const cx = x + barW / 2}
+					{@const barY = CHART_TOP + CHART_H - barH}
+					<rect class="histogram-bar" x={x} y={barY} width={barW} height={barH}
+						style="animation-delay: {i * 60}ms"
+						fill={item.prob > 0 ? barColor : 'var(--color-ternary-2)'}
+						rx="1.5" />
+					{#if item.prob > 0.015}
+						<text x={cx} y={barY - 3} text-anchor="middle" font-size="10"
+							fill={barColor} font-weight="600">
+							{(item.prob * 100).toFixed(1)}%
+						</text>
+					{/if}
+					<!-- State label, rotated -->
+					<text
+						x={cx} y={CHART_TOP + CHART_H + 7}
+						text-anchor="end"
+						font-size="13"
+						fill="var(--color-muted)"
+						font-family="ui-monospace,monospace"
+						transform="rotate(-45 {cx} {CHART_TOP + CHART_H + 7})"
+					>|{item.state}⟩</text>
+				{/each}
+			</svg>
+		</div>
+	{:else if shouldShowPopupButton}
+		{@const nonZero = probabilitiesArray.filter(p => p.prob > 0)}
+		{@const top3 = [...probabilitiesArray].sort((a, b) => b.prob - a.prob).slice(0, 3)}
+		{@const totalStates = Math.pow(2, $circuitIR.registers.q)}
+		<div class="p-4 flex flex-col gap-3">
+			<!-- Header -->
+			<div class="flex items-center justify-between">
+				<p class="text-base font-semibold" style="color: var(--color-branding);">
+					{$circuitIR.registers.q} Qubits
+				</p>
+				<span class="text-sm px-2 py-0.5 rounded-sm" style="background: color-mix(in srgb, var(--color-branding) 15%, transparent); color: var(--color-branding);">
+					{nonZero.length} / {totalStates} states
+				</span>
+			</div>
+
+			<!-- Quantum state -->
+			{#if $simulationResult.formattedState}
+				<p class="text-sm font-mono truncate" style="color: var(--color-muted);" title={$simulationResult.formattedState}>
+					{$simulationResult.formattedState}
+				</p>
+			{/if}
+
+			<!-- Measured qubits -->
+			{#if ($simulationResult.measuredQubits ?? []).length > 0}
+				<p class="text-sm font-medium">
+					Measured:
+					<span class="font-semibold px-1.5 py-0.5 rounded text-sm" style="color: var(--color-measured); background: color-mix(in srgb, var(--color-measured) 15%, transparent);">
+						{($simulationResult.measuredQubits ?? []).map(q => `q${q}`).join(', ')}
+					</span>
+				</p>
+			{/if}
+
+			<!-- Classical bits -->
+			{#if ($simulationResult.classicalBits?.size ?? 0) > 0}
+				<p class="text-sm font-medium">
+					Classical:
+					<span class="font-semibold px-1.5 py-0.5 rounded text-sm" style="color: var(--color-measured); background: color-mix(in srgb, var(--color-measured) 15%, transparent);">
+						{Array.from(($simulationResult.classicalBits ?? new Map()).entries()).map(([q, v]) => `q${q}=${v}`).join(', ')}
+					</span>
+				</p>
+			{/if}
+
+			<!-- Top 3 states -->
+			{#if top3.length > 0}
+				<div>
+					<p class="text-sm font-medium mb-1" style="color: var(--color-muted);">Top states</p>
+					{#each top3 as item}
+						<div class="flex justify-between items-center py-1 border-b text-sm font-mono" style="border-color: var(--color-ternary-2);">
+							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">|{item.state}⟩</span>
+							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">{(item.prob * 100).toFixed(2)}%</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
+
+			<!-- Full results button -->
 			<button
 				type="button"
-				class="mt-3 px-6 py-2.5 cursor-pointer text-sm font-medium rounded-sm border" style="color: var(--color-branding); border-color: var(--color-branding); transition-colors"
+				class="mt-1 w-full px-4 py-2 cursor-pointer text-sm font-medium rounded-sm border" style="color: var(--color-branding); border-color: var(--color-branding);"
 				on:click={openResultsInNewWindow}
 			>
-				Open Live Results in New Window
+				View All {totalStates} States
 			</button>
 		</div>
 	{:else}
@@ -314,7 +436,19 @@
 	{/if}
 </div>
 
+
 <style>
+	.histogram-bar {
+		transform-box: fill-box;
+		transform-origin: bottom center;
+		animation: bar-grow 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	}
+
+	@keyframes bar-grow {
+		from { transform: scaleY(0); opacity: 0; }
+		to   { transform: scaleY(1); opacity: 1; }
+	}
+
 	.prob-columns {
 		display: flex;
 		gap: 6rem;

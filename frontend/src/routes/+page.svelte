@@ -93,8 +93,8 @@
 		<CircuitLayout />
 	</div>
 	<!-- Results row — fixed at bottom, never scrolls -->
-	<div class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-end gap-4 shrink-0">
-		<div class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-1/5">
+	<div class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0">
+		<div class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-sm overflow-y-auto">
 			<SimulationResult />
 		</div>
 		<div class="shrink-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4">
