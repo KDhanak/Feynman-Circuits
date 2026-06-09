@@ -50,7 +50,8 @@ if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     AUTH_FROM_EMAIL = "noreply@localhost"
 else:
-    ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
+    _allowed_hosts = os.environ.get("ALLOWED_HOSTS", "")
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(",") if h.strip()] or ["*"]
     CORS_ALLOWED_ORIGINS = [h.strip() for h in os.environ.get("FRONTEND_URL", "").split(",") if h.strip()]
     CSRF_TRUSTED_ORIGINS = [h.strip() for h in os.environ.get("FRONTEND_URL", "").split(",") if h.strip()]
     SESSION_COOKIE_SAMESITE = "None"
@@ -70,6 +71,7 @@ CORS_ALLOW_CREDENTIALS = True
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
@@ -98,7 +100,7 @@ else:
     DATABASES = {
         "default": dj_database_url.parse(
             os.environ["DATABASE_URL"],
-            conn_max_age=600,
+            conn_max_age=0,
             ssl_require=True,
         )
     }
