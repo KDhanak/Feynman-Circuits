@@ -262,11 +262,11 @@
 	</div>
 
 	{#if showHistogram}
-		<!-- Histogram view — shows top 8 states for 4+ qubits, all states otherwise -->
+		<!-- Histogram view — shows 8 states for 3 qubits -->
 		{@const n = histogramStates.length}
 		{@const slotW = n > 0 ? CHART_W / n : CHART_W}
 		{@const barW = slotW * 0.55}
-		<div class="flex-1 min-h-0 px-2 pb-2" transition:fade={{ duration: 400 }}>
+		<div class="flex-1 min-h-0 px-2 pb-2" in:fade={{ duration: 350 }}>
 			<svg viewBox="0 0 300 215" class="w-full h-full" role="img" aria-label="Probability histogram">
 				<!-- Gridlines at 0%, 25%, 50%, 75%, 100% -->
 				{#each [0, 0.25, 0.5, 0.75, 1] as tick}
@@ -304,6 +304,9 @@
 				{/each}
 			</svg>
 		</div>
+		<p class="text-xs text-muted" style="color: var(--color-muted);">
+			Accurate for 3 Qubits only. For more qubits, please click the button in the top-right to toggle.
+		</p>
 	{:else if shouldShowPopupButton}
 		{@const nonZero = probabilitiesArray.filter(p => p.prob > 0)}
 		{@const top3 = [...probabilitiesArray].sort((a, b) => b.prob - a.prob).slice(0, 3)}

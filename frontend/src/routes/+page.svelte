@@ -92,12 +92,12 @@
 	<div class="shadow-sm shadow-ternary-1 bg-ternary-3/20 w-[96%] flex-1 min-h-0 overflow-hidden">
 		<CircuitLayout />
 	</div>
-	<!-- Results row — fixed at bottom, never scrolls -->
-	<div class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0">
+	<!-- Results row — fixed height on desktop, never shifts layout -->
+	<div class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5">
 		<div class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-sm overflow-y-auto">
 			<SimulationResult />
 		</div>
-		<div class="shrink-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4">
+		<div class="shrink-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden">
 			<OverallBlochSphere />
 		</div>
 	</div>
