@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { UnitaryOperation, MeasureOperation } from '$lib/IR/schema';
+import { updateOperation } from '$lib/IR/operations';
 	import { tick, onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { simulationResult, circuitIR } from '$lib/IR/stores';
@@ -37,6 +38,14 @@
 	let contextMenuVisible = false;
 	let contextMenuX = 0;
 	let contextMenuY = 0;
+	let gateMenuVisible = false;
+	let gateMenuX = 0;
+	let gateMenuY = 0;
+	let gateMenuGate: UnitaryOperation | null = null;
+	let gateMenuAngle = 0;
+	let gateMenuTarget0 = 0;
+	let gateMenuTarget1 = 1;
+	let gateMenuError = '';
 	let isDragSelecting = false;
 	let dragStart: { x: number; y: number } | null = null;
 	let dragCurrent: { x: number; y: number } | null = null;
@@ -115,6 +124,28 @@
 					});
 				}
 			}
+		}
+		// SWAP connectors — line between the two × symbols
+		for (const op of $circuitIR.operations) {
+			if (op.kind !== 'unitary') continue;
+			const unitOp = op as UnitaryOperation;
+			if (unitOp.gate !== 'swap' || unitOp.targets.length !== 2) continue;
+			const [t1, t2] = unitOp.targets;
+			const el1 = boardEl.querySelector(
+				`[data-col="${unitOp.column}"][data-qubit="${t1}"][data-type="GATE"]`
+			);
+			const el2 = boardEl.querySelector(
+				`[data-col="${unitOp.column}"][data-qubit="${t2}"][data-type="GATE"]`
+			);
+			if (!el1 || !el2) continue;
+			const c1 = getCenter(el1, boardRect);
+			const c2 = getCenter(el2, boardRect);
+			next.push({
+				key: `${unitOp.id}-swap`,
+				left: c1.x,
+				top: Math.min(c1.y, c2.y),
+				height: Math.abs(c1.y - c2.y)
+			});
 		}
 
 		connectors = next;
@@ -255,10 +286,59 @@
 		contextMenuX = e.clientX;
 		contextMenuY = e.clientY;
 		contextMenuVisible = true;
+		closeGateMenu();
 	}
 
 	function closeContextMenu() {
 		contextMenuVisible = false;
+	}
+
+	function closeGateMenu() {
+		gateMenuVisible = false;
+		gateMenuGate = null;
+		gateMenuError = '';
+	}
+
+	function handleGateContextMenu(e: MouseEvent, gate: UnitaryOperation) {
+		const editableGates = ['rx', 'ry', 'rz', 'swap'];
+		if (!editableGates.includes(gate.gate)) return;
+		e.preventDefault();
+		e.stopPropagation();
+		contextMenuVisible = false;
+		gateMenuGate = gate;
+		gateMenuX = e.clientX;
+		gateMenuY = e.clientY;
+		gateMenuError = '';
+		if (gate.gate === 'swap') {
+			gateMenuTarget0 = gate.targets[0];
+			gateMenuTarget1 = gate.targets[1] ?? 1;
+		} else {
+			gateMenuAngle = gate.params[0] ?? 0;
+		}
+		gateMenuVisible = true;
+	}
+
+	function applyGateEdit() {
+		if (!gateMenuGate) return;
+		const gate = gateMenuGate;
+		gateMenuError = '';
+
+		if (gate.gate === 'swap') {
+			const numQubits = $circuitIR.registers.q;
+			const t0 = Number(gateMenuTarget0);
+			const t1 = Number(gateMenuTarget1);
+			if (t0 === t1) { gateMenuError = 'Targets must be different.'; return; }
+			if (t0 < 0 || t0 >= numQubits || t1 < 0 || t1 >= numQubits) {
+				gateMenuError = `Each target must be between 0 and ${numQubits - 1}.`; return;
+			}
+			updateOperation(gate.id, op => ({ ...(op as UnitaryOperation), targets: [t0, t1] }));
+		} else {
+			const angle = Number(gateMenuAngle);
+			if (isNaN(angle)) { gateMenuError = 'Angle must be a number.'; return; }
+			updateOperation(gate.id, op => ({ ...(op as UnitaryOperation), params: [angle] }));
+		}
+		triggerSimulation($circuitIR);
+		closeGateMenu();
 	}
 
 	function handleGateSelection(gateId: string, event: MouseEvent) {
@@ -378,9 +458,11 @@
 	onMount(() => {
 		const handleClickOutside = (e: MouseEvent) => {
 			const target = e.target as HTMLElement;
-			const contextMenu = document.querySelector('[role="menu"]');
-			if (contextMenuVisible && contextMenu && !contextMenu.contains(target)) {
+			if (contextMenuVisible && !target.closest('.board-ctx-menu')) {
 				closeContextMenu();
+			}
+			if (gateMenuVisible && !target.closest('.gate-ctx-menu')) {
+				closeGateMenu();
 			}
 		};
 
@@ -448,7 +530,11 @@
 		></div>
 	{/if}
 	<div class="rounded-sm overflow-hidden h-full">
-		<div class="space-y-1 p-2 overflow-y-auto overflow-x-hidden h-full" bind:this={scrollContainer} on:scroll={recomputeConnectorsSync}>
+		<div
+			class="space-y-1 p-2 overflow-y-auto overflow-x-hidden h-full"
+			bind:this={scrollContainer}
+			on:scroll={recomputeConnectorsSync}
+		>
 			<!-- Connectors -->
 			{#each connectors as line (line.key)}
 				<div
@@ -557,15 +643,30 @@
 										}
 									}}
 									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
+									on:contextmenu={(e) => handleGateContextMenu(e, gate)}
 									on:touchstart={(e) =>
 										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gate })}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
-									class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-white text-secondary-4 active:bg-secondary-3 border-secondary-4 active:text-white active:border-white shadow transition-colors duration-100"
+									class={`gate z-10 cursor-grab select-none rounded-sm border border-secondary-4 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center ${
+										gate.gate === 'swap'
+											? 'bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white h-11 w-10 font-extralight'
+											: 'bg-white text-secondary-4 active:bg-secondary-3 px-3 py-2 text-base'
+									}`}
 									class:selected={selectedGateIds.has(gate.id)}
 									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 								>
-									{gate.gate.toUpperCase()}
+									{#if gate.gate === 'swap'}
+										<span class="text-[40px]">×</span>
+									{:else if gate.gate === 'x'}
+										<svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
+											<circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="2"/>
+											<line x1="2"  y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="2"/>
+											<line x1="14" y1="2"  x2="14" y2="26" stroke="currentColor" stroke-width="2"/>
+										</svg>
+									{:else}
+										{gate.gate.toUpperCase()}
+									{/if}
 								</div>
 							{/if}
 
@@ -591,9 +692,20 @@
 											}
 										}
 									}}
-									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'CONTROL', qubit: wire.qubit })}
+									on:dblclick={() =>
+										handleDoubleClick({
+											source: 'wire',
+											gateId: gate.id,
+											gateType: 'CONTROL',
+											qubit: wire.qubit
+										})}
 									on:touchstart={(e) =>
-										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: 'CONTROL', qubit: wire.qubit })}
+										handleTouchStart(e, {
+											source: 'wire',
+											gateId: gate.id,
+											gateType: 'CONTROL',
+											qubit: wire.qubit
+										})}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
 									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border bg-white active:bg-secondary-3 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
@@ -625,7 +737,13 @@
 											}
 										}
 									}}
-									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'ANTI_CONTROL', qubit: wire.qubit })}
+									on:dblclick={() =>
+										handleDoubleClick({
+											source: 'wire',
+											gateId: gate.id,
+											gateType: 'ANTI_CONTROL',
+											qubit: wire.qubit
+										})}
 									on:touchstart={(e) =>
 										handleTouchStart(e, {
 											source: 'wire',
@@ -744,7 +862,11 @@
 
 			<!-- Ghost wire -->
 			{#if showGhostWire}
-				<div class="ghost-wire relative flex h-14 items-center" data-qubit={$circuitIR.registers.q} transition:slide={{ duration: 300 }}>
+				<div
+					class="ghost-wire relative flex h-14 items-center"
+					data-qubit={$circuitIR.registers.q}
+					transition:slide={{ duration: 300 }}
+				>
 					<div
 						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30"
 						style="background-color: var(--color-muted);"
@@ -779,10 +901,10 @@
 		</div>
 	</div>
 
-	<!-- Context Menu -->
+	<!-- Board Context Menu -->
 	{#if contextMenuVisible}
 		<div
-			class="ctx-menu z-100"
+			class="ctx-menu board-ctx-menu z-100"
 			style="left: {contextMenuX}px; top: {contextMenuY}px;"
 			role="menu"
 			tabindex="0"
@@ -822,6 +944,71 @@
 				<Icon icon="material-symbols:restart-alt" width="16" height="16" />
 				Reset Circuit
 			</button>
+		</div>
+	{/if}
+
+	<!-- Gate Edit Context Menu -->
+	{#if gateMenuVisible && gateMenuGate}
+		<div
+			class="ctx-menu gate-ctx-menu z-200 w-52"
+			style="left: {gateMenuX}px; top: {gateMenuY}px;"
+			role="menu"
+			tabindex="0"
+			on:click|stopPropagation={() => {}}
+			on:keydown={(e) => { if (e.key === 'Escape') closeGateMenu(); }}
+		>
+			<div class="px-4 py-2 text-xs font-semibold text-gray-500 border-b border-gray-100 uppercase tracking-wide">
+				Edit {gateMenuGate.gate.toUpperCase()} Gate
+			</div>
+
+			{#if gateMenuGate.gate === 'swap'}
+				<div class="px-4 py-3 space-y-2">
+					<div>
+						<label class="block text-xs text-gray-500 mb-1" for="swap-t0">Target 1</label>
+						<input
+							id="swap-t0"
+							type="number"
+							min="0"
+							max={$circuitIR.registers.q - 1}
+							bind:value={gateMenuTarget0}
+							class="input-field py-1.5 text-sm"
+						/>
+					</div>
+					<div>
+						<label class="block text-xs text-gray-500 mb-1" for="swap-t1">Target 2</label>
+						<input
+							id="swap-t1"
+							type="number"
+							min="0"
+							max={$circuitIR.registers.q - 1}
+							bind:value={gateMenuTarget1}
+							class="input-field py-1.5 text-sm"
+						/>
+					</div>
+					{#if gateMenuError}
+						<p class="text-xs text-red-500">{gateMenuError}</p>
+					{/if}
+				</div>
+			{:else}
+				<div class="px-4 py-3">
+					<label class="block text-xs text-gray-500 mb-1" for="gate-angle">Angle (radians)</label>
+					<input
+						id="gate-angle"
+						type="number"
+						step="0.01"
+						bind:value={gateMenuAngle}
+						class="input-field py-1.5 text-sm"
+					/>
+					{#if gateMenuError}
+						<p class="mt-1 text-xs text-red-500">{gateMenuError}</p>
+					{/if}
+				</div>
+			{/if}
+
+			<div class="flex gap-2 px-4 py-2.5 border-t border-gray-100">
+				<button class="btn-primary flex-1 py-1.5 text-sm" on:click={applyGateEdit}>Apply</button>
+				<button class="btn-secondary flex-1 py-1.5 text-sm" on:click={closeGateMenu}>Cancel</button>
+			</div>
 		</div>
 	{/if}
 </div>

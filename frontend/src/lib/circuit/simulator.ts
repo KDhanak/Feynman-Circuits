@@ -86,7 +86,23 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 
 				let matrix: Complex[][];
 
-				if (op.gate === 'rx') {
+				if (op.gate === 'swap') {
+					if (op.targets.length !== 2) continue;
+					const [q1, q2] = op.targets;
+					const p1 = numQubits - 1 - q1;
+					const p2 = numQubits - 1 - q2;
+					const swapped = [...state];
+					for (let i = 0; i < dim; i++) {
+						const b1 = (i >> p1) & 1;
+						const b2 = (i >> p2) & 1;
+						if (b1 !== b2) {
+							const j = i ^ (1 << p1) ^ (1 << p2);
+							if (i < j) { [swapped[i], swapped[j]] = [swapped[j], swapped[i]]; }
+						}
+					}
+					state = swapped;
+					continue;
+				} else if (op.gate === 'rx') {
 					const angle = op.params[0] ?? 0;
 					const rxGate = createRXGate(angle);
 					if (op.controls.length === 0 && op.antiControls.length === 0) {
@@ -156,10 +172,10 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 }
 
 export function resetCircuit() {
-const current = get(circuitIR);
-const qubits = current.registers.q || 1;
+	const current = get(circuitIR);
+	const qubits = current.registers.q || 1;
 
-	circuitIR.update(c => ({...c, operations: []}));
+	circuitIR.update(c => ({ ...c, operations: [] }));
 	markAsReset();
 
 	const probabilities: { [state: string]: number } = {};

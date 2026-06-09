@@ -13,7 +13,7 @@ import type {
 const VALID_VERSION = '1.0';
 
 // List of valid unitary gates we currently support
-const VALID_UNITARY_GATES: CanonicalUnitaryGate[] = ['x', 'y', 'z', 'h', 's', 't', 'rx', 'ry', 'rz'] as const;
+const VALID_UNITARY_GATES: CanonicalUnitaryGate[] = ['x', 'y', 'z', 'h', 's', 't', 'rx', 'ry', 'rz', 'swap'] as const;
 
 // Parametric gates that require parameters
 const PARAMETRIC_GATES = new Set(['rx', 'ry', 'rz']);
@@ -192,6 +192,11 @@ function validateUnitaryOperation(
     if (hasDuplicates(targets)) {
         errors.push(`${opLabel}: duplicate targets.`);
     }
+
+    if (op.gate === 'swap' && targets.length !== 2) {
+        errors.push(`${opLabel}: swap gate requires exactly 2 targets.`);
+    }
+
     if (hasDuplicates(controls)) {
         errors.push(`${opLabel}: duplicate controls.`);
     }

@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Circuit
 
 VALID_KINDS = {'unitary', 'measure', 'reset', 'barrier'}
-VALID_GATES = {'x', 'y', 'z', 'h', 's', 't', 'rx', 'ry', 'rz'}
+VALID_GATES = {'x', 'y', 'z', 'h', 's', 't', 'rx', 'ry', 'rz', 'swap'}
 
 
 class CircuitListSerializer(serializers.ModelSerializer):

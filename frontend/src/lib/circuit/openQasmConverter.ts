@@ -121,6 +121,10 @@ function unitaryToOpenQasm3(op: UnitaryOperation): string {
 	// Handle controlled gates
 	if (op.controls.length > 0 || op.antiControls.length > 0) {
 		instruction = generateControlledGate3(op);
+	} else if (gate === 'swap') {
+		const t0 = op.targets[0];
+		const t1 = op.targets[1];
+		instruction = `swap q[${t0}], q[${t1}];`;
 	} else {
 		// Single qubit gates
 		if (['rx', 'ry', 'rz'].includes(gate)) {
@@ -143,6 +147,10 @@ function unitaryToOpenQasm2(op: UnitaryOperation): string {
 	// Handle controlled gates
 	if (op.controls.length > 0 || op.antiControls.length > 0) {
 		instruction = generateControlledGate2(op);
+	} else if (gate === 'swap') {
+		const t0 = op.targets[0];
+		const t1 = op.targets[1];
+		instruction = `swap q[${t0}], q[${t1}];`;
 	} else {
 		// Single qubit gates
 		if (['rx', 'ry', 'rz'].includes(gate)) {
@@ -487,6 +495,23 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 			column,
 			targets: [target],
 			controls: [control1, control2],
+			antiControls: [],
+			params: []
+		};
+	}
+
+	// SWAP: swap q[0], q[1];
+	const swapMatch = line.match(/^swap\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	if (swapMatch) {
+		const t0 = parseInt(swapMatch[1], 10);
+		const t1 = parseInt(swapMatch[2], 10);
+		return {
+			id: crypto.randomUUID(),
+			kind: 'unitary',
+			gate: 'swap',
+			column,
+			targets: [t0, t1],
+			controls: [],
 			antiControls: [],
 			params: []
 		};

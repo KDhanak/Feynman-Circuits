@@ -113,7 +113,7 @@ export function handleTouchEnd(event: TouchEvent) {
         col = Math.max(0, Math.min(col, MAX_COLUMNS - 1));
 
         const syntheticEvent = {
-            preventDefault: () => {},
+            preventDefault: () => { },
             dataTransfer: { getData: () => JSON.stringify(touchData) }
         } as unknown as DragEvent;
         handleDrop(syntheticEvent, col, qubit);
@@ -169,7 +169,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
             const sourceCol = sourceOp.column;
             const siblings = ir.operations.filter(
                 op => op.kind === 'unitary' && op.column === sourceCol &&
-                (op as UnitaryOperation)[field].includes(controlQubit)
+                    (op as UnitaryOperation)[field].includes(controlQubit)
             );
             for (const sib of siblings) {
                 const targetQubit = (sib as UnitaryOperation).targets[0];
@@ -180,6 +180,26 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
             }
             for (const sib of siblings) {
                 updateOperation(sib.id, op => ({ ...op, column: col } as CircuitOperation));
+            }
+            triggerSimulation(get(circuitIR));
+            return;
+        }
+
+        // SWAP gate: both targets travel together — only the column changes
+        const draggedOp = ir.operations.find(op => op.id === parsed.gateId);
+        const isSwap = draggedOp?.kind === 'unitary' && (draggedOp as UnitaryOperation).gate === 'swap';
+        if (isSwap && draggedOp) {
+            const swapOp = draggedOp as UnitaryOperation;
+            for (const target of swapOp.targets) {
+                if (isCellOccupied(ir, col, target, swapOp.id)) {
+                    console.warn(`Cell (${col}, q=${target}) is occupied.`);
+                    return;
+                }
+            }
+            if (parsed.isCopy) {
+                insertOperation({ ...swapOp, id: crypto.randomUUID(), column: col });
+            } else {
+                updateOperation(parsed.gateId, op => ({ ...op, column: col }));
             }
             triggerSimulation(get(circuitIR));
             return;
@@ -446,6 +466,39 @@ function _dropPaletteGate(
         return;
     }
 
+    if (upperType === 'SWAP') {
+        const occupied = isCellOccupied(ir, col, qubit);
+        if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
+
+        const secondQubitStr = prompt(
+            `Enter the second qubit index to SWAP with (0–${ir.registers.q - 1}):`,
+            String(qubit + 1 < ir.registers.q ? qubit + 1 : qubit - 1)
+        );
+        if (secondQubitStr === null) return;
+        const secondQubit = parseInt(secondQubitStr, 10);
+
+        if (isNaN(secondQubit) || secondQubit < 0 || secondQubit >= ir.registers.q || secondQubit === qubit) {
+            console.warn('Invalid second qubit for SWAP.'); return;
+        }
+        if (isCellOccupied(ir, col, secondQubit)) {
+            console.warn(`Cell (${col}, q=${secondQubit}) is occupied.`); return;
+        }
+
+        const unitaryOp: UnitaryOperation = {
+            id: crypto.randomUUID(),
+            kind: 'unitary',
+            gate: 'swap',
+            column: col,
+            targets: [qubit, secondQubit],
+            controls: [],
+            antiControls: [],
+            params: [],
+        };
+        insertOperation(unitaryOp);
+        triggerSimulation(get(circuitIR));
+        return;
+    }
+
     // Standard unitary gate
     const occupied = isCellOccupied(ir, col, qubit);
     if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
@@ -511,7 +564,7 @@ export function handlePaletteDrop(e: DragEvent) {
 /*──────────────────────── double-click ──────────────────*/
 
 export function handleDoubleClick(data: GateData) {
-    const valid = ['X', 'Y', 'Z', 'H', 'S', 'T', 'RX', 'RY', 'RZ', 'CONTROL', 'ANTI_CONTROL', 'MEASURE'];
+    const valid = ['X', 'Y', 'Z', 'H', 'S', 'T', 'RX', 'RY', 'RZ', 'CONTROL', 'ANTI_CONTROL', 'MEASURE', 'SWAP'];
 
     if (data.source === 'palette' && data.gateType) {
         if (!valid.includes(data.gateType.toUpperCase())) return;
@@ -531,7 +584,7 @@ export function handleDoubleClick(data: GateData) {
             const field = data.gateType === 'CONTROL' ? 'controls' : 'antiControls';
             const siblings = ir.operations.filter(
                 op => op.kind === 'unitary' && op.column === col &&
-                (op as UnitaryOperation)[field].includes(qubitToRemove)
+                    (op as UnitaryOperation)[field].includes(qubitToRemove)
             );
             for (const sib of siblings) {
                 updateOperation(sib.id, op => ({
