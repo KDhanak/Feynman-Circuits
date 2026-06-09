@@ -26,10 +26,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key" if DEBUG else None)
+if not DEBUG and not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable must be set in production.")
 
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
@@ -48,9 +50,9 @@ if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     AUTH_FROM_EMAIL = "noreply@localhost"
 else:
-    ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
-    CORS_ALLOWED_ORIGINS = os.environ.get("FRONTEND_URL", "").split(",")
-    CSRF_TRUSTED_ORIGINS = os.environ.get("FRONTEND_URL", "").split(",")
+    ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
+    CORS_ALLOWED_ORIGINS = [h.strip() for h in os.environ.get("FRONTEND_URL", "").split(",") if h.strip()]
+    CSRF_TRUSTED_ORIGINS = [h.strip() for h in os.environ.get("FRONTEND_URL", "").split(",") if h.strip()]
     SESSION_COOKIE_SAMESITE = "None"
     CSRF_COOKIE_SAMESITE = "None"
     SESSION_COOKIE_SECURE = True
@@ -69,6 +71,8 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -151,6 +155,13 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "accounts.authentication.CookieJWTAuthentication",
     ),
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "password_reset": "5/hour",
+    },
 }
 
 # Password validation

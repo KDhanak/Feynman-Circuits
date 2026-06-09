@@ -530,7 +530,7 @@
 									aria-label="Control gate"
 									tabindex="0"
 									draggable="true"
-									on:dragstart={(e) => handleGateDragStart(e, gate.id)}
+									on:dragstart={(e) => handleGateDragStart(e, gate.id, 'CONTROL', wire.qubit)}
 									on:dragend={() => isDragging.set(false)}
 									on:click={(e) => handleGateSelection(gate.id, e)}
 									on:keydown={(e) => {
@@ -542,9 +542,9 @@
 											}
 										}
 									}}
-									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
+									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'CONTROL', qubit: wire.qubit })}
 									on:touchstart={(e) =>
-										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: 'CONTROL' })}
+										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: 'CONTROL', qubit: wire.qubit })}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}
 									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border bg-white active:bg-secondary-3 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
@@ -564,7 +564,7 @@
 									aria-label="Anti-control gate"
 									tabindex="0"
 									draggable="true"
-									on:dragstart={(e) => handleGateDragStart(e, gate.id)}
+									on:dragstart={(e) => handleGateDragStart(e, gate.id, 'ANTI_CONTROL', wire.qubit)}
 									on:dragend={() => isDragging.set(false)}
 									on:click={(e) => handleGateSelection(gate.id, e)}
 									on:keydown={(e) => {
@@ -576,12 +576,13 @@
 											}
 										}
 									}}
-									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
+									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'ANTI_CONTROL', qubit: wire.qubit })}
 									on:touchstart={(e) =>
 										handleTouchStart(e, {
 											source: 'wire',
 											gateId: gate.id,
-											gateType: 'ANTI_CONTROL'
+											gateType: 'ANTI_CONTROL',
+											qubit: wire.qubit
 										})}
 									on:touchmove={handleTouchMove}
 									on:touchend={handleTouchEnd}

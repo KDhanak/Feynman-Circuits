@@ -26,27 +26,28 @@ class CircuitViewSet(ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
 
-        if partial:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
+        # Try to find an existing circuit owned by this user
+        queryset = Circuit.objects.filter(id=self.kwargs['pk'], user=request.user)
+        instance = queryset.first()
 
-        pk = kwargs.get('pk')
-        circuit, created = Circuit.objects.update_or_create(
-            id=pk,
-            user=request.user,
-            defaults={
-                'name': request.data.get('name', 'Untitled Circuit'),
-                'ir': request.data.get('ir'),
-                'description': request.data.get('description', ''),
-                'is_public': request.data.get('is_public', False),
-            }
-        )
-        serializer = self.get_serializer(circuit)
-        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        return Response(serializer.data, status=status_code)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        if instance is None:
+            # First save for this circuit — create it with the client-generated UUID
+            Circuit.objects.create(
+                id=self.kwargs['pk'],
+                user=request.user,
+                name=serializer.validated_data.get('name', 'Untitled Circuit'),
+                ir=serializer.validated_data.get('ir'),
+                description=serializer.validated_data.get('description', ''),
+                is_public=serializer.validated_data.get('is_public', False),
+            )
+            circuit = Circuit.objects.get(id=self.kwargs['pk'])
+            return Response(self.get_serializer(circuit).data, status=status.HTTP_201_CREATED)
+
+        serializer.save(user=request.user)
+        return Response(serializer.data)
 
     def next_name(self, request):
         name = Circuit.next_untitled_name(request.user)

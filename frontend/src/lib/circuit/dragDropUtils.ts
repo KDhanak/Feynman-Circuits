@@ -45,9 +45,9 @@ function isCellOccupied(ir: CircuitIR, col: number, qubit: number, excludeId?: s
 let touchData: GateData | null = null;
 let ghostElement: HTMLElement | null = null;
 
-export function handleGateDragStart(e: DragEvent, id: string) {
+export function handleGateDragStart(e: DragEvent, id: string, gateType?: string, qubit?: number) {
     const isCopy = e.ctrlKey || e.metaKey;
-    const dragData: GateData = { source: 'wire', gateId: id, isCopy };
+    const dragData: GateData = { source: 'wire', gateId: id, isCopy, gateType, qubit };
     e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
     isDragging.set(true);
 
@@ -159,6 +159,32 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 
     /*─── Move / copy existing gate ───*/
     if (parsed.source === 'wire' && parsed.gateId) {
+        // Control/anti-control dot drag: move all sibling gates to the new column
+        const isControlDrag = (parsed.gateType === 'CONTROL' || parsed.gateType === 'ANTI_CONTROL') && parsed.qubit !== undefined;
+        if (isControlDrag) {
+            const field = parsed.gateType === 'CONTROL' ? 'controls' : 'antiControls';
+            const controlQubit = parsed.qubit as number;
+            const sourceOp = ir.operations.find(op => op.id === parsed.gateId);
+            if (!sourceOp) return;
+            const sourceCol = sourceOp.column;
+            const siblings = ir.operations.filter(
+                op => op.kind === 'unitary' && op.column === sourceCol &&
+                (op as UnitaryOperation)[field].includes(controlQubit)
+            );
+            for (const sib of siblings) {
+                const targetQubit = (sib as UnitaryOperation).targets[0];
+                if (isCellOccupied(ir, col, targetQubit, sib.id)) {
+                    console.warn(`Cell (${col}, q=${targetQubit}) is occupied.`);
+                    return;
+                }
+            }
+            for (const sib of siblings) {
+                updateOperation(sib.id, op => ({ ...op, column: col } as CircuitOperation));
+            }
+            triggerSimulation(get(circuitIR));
+            return;
+        }
+
         const occupied = isCellOccupied(ir, col, qubit, parsed.gateId);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
@@ -495,6 +521,27 @@ export function handleDoubleClick(data: GateData) {
         const antiPending = get(pendingAntiControls);
         _dropPaletteGate(data.gateType, col, 0, ir, pending, antiPending);
     } else if (data.source === 'wire' && data.gateId) {
-        removeGate(data.gateId);
+        const isControl = data.gateType === 'CONTROL' || data.gateType === 'ANTI_CONTROL';
+        if (isControl && data.qubit !== undefined) {
+            const ir = get(circuitIR);
+            const sourceOp = ir.operations.find(op => op.id === data.gateId);
+            if (!sourceOp) return;
+            const col = sourceOp.column;
+            const qubitToRemove = data.qubit;
+            const field = data.gateType === 'CONTROL' ? 'controls' : 'antiControls';
+            const siblings = ir.operations.filter(
+                op => op.kind === 'unitary' && op.column === col &&
+                (op as UnitaryOperation)[field].includes(qubitToRemove)
+            );
+            for (const sib of siblings) {
+                updateOperation(sib.id, op => ({
+                    ...op,
+                    [field]: (op as UnitaryOperation)[field].filter((c: number) => c !== qubitToRemove)
+                } as CircuitOperation));
+            }
+            triggerSimulation(get(circuitIR));
+        } else {
+            removeGate(data.gateId);
+        }
     }
 }

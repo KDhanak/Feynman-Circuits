@@ -1,26 +1,27 @@
 import type { CircuitIR } from "../IR/schema";
 import { validateCanonicalIR } from "../IR/validate";
-import type { ErrorResponse } from "../IR/schema";
 import { circuitToOpenQasm, openQasmToCircuit, type OpenQasmExportOptions } from "./openQasmConverter";
 
-export function importCircuit(input: unknown): CircuitIR | ErrorResponse {
+export type ImportResult =
+    | { ok: true; data: CircuitIR }
+    | { ok: false; error: string };
+
+export function importCircuit(input: unknown): ImportResult {
     const valid = validateCanonicalIR(input);
-
     if (!valid.valid) {
-        return { detail: valid.errors.join("; ") };
+        return { ok: false, error: valid.errors.join("; ") };
     }
-
-    return input as CircuitIR;
+    return { ok: true, data: input as CircuitIR };
 }
 
 export function exportToOpenQasm(ir: CircuitIR, options?: OpenQasmExportOptions): string {
     return circuitToOpenQasm(ir, options);
 }
 
-export function importFromOpenQasm(qasmCode: string): CircuitIR | ErrorResponse {
+export function importFromOpenQasm(qasmCode: string): ImportResult {
     const circuit = openQasmToCircuit(qasmCode);
     if (!circuit) {
-        return { detail: "Failed to parse OpenQasm code" };
+        return { ok: false, error: "Failed to parse OpenQasm code" };
     }
-    return circuit;
+    return { ok: true, data: circuit };
 }

@@ -61,8 +61,9 @@ export interface SimulationResult {
 export interface GateData {
     source: 'palette' | 'wire';
     gateType?: string;
-    gateId?: string; 
-    isCopy?: boolean; 
+    gateId?: string;
+    isCopy?: boolean;
+    qubit?: number;
 };
 
 export interface ErrorResponse {

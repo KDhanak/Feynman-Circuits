@@ -382,6 +382,64 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 		};
 	}
 
+	// Controlled parametric gates OpenQASM 2.0: crx(1.57) q[0], q[1];
+	const cParamGateMatch = line.match(/^c(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	if (cParamGateMatch) {
+		const gate = cParamGateMatch[1].toLowerCase();
+		const angle = parseAngle(cParamGateMatch[2]);
+		const control = parseInt(cParamGateMatch[3], 10);
+		const target = parseInt(cParamGateMatch[4], 10);
+		return {
+			id: crypto.randomUUID(),
+			kind: 'unitary',
+			gate: gate as any,
+			column,
+			targets: [target],
+			controls: [control],
+			antiControls: [],
+			params: [angle]
+		};
+	}
+
+	// Controlled parametric gates OpenQASM 3.0: ctrl @ rx(1.57) q[0], q[1];
+	const ctrlParamMatch = line.match(/^ctrl\s*@\s*(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	if (ctrlParamMatch) {
+		const gate = ctrlParamMatch[1].toLowerCase();
+		const angle = parseAngle(ctrlParamMatch[2]);
+		const control = parseInt(ctrlParamMatch[3], 10);
+		const target = parseInt(ctrlParamMatch[4], 10);
+		return {
+			id: crypto.randomUUID(),
+			kind: 'unitary',
+			gate: gate as any,
+			column,
+			targets: [target],
+			controls: [control],
+			antiControls: [],
+			params: [angle]
+		};
+	}
+
+	// Double-controlled parametric gates OpenQASM 3.0: ctrl @ ctrl @ rx(1.57) q[0], q[1], q[2];
+	const ctrlCtrlParamMatch = line.match(/^ctrl\s*@\s*ctrl\s*@\s*(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	if (ctrlCtrlParamMatch) {
+		const gate = ctrlCtrlParamMatch[1].toLowerCase();
+		const angle = parseAngle(ctrlCtrlParamMatch[2]);
+		const control1 = parseInt(ctrlCtrlParamMatch[3], 10);
+		const control2 = parseInt(ctrlCtrlParamMatch[4], 10);
+		const target = parseInt(ctrlCtrlParamMatch[5], 10);
+		return {
+			id: crypto.randomUUID(),
+			kind: 'unitary',
+			gate: gate as any,
+			column,
+			targets: [target],
+			controls: [control1, control2],
+			antiControls: [],
+			params: [angle]
+		};
+	}
+
 	// CNOT/CX: cx q[0], q[1]; or CX q[0], q[1];
 	const cxMatch = line.match(/^cx\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
 	if (cxMatch) {
@@ -479,16 +537,25 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 }
 
 function parseAngle(angleStr: string): number {
-	// Handle common expressions
-	if (angleStr.includes('pi')) {
-		const piMatch = angleStr.match(/(\d*\.?\d*)\s*\*?\s*pi\s*\/\s*(\d+)/);
-		if (piMatch) {
-			const numerator = piMatch[1] ? parseFloat(piMatch[1]) : 1;
-			const denominator = parseInt(piMatch[2], 10);
-			return (numerator * Math.PI) / denominator;
-		}
-		const simplePi = angleStr.match(/^pi$/i);
-		if (simplePi) return Math.PI;
+	const s = angleStr.trim();
+	if (!s.includes('pi')) return parseFloat(s);
+
+	// pi/n  or  n*pi/m
+	const fracMatch = s.match(/^(\d*\.?\d*)\s*\*?\s*pi\s*\/\s*(\d+)$/i);
+	if (fracMatch) {
+		const numerator = fracMatch[1] ? parseFloat(fracMatch[1]) : 1;
+		const denominator = parseInt(fracMatch[2], 10);
+		return (numerator * Math.PI) / denominator;
 	}
-	return parseFloat(angleStr);
+
+	// n*pi  or  pi*n
+	const mulMatch = s.match(/^(\d*\.?\d*)\s*\*\s*pi$|^pi\s*\*\s*(\d*\.?\d*)$/i);
+	if (mulMatch) {
+		const factor = parseFloat(mulMatch[1] ?? mulMatch[2]);
+		return factor * Math.PI;
+	}
+
+	if (/^pi$/i.test(s)) return Math.PI;
+
+	return parseFloat(s);
 }

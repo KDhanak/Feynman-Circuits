@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.conf import settings
 from .models import PasswordResetOTP
 from rest_framework import permissions, status
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
@@ -13,7 +14,7 @@ from .serializers import (
     PasswordResetOTPVerifySerializer,
     PasswordResetConfirmSerializer,
 )
-import random
+import secrets
 from .services import send_password_reset_otp_email, send_password_reset_confirmation_email
 
 User = get_user_model()
@@ -155,6 +156,8 @@ class RefreshView(APIView):
 
 class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_reset"
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -174,7 +177,7 @@ class PasswordResetRequestView(APIView):
         # Invalidate previous unused OTP records for this user
         PasswordResetOTP.objects.filter(user=user, is_used=False).update(is_used=True)
 
-        otp = f"{random.randint(0, 999999):06d}"
+        otp = f"{secrets.randbelow(1_000_000):06d}"
 
         PasswordResetOTP.objects.create(
             user=user, otp=otp, expires_at=PasswordResetOTP.get_expiry_time()
@@ -187,6 +190,8 @@ class PasswordResetRequestView(APIView):
 
 class PasswordResetOTPVerifyView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_reset"
 
     def post(self, request):
         serializer = PasswordResetOTPVerifySerializer(data=request.data)

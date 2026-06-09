@@ -34,20 +34,27 @@ export function downloadCircuit(name: string, ir: CircuitIR): void {
 }
 
 export function importJson(jsonText: string): void {
+    let ir: CircuitIR;
     try {
         const result = importCircuit(JSON.parse(jsonText));
-        if ('detail' in result && !('version' in result)) {
-            showNotification(result.detail ?? 'Unknown error', 'error');
+        if (!result.ok) {
+            showNotification(result.error, 'error');
             return;
         }
-        const ir = result as CircuitIR;
-        circuitIR.set(ir);
-        triggerSimulation(ir);
-        circuitDataModalContent.set(buildCanonicalString(ir));
-        showNotification('Circuit imported successfully!', 'success');
+        ir = result.data;
     } catch {
         showNotification('Invalid JSON format', 'error');
+        return;
     }
+
+    circuitIR.set(ir);
+    try {
+        triggerSimulation(ir);
+    } catch {
+        showNotification('Circuit imported but simulation failed', 'error');
+    }
+    circuitDataModalContent.set(buildCanonicalString(ir));
+    showNotification('Circuit imported successfully!', 'success');
     showCircuitDataModal.set(false);
 }
 
@@ -58,19 +65,20 @@ export function downloadCircuitAsOpenQasm(name: string, ir: CircuitIR, version: 
 }
 
 export function importOpenQasm(qasmText: string): void {
-    try {
-        const result = importFromOpenQasm(qasmText);
-        if ('detail' in result && !('version' in result)) {
-            showNotification(result.detail ?? 'Unknown error', 'error');
-            return;
-        }
-        const ir = result as CircuitIR;
-        circuitIR.set(ir);
-        triggerSimulation(ir);
-        circuitDataModalContent.set(exportToOpenQasm(ir, { version: '2.0', includeComments: true }));
-        showNotification('Circuit imported from OpenQasm successfully!', 'success');
-    } catch (err) {
-        showNotification('Invalid OpenQasm format', 'error');
+    const result = importFromOpenQasm(qasmText);
+    if (!result.ok) {
+        showNotification(result.error, 'error');
+        return;
     }
+
+    const ir = result.data;
+    circuitIR.set(ir);
+    try {
+        triggerSimulation(ir);
+    } catch {
+        showNotification('Circuit imported but simulation failed', 'error');
+    }
+    circuitDataModalContent.set(exportToOpenQasm(ir, { version: '2.0', includeComments: true }));
+    showNotification('Circuit imported from OpenQasm successfully!', 'success');
     showCircuitDataModal.set(false);
 }
