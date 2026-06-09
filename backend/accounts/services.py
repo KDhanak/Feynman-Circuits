@@ -40,3 +40,20 @@ def send_password_reset_confirmation_email(user_email):
         html_message=html_body,
         fail_silently=False,
     )
+
+def send_password_change_notification_email(user_email):
+    subject = "Feynman Circuits - Your password was changed"
+
+    context = {}
+
+    text_body = render_to_string("emails/password_change_notification.txt", context)
+    html_body = render_to_string("emails/password_change_notification.html", context)
+
+    send_mail(
+        subject=subject,
+        message=text_body,
+        from_email=settings.AUTH_FROM_EMAIL,
+        recipient_list=[user_email],
+        html_message=html_body,
+        fail_silently=False,
+    )

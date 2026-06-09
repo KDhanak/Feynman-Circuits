@@ -17,7 +17,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
 )
 import secrets
-from .services import send_password_reset_otp_email, send_password_reset_confirmation_email
+from .services import send_password_reset_otp_email, send_password_reset_confirmation_email, send_password_change_notification_email
 
 User = get_user_model()
 
@@ -181,6 +181,7 @@ class ChangePasswordView(APIView):
 
         request.user.set_password(serializer.validated_data['password'])
         request.user.save(update_fields=['password'])
+        send_password_change_notification_email(request.user.email)
         return Response({'detail': 'Password changed successfully.'})
 
 
