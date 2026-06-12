@@ -262,13 +262,13 @@
 							<Icon icon="si:meter-fill" width="20" height="20" />
 						</span>
 					{:else if gate.type === 'X'}
-						<svg viewBox="0 0 28 28" width="24" height="24" aria-hidden="true">
+						<svg viewBox="0 0 28 28" width="20" height="20" aria-hidden="true">
 							<circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="2" />
 							<line x1="2" y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="2" />
 							<line x1="14" y1="2" x2="14" y2="26" stroke="currentColor" stroke-width="2" />
 						</svg>
 					{:else}
-						{gate.name}
+						<span class={gate.name.length > 2 ? 'text-[10px] leading-none' : ''}>{gate.name}</span>
 					{/if}
 				</div>
 			</Tooltip>
