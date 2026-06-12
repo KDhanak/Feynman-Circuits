@@ -22,7 +22,7 @@ export function triggerSimulation(ir: CircuitIR) {
 
 /*──────────────────────── helpers ───────────────────────*/
 
-function findNextAvailableColumn(ir: CircuitIR, qubit: number): number {
+export function findNextAvailableColumn(ir: CircuitIR, qubit: number): number {
     const cols = ir.operations
         .filter(op => 'targets' in op && (op.targets as number[]).includes(qubit))
         .map(op => op.column);
@@ -383,6 +383,11 @@ function _dropPaletteGate(
     if (upperType === 'SWAP') {
         const occupied = isCellOccupied(ir, col, qubit);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
+
+        if (ir.registers.q < 2 && ir.registers.q < 8) {
+            setNumQubitsIR(ir.registers.q + 1);
+            ir = get(circuitIR);
+        }
 
         const secondQubitStr = prompt(
             `Enter the second qubit index to SWAP with (0–${ir.registers.q - 1}):`,
