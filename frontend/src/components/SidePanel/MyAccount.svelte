@@ -1,5 +1,12 @@
 <script lang="ts">
 	import { session, updateProfile, changePassword } from '$lib/auth/session';
+	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import {
+		validateRequired,
+		validatePasswordLength,
+		validatePasswordsMatch
+	} from '$lib/utils/formValidation';
+	import FormField from './FormField.svelte';
 
 	export let onResetPassword: () => void = () => {};
 
@@ -12,6 +19,12 @@
 
 	type ProfileErrors = { first_name?: string; last_name?: string; detail?: string };
 	let profileErrors: ProfileErrors = {};
+
+	function clearProfileError(...keys: (keyof ProfileErrors)[]) {
+		profileErrors = clearFields(profileErrors, keys);
+		profileSuccessMsg = '';
+		profileGeneralError = '';
+	}
 
 	// ── Change Password ───────────────────────────────────────────────
 	let currentPassword = '';
@@ -29,20 +42,27 @@
 	};
 	let passwordErrors: PasswordErrors = {};
 
-	function normalizeBackendErrors(data: any): Record<string, string> {
-		if (!data || typeof data !== 'object') return {};
-		return Object.fromEntries(
-			Object.entries(data).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? String(value[0]) : String(value)
-			])
-		);
+	function clearPasswordError(...keys: (keyof PasswordErrors)[]) {
+		passwordErrors = clearFields(passwordErrors, keys);
+		passwordSuccessMsg = '';
+		passwordGeneralError = '';
 	}
 
 	async function handleUpdateProfile() {
 		profileSuccessMsg = '';
 		profileGeneralError = '';
 		profileErrors = {};
+
+		const validationErrors: ProfileErrors = {
+			first_name: validateRequired(firstName, 'First name'),
+			last_name: validateRequired(lastName, 'Last name')
+		};
+
+		if (validationErrors.first_name || validationErrors.last_name) {
+			profileErrors = validationErrors;
+			return;
+		}
+
 		profileLoading = true;
 
 		try {
@@ -63,6 +83,18 @@
 		passwordSuccessMsg = '';
 		passwordGeneralError = '';
 		passwordErrors = {};
+
+		const validationErrors: PasswordErrors = {
+			current_password: validateRequired(currentPassword, 'Current password'),
+			password: validatePasswordLength(newPassword),
+			password2: validatePasswordsMatch(newPassword, newPassword2)
+		};
+
+		if (Object.values(validationErrors).some((v) => v)) {
+			passwordErrors = validationErrors;
+			return;
+		}
+
 		passwordLoading = true;
 
 		try {
@@ -100,36 +132,20 @@
 
 		<form class="space-y-4" on:submit|preventDefault={handleUpdateProfile}>
 			<div class="grid grid-cols-2 gap-3">
-				<div>
-					<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="account-first-name">
-						First Name
-					</label>
-					<input
-						id="account-first-name"
-						type="text"
-						bind:value={firstName}
-						on:input={() => { const { first_name, detail, ...rest } = profileErrors; profileErrors = rest; profileSuccessMsg = ''; profileGeneralError = ''; }}
-						class="input-field"
-					/>
-					{#if profileErrors.first_name}
-						<p class="mt-1 text-sm font-bold text-red-500">{profileErrors.first_name}</p>
-					{/if}
-				</div>
-				<div>
-					<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="account-last-name">
-						Last Name
-					</label>
-					<input
-						id="account-last-name"
-						type="text"
-						bind:value={lastName}
-						on:input={() => { const { last_name, detail, ...rest } = profileErrors; profileErrors = rest; profileSuccessMsg = ''; profileGeneralError = ''; }}
-						class="input-field"
-					/>
-					{#if profileErrors.last_name}
-						<p class="mt-1 text-sm font-bold text-red-500">{profileErrors.last_name}</p>
-					{/if}
-				</div>
+				<FormField
+					id="account-first-name"
+					label="First Name"
+					bind:value={firstName}
+					error={profileErrors.first_name}
+					onInput={() => clearProfileError('first_name', 'detail')}
+				/>
+				<FormField
+					id="account-last-name"
+					label="Last Name"
+					bind:value={lastName}
+					error={profileErrors.last_name}
+					onInput={() => clearProfileError('last_name', 'detail')}
+				/>
 			</div>
 
 			<button type="submit" class="btn-primary w-full" disabled={profileLoading}>
@@ -159,56 +175,35 @@
 		</p>
 
 		<form class="space-y-4" on:submit|preventDefault={handleChangePassword}>
-			<div>
-				<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="account-current-password">
-					Current Password
-				</label>
-				<input
-					id="account-current-password"
-					type="password"
-					placeholder="********"
-					bind:value={currentPassword}
-					on:input={() => { const { current_password, detail, ...rest } = passwordErrors; passwordErrors = rest; passwordSuccessMsg = ''; passwordGeneralError = ''; }}
-					class="input-field"
-				/>
-				{#if passwordErrors.current_password}
-					<p class="mt-1 text-sm font-bold text-red-500">{passwordErrors.current_password}</p>
-				{/if}
-			</div>
+			<FormField
+				id="account-current-password"
+				label="Current Password"
+				type="password"
+				placeholder="********"
+				bind:value={currentPassword}
+				error={passwordErrors.current_password}
+				onInput={() => clearPasswordError('current_password', 'detail')}
+			/>
 
-			<div>
-				<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="account-new-password">
-					New Password
-				</label>
-				<input
-					id="account-new-password"
-					type="password"
-					placeholder="At least 8 characters"
-					bind:value={newPassword}
-					on:input={() => { const { password, detail, ...rest } = passwordErrors; passwordErrors = rest; passwordSuccessMsg = ''; passwordGeneralError = ''; }}
-					class="input-field"
-				/>
-				{#if passwordErrors.password}
-					<p class="mt-1 text-sm font-bold text-red-500">{passwordErrors.password}</p>
-				{/if}
-			</div>
+			<FormField
+				id="account-new-password"
+				label="New Password"
+				type="password"
+				placeholder="At least 8 characters"
+				bind:value={newPassword}
+				error={passwordErrors.password}
+				onInput={() => clearPasswordError('password', 'detail')}
+			/>
 
-			<div>
-				<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="account-new-password2">
-					Confirm New Password
-				</label>
-				<input
-					id="account-new-password2"
-					type="password"
-					placeholder="Re-enter new password"
-					bind:value={newPassword2}
-					on:input={() => { const { password2, detail, ...rest } = passwordErrors; passwordErrors = rest; passwordSuccessMsg = ''; passwordGeneralError = ''; }}
-					class="input-field"
-				/>
-				{#if passwordErrors.password2}
-					<p class="mt-1 text-sm font-bold text-red-500">{passwordErrors.password2}</p>
-				{/if}
-			</div>
+			<FormField
+				id="account-new-password2"
+				label="Confirm New Password"
+				type="password"
+				placeholder="Re-enter new password"
+				bind:value={newPassword2}
+				error={passwordErrors.password2}
+				onInput={() => clearPasswordError('password2', 'detail')}
+			/>
 
 			<button type="submit" class="btn-primary w-full" disabled={passwordLoading}>
 				{passwordLoading ? 'Updating...' : 'Update Password'}

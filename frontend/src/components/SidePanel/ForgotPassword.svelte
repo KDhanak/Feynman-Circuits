@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { requestPasswordReset } from '$lib/auth/session';
+	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import { validateEmail } from '$lib/utils/formValidation';
+	import FormField from './FormField.svelte';
 
-    export let initialEmail: string = '';
-    export let onOtpSent: (email: string) => void = () => {};
+	export let initialEmail: string = '';
+	export let onOtpSent: (email: string) => void = () => {};
 
 	let resetEmail = initialEmail;
 	let loading = false;
@@ -16,19 +19,31 @@
 
 	let resetErrors: ResetRequestErrors = {};
 
+	function clearError(...keys: (keyof ResetRequestErrors)[]) {
+		resetErrors = clearFields(resetErrors, keys);
+		generalErrorMsg = '';
+		successMsg = '';
+	}
+
 	async function handlePasswordReset() {
-        successMsg = '';
+		successMsg = '';
 		generalErrorMsg = '';
 		resetErrors = {};
+
+		const emailError = validateEmail(resetEmail);
+		if (emailError) {
+			resetErrors = { email: emailError };
+			return;
+		}
+
 		loading = true;
 
 		try {
 			await requestPasswordReset(resetEmail);
-			successMsg ='If an account exists for this email, an OTP has been sent.';
-            setTimeout(() => {
-                onOtpSent(resetEmail);
-            }, 1500);
-
+			successMsg = 'If an account exists for this email, an OTP has been sent.';
+			setTimeout(() => {
+				onOtpSent(resetEmail);
+			}, 1500);
 		} catch (err: any) {
 			const data = err?.response?.data;
 			const errors = normalizeBackendErrors(data);
@@ -45,43 +60,19 @@
 			loading = false;
 		}
 	}
-
-	function normalizeBackendErrors(data: any): Record<string, string> {
-		if (!data || typeof data !== 'object') return {};
-
-		return Object.fromEntries(
-			Object.entries(data).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? String(value[0]) : String(value)
-			])
-		);
-	}
 </script>
 
 <div>
 	<form class="space-y-4" on:submit|preventDefault={handlePasswordReset}>
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="reset-email">
-				Email
-			</label>
-			<input
-				id="reset-email"
-				type="email"
-				placeholder="you@example.com"
-				bind:value={resetEmail}
-				on:input={() => {
-					const { email, detail, ...rest } = resetErrors;
-					resetErrors = rest;
-					generalErrorMsg = '';
-					successMsg = '';
-				}}
-				class="input-field"
-			/>
-
-			{#if resetErrors.email}
-				<p class="mt-1 text-sm text-red-500 font-bold">{resetErrors.email}</p>
-			{/if}
-		</div>
+		<FormField
+			id="reset-email"
+			label="Email"
+			type="email"
+			placeholder="you@example.com"
+			bind:value={resetEmail}
+			error={resetErrors.email}
+			onInput={() => clearError('email', 'detail')}
+		/>
 
 		<button
 			type="submit"

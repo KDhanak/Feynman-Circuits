@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { signIn } from '$lib/auth/session';
+	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import { validateEmail, validateRequired } from '$lib/utils/formValidation';
+	import FormField from './FormField.svelte';
 
 	export let initialEmail: string = '';
 	export let onSignedIn: () => void = () => {};
@@ -23,21 +26,23 @@
 
 	let signinErrors: SignInErrors = {};
 
-	function normalizeBackendErrors(data: any): Record<string, string> {
-		if (!data || typeof data !== 'object') return {};
-
-		return Object.fromEntries(
-			Object.entries(data).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? String(value[0]) : String(value)
-			])
-		);
+	function clearError(...keys: (keyof SignInErrors)[]) {
+		signinErrors = clearFields(signinErrors, keys);
+		generalErrorMsg = '';
 	}
 
 	async function handleSignIn() {
 		successMsg = '';
 		generalErrorMsg = '';
 		signinErrors = {};
+
+		const emailError = validateEmail(signinEmail);
+		const passwordError = validateRequired(signinPassword, 'Password');
+		if (emailError || passwordError) {
+			signinErrors = { email: emailError, password: passwordError };
+			return;
+		}
+
 		loading = true;
 
 		try {
@@ -67,47 +72,25 @@
 
 <div>
 	<form class="space-y-4" on:submit|preventDefault={handleSignIn}>
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signin-email">
-				Email
-			</label>
-			<input
-				id="signin-email"
-				type="email"
-				placeholder="you@example.com"
-				bind:value={signinEmail}
-				on:input={() => {
-					const { email, detail, ...rest } = signinErrors;
-					signinErrors = rest;
-					generalErrorMsg = '';
-				}}
-				class="input-field"
-			/>
-			{#if signinErrors.email}
-				<p class="mt-1 text-sm font-bold text-red-500">{signinErrors.email}</p>
-			{/if}
-		</div>
+		<FormField
+			id="signin-email"
+			label="Email"
+			type="email"
+			placeholder="you@example.com"
+			bind:value={signinEmail}
+			error={signinErrors.email}
+			onInput={() => clearError('email', 'detail')}
+		/>
 
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signin-password">
-				Password
-			</label>
-			<input
-				id="signin-password"
-				type="password"
-				placeholder="********"
-				bind:value={signinPassword}
-				on:input={() => {
-					const { password, detail, ...rest } = signinErrors;
-					signinErrors = rest;
-					generalErrorMsg = '';
-				}}
-				class="input-field"
-			/>
-			{#if signinErrors.password}
-				<p class="mt-1 text-sm font-bold text-red-500">{signinErrors.password}</p>
-			{/if}
-		</div>
+		<FormField
+			id="signin-password"
+			label="Password"
+			type="password"
+			placeholder="********"
+			bind:value={signinPassword}
+			error={signinErrors.password}
+			onInput={() => clearError('password', 'detail')}
+		/>
 
 		<button
 			type="submit"

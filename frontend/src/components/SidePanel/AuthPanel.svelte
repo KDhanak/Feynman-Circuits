@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { session, signOut, loadSession } from '$lib/auth/session';
 	import Icon from '@iconify/svelte';
 	import { fly, fade } from 'svelte/transition';
@@ -11,6 +10,8 @@
 	import MyCircuits from './MyCircuits.svelte';
 	import MyAccount from './MyAccount.svelte';
 	import { showNotification } from '$lib/utils/notificationUtils';
+	import { normalizeBackendErrors } from '$lib/utils/errorUtils';
+	import { clickOutside } from '$lib/utils/clickOutside';
 
 	type AuthView = 'signin' | 'signup' | 'forgot' | 'otp' | 'reset' | 'account';
 
@@ -42,16 +43,6 @@
 
 	$: currentView = viewMeta[activeView];
 
-	onMount(() => {
-		const handleClick = (event: MouseEvent) => {
-			if (event.target && !(event.target as HTMLElement).closest('.dropdown-container')) {
-				dropdownOpen = false;
-			}
-		};
-		document.addEventListener('click', handleClick);
-		return () => document.removeEventListener('click', handleClick);
-	});
-
 	function openDrawer() {
 		isOpen = true;
 	}
@@ -80,16 +71,6 @@
 		}
 	}
 
-	function normalizeBackendErrors(data: any): Record<string, string> {
-		if (!data || typeof data !== 'object') return {};
-		return Object.fromEntries(
-			Object.entries(data).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? String(value[0]) : String(value)
-			])
-		);
-	}
-
 	async function logoutAndClose() {
 		await signOut();
 
@@ -113,6 +94,7 @@
 {:else}
 	<div
 		class="relative flex flex-col items-center justify-center dropdown-container bg-transparent shadow-sm shadow-measured rounded-sm"
+		use:clickOutside={() => (dropdownOpen = false)}
 	>
 		<button
 			style="color: var(--color-text);"
@@ -230,13 +212,13 @@
 							<button
 								type="button"
 								on:click={() => (activeView = 'signin')}
-								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${activeView === 'signin' ? 'text-secondary-1' : 'text-secondary-3'}`}
+								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-500 ease-in-out ${activeView === 'signin' ? 'text-secondary-1' : 'text-secondary-3'}`}
 								>Sign In</button
 							>
 							<button
 								type="button"
 								on:click={() => (activeView = 'signup')}
-								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-300 ${activeView === 'signup' ? 'text-secondary-1' : 'text-secondary-3'}`}
+								class={`cursor-pointer px-3 py-2 text-sm font-medium transition-colors duration-500 ease-in-out ${activeView === 'signup' ? 'text-secondary-1' : 'text-secondary-3'}`}
 								>Sign Up</button
 							>
 						</div>
@@ -246,7 +228,7 @@
 				<div class="relative" style="min-height: 420px;">
 					{#key activeView}
 						<div
-							transition:fly={{ x: activeView === 'signup' ? 40 : -40, duration: 280, opacity: 0 }}
+							transition:fly={{ x: activeView === 'signup' ? 40 : -40, duration: 450, opacity: 0 }}
 							class="absolute w-full"
 						>
 							{#if activeView === 'signin'}

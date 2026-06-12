@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { confirmPasswordReset } from '$lib/auth/session';
+	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import { validatePasswordLength, validatePasswordsMatch } from '$lib/utils/formValidation';
+	import FormField from './FormField.svelte';
 
 	export let resetToken: string = '';
 	export let onResetDone: () => void = () => {};
@@ -18,21 +21,27 @@
 
 	let resetPasswordErrors: ResetPasswordErrors = {};
 
-	function normalizeBackendErrors(data: any): Record<string, string> {
-		if (!data || typeof data !== 'object') return {};
-
-		return Object.fromEntries(
-			Object.entries(data).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? String(value[0]) : String(value)
-			])
-		);
+	function clearError(...keys: (keyof ResetPasswordErrors)[]) {
+		resetPasswordErrors = clearFields(resetPasswordErrors, keys);
+		generalErrorMsg = '';
+		successMsg = '';
 	}
 
 	async function handleResetPassword() {
 		generalErrorMsg = '';
 		successMsg = '';
 		resetPasswordErrors = {};
+
+		const validationErrors: ResetPasswordErrors = {
+			password: validatePasswordLength(password),
+			password2: validatePasswordsMatch(password, password2)
+		};
+
+		if (validationErrors.password || validationErrors.password2) {
+			resetPasswordErrors = validationErrors;
+			return;
+		}
+
 		loading = true;
 
 		try {
@@ -72,49 +81,25 @@
 
 <div>
 	<form class="space-y-4" on:submit|preventDefault={handleResetPassword}>
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="reset-password">
-				New Password
-			</label>
-			<input
-				id="reset-password"
-				type="password"
-				placeholder="At least 8 characters"
-				bind:value={password}
-				on:input={() => {
-					const { password, detail, ...rest } = resetPasswordErrors;
-					resetPasswordErrors = rest;
-					generalErrorMsg = '';
-					successMsg = '';
-				}}
-				class="input-field"
-			/>
-			{#if resetPasswordErrors.password}
-				<p class="mt-1 text-sm font-bold text-red-500">{resetPasswordErrors.password}</p>
-			{/if}
-		</div>
+		<FormField
+			id="reset-password"
+			label="New Password"
+			type="password"
+			placeholder="At least 8 characters"
+			bind:value={password}
+			error={resetPasswordErrors.password}
+			onInput={() => clearError('password', 'detail')}
+		/>
 
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="reset-password2">
-				Confirm Password
-			</label>
-			<input
-				id="reset-password2"
-				type="password"
-				placeholder="Re-enter password"
-				bind:value={password2}
-				on:input={() => {
-					const { password2, detail, ...rest } = resetPasswordErrors;
-					resetPasswordErrors = rest;
-					generalErrorMsg = '';
-					successMsg = '';
-				}}
-				class="input-field"
-			/>
-			{#if resetPasswordErrors.password2}
-				<p class="mt-1 text-sm font-bold text-red-500">{resetPasswordErrors.password2}</p>
-			{/if}
-		</div>
+		<FormField
+			id="reset-password2"
+			label="Confirm Password"
+			type="password"
+			placeholder="Re-enter password"
+			bind:value={password2}
+			error={resetPasswordErrors.password2}
+			onInput={() => clearError('password2', 'detail')}
+		/>
 
 		<button
 			type="submit"

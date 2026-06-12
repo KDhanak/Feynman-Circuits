@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { verifyPasswordResetOtp, requestPasswordReset } from '$lib/auth/session';
+	import { normalizeBackendErrors } from '$lib/utils/errorUtils';
 
 	export let email = '';
 	export let onVerified: (resetToken: string) => void = () => {};
@@ -21,17 +22,6 @@
 	};
 
 	let otpErrors: OtpErrors = {};
-
-	function normalizeBackendErrors(data: any): Record<string, string> {
-		if (!data || typeof data !== 'object') return {};
-
-		return Object.fromEntries(
-			Object.entries(data).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? String(value[0]) : String(value)
-			])
-		);
-	}
 
 	function otpValue() {
 		return otp.join('');

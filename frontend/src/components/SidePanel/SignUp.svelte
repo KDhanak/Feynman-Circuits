@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { signUp } from '$lib/auth/session';
+	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import {
+		validateEmail,
+		validateRequired,
+		validatePasswordLength,
+		validatePasswordsMatch
+	} from '$lib/utils/formValidation';
+	import FormField from './FormField.svelte';
 
-    export let onSignedUp: (email: string) => void = () => {};
+	export let onSignedUp: (email: string) => void = () => {};
 
 	let generalErrorMsg = '';
 	let successMsg = '';
@@ -23,21 +31,28 @@
 
 	let signupErrors: SignUpErrors = {};
 
-	function normalizeBackendErrors(data: any): Record<string, string> {
-		if (!data || typeof data !== 'object') return {};
-
-		return Object.fromEntries(
-			Object.entries(data).map(([key, value]) => [
-				key,
-				Array.isArray(value) ? String(value[0]) : String(value)
-			])
-		);
+	function clearError(...keys: (keyof SignUpErrors)[]) {
+		signupErrors = clearFields(signupErrors, keys);
 	}
 
 	async function handleSignUp() {
 		generalErrorMsg = '';
 		successMsg = '';
 		signupErrors = {};
+
+		const validationErrors: SignUpErrors = {
+			first_name: validateRequired(firstName, 'First name'),
+			last_name: validateRequired(lastName, 'Last name'),
+			email: validateEmail(signupEmail),
+			password: validatePasswordLength(signupPassword),
+			password2: validatePasswordsMatch(signupPassword, signupPassword2)
+		};
+
+		if (Object.values(validationErrors).some((v) => v)) {
+			signupErrors = validationErrors;
+			return;
+		}
+
 		loading = true;
 
 		try {
@@ -49,9 +64,9 @@
 				password2: signupPassword2
 			});
 			successMsg = 'Account created. You can sign in now.';
-            setTimeout(() => {
-                onSignedUp(signupEmail);
-            }, 1000);
+			setTimeout(() => {
+				onSignedUp(signupEmail);
+			}, 1000);
 			signupPassword = '';
 			signupPassword2 = '';
 			signupErrors = {};
@@ -86,100 +101,49 @@
 
 <div>
 	<form class="space-y-4" on:submit|preventDefault={handleSignUp}>
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-first-name"
-				>First Name</label
-			>
-			<input
-				id="signup-first-name"
-				type="text"
-				placeholder="First Name"
-				bind:value={firstName}
-				on:input={() => {
-					const { first_name, ...rest } = signupErrors;
-					signupErrors = rest;
-				}}
-				class="input-field"
-			/>
-			{#if signupErrors.first_name}
-				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.first_name}</p>
-			{/if}
-		</div>
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-last-name"
-				>Last Name</label
-			>
-			<input
-				id="signup-last-name"
-				type="text"
-				placeholder="Last Name"
-				bind:value={lastName}
-				on:input={() => {
-					const { last_name, ...rest } = signupErrors;
-					signupErrors = rest;
-				}}
-				class="input-field"
-			/>
-			{#if signupErrors.last_name}
-				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.last_name}</p>
-			{/if}
-		</div>
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-email">Email</label
-			>
-			<input
-				id="signup-email"
-				type="email"
-				placeholder="you@example.com"
-				bind:value={signupEmail}
-				on:input={() => {
-					const { email, ...rest } = signupErrors;
-					signupErrors = rest;
-				}}
-				class="input-field"
-			/>
-			{#if signupErrors.email}
-				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.email}</p>
-			{/if}
-		</div>
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-password"
-				>Password</label
-			>
-			<input
-				id="signup-password"
-				type="password"
-				placeholder="At least 8 characters"
-				bind:value={signupPassword}
-				on:input={() => {
-					const { password, ...rest } = signupErrors;
-					signupErrors = rest;
-				}}
-				class="input-field"
-			/>
-			{#if signupErrors.password}
-				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.password}</p>
-			{/if}
-		</div>
-		<div>
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="signup-password2"
-				>Confirm Password</label
-			>
-			<input
-				id="signup-password2"
-				type="password"
-				placeholder="At least 8 characters"
-				bind:value={signupPassword2}
-				on:input={() => {
-					const { password2, ...rest } = signupErrors;
-					signupErrors = rest;
-				}}
-				class="input-field"
-			/>
-			{#if signupErrors.password2}
-				<p class="mt-1 text-sm text-red-500 font-bold">{signupErrors.password2}</p>
-			{/if}
-		</div>
+		<FormField
+			id="signup-first-name"
+			label="First Name"
+			placeholder="First Name"
+			bind:value={firstName}
+			error={signupErrors.first_name}
+			onInput={() => clearError('first_name')}
+		/>
+		<FormField
+			id="signup-last-name"
+			label="Last Name"
+			placeholder="Last Name"
+			bind:value={lastName}
+			error={signupErrors.last_name}
+			onInput={() => clearError('last_name')}
+		/>
+		<FormField
+			id="signup-email"
+			label="Email"
+			type="email"
+			placeholder="you@example.com"
+			bind:value={signupEmail}
+			error={signupErrors.email}
+			onInput={() => clearError('email')}
+		/>
+		<FormField
+			id="signup-password"
+			label="Password"
+			type="password"
+			placeholder="At least 8 characters"
+			bind:value={signupPassword}
+			error={signupErrors.password}
+			onInput={() => clearError('password')}
+		/>
+		<FormField
+			id="signup-password2"
+			label="Confirm Password"
+			type="password"
+			placeholder="At least 8 characters"
+			bind:value={signupPassword2}
+			error={signupErrors.password2}
+			onInput={() => clearError('password2')}
+		/>
 		<button
 			type="submit"
 			class="btn-primary w-full"
