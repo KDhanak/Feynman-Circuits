@@ -6,7 +6,7 @@ import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } fro
 import { simulateMultipleQubits } from './simulator';
 import { LABEL_WIDTH, GATE_OFFSET, COLUMN_WIDTH, MAX_COLUMNS } from '../utils/constants';
 import { parsePiInput } from '../utils/piMath';
-import { UNITARY_GATE_IDS } from '../quantum/gates';
+import { UNITARY_GATE_IDS, GATE_REGISTRY } from '../quantum/gates';
 
 // UI-only: tracks controls placed in a column before any unitary op exists there
 export const pendingControls = writable<Map<number, number[]>>(new Map());
@@ -40,6 +40,102 @@ function isCellOccupied(ir: CircuitIR, col: number, qubit: number, excludeId?: s
         (op.targets as number[]).includes(qubit) &&
         (excludeId ? op.id !== excludeId : true)
     );
+}
+
+// Unions pending controls/anti-controls for a column with any already present
+// on other unitary ops in that column.
+function collectControlsInColumn(
+    ir: CircuitIR,
+    col: number,
+    pending: Map<number, number[]>,
+    antiPending: Map<number, number[]>,
+    excludeId?: string
+): { controls: number[]; antiControls: number[] } {
+    const controls = new Set(pending.get(col) ?? []);
+    const antiControls = new Set(antiPending.get(col) ?? []);
+    for (const op of ir.operations) {
+        if (op.kind === 'unitary' && op.column === col && op.id !== excludeId) {
+            (op as UnitaryOperation).controls.forEach(c => controls.add(c));
+            (op as UnitaryOperation).antiControls.forEach(c => antiControls.add(c));
+        }
+    }
+    return { controls: [...controls], antiControls: [...antiControls] };
+}
+
+// Removes any pending controls/anti-controls for a column once they've been
+// consumed by a newly inserted operation.
+function consumePendingControls(col: number, controls: number[], antiControls: number[]) {
+    if (controls.length > 0) {
+        pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
+    }
+    if (antiControls.length > 0) {
+        pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
+    }
+}
+
+// Shared RX/RY/RZ drop handler — prompts for the angle and inserts the rotation gate.
+function dropParametricGate(
+    gate: 'rx' | 'ry' | 'rz',
+    col: number,
+    qubit: number,
+    ir: CircuitIR,
+    pending: Map<number, number[]>,
+    antiPending: Map<number, number[]>
+) {
+    const occupied = isCellOccupied(ir, col, qubit);
+    if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
+
+    const label = GATE_REGISTRY[gate].label;
+    const angle = parsePiInput(prompt(`Enter ${label} angle (e.g. pi/2, pi/4, 3pi/4):`, 'pi/2') ?? '') ?? 0;
+
+    const { controls, antiControls } = collectControlsInColumn(ir, col, pending, antiPending);
+
+    const unitaryOp: UnitaryOperation = {
+        id: crypto.randomUUID(),
+        kind: 'unitary',
+        gate,
+        column: col,
+        targets: [qubit],
+        controls,
+        antiControls,
+        params: [angle],
+    };
+    insertOperation(unitaryOp);
+    consumePendingControls(col, pending.get(col) ?? [], antiPending.get(col) ?? []);
+    triggerSimulation(get(circuitIR));
+}
+
+// Shared CONTROL/ANTI_CONTROL drop handler — attaches to existing ops in the
+// column, or parks the qubit in the pending map if no op exists yet.
+function applyControlToColumn(
+    field: 'controls' | 'antiControls',
+    store: typeof pendingControls,
+    col: number,
+    qubit: number,
+    ir: CircuitIR
+) {
+    const existingOps = ir.operations.filter(
+        op => op.kind === 'unitary' && op.column === col
+    ) as UnitaryOperation[];
+
+    if (existingOps.length > 0) {
+        for (const existingOp of existingOps) {
+            if (!existingOp[field].includes(qubit)) {
+                updateOperation(existingOp.id, op => ({
+                    ...op,
+                    [field]: [...(op as UnitaryOperation)[field], qubit]
+                } as CircuitOperation));
+            }
+        }
+    } else {
+        store.update(map => {
+            const next = new Map(map);
+            const existing = next.get(col) ?? [];
+            if (!existing.includes(qubit)) next.set(col, [...existing, qubit]);
+            return next;
+        });
+    }
+    triggerSimulation(get(circuitIR));
 }
 
 /*──────────────────────── drag helpers ──────────────────*/
@@ -211,18 +307,8 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
         // Collect pending + existing controls in destination column
-        const pendingInColumn = pending.get(col) ?? [];
-        const antiPendingInColumn = antiPending.get(col) ?? [];
-        const existingControls = new Set<number>();
-        const existingAntiControls = new Set<number>();
-        for (const op of ir.operations) {
-            if (op.kind === 'unitary' && op.column === col && op.id !== parsed.gateId) {
-                (op as UnitaryOperation).controls.forEach(c => existingControls.add(c));
-                (op as UnitaryOperation).antiControls.forEach(c => existingAntiControls.add(c));
-            }
-        }
-        const allControls = [...new Set([...pendingInColumn, ...existingControls])];
-        const allAntiControls = [...new Set([...antiPendingInColumn, ...existingAntiControls])];
+        const { controls: allControls, antiControls: allAntiControls } =
+            collectControlsInColumn(ir, col, pending, antiPending, parsed.gateId);
 
         const mergeControls = (op: CircuitOperation): CircuitOperation => {
             if (op.kind !== 'unitary') return { ...op, column: col, ...('targets' in op ? { targets: [qubit] } : {}) } as CircuitOperation;
@@ -240,12 +326,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
             updateOperation(parsed.gateId, op => mergeControls(op));
         }
 
-        if (pendingInColumn.length > 0) {
-            pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-        }
-        if (antiPendingInColumn.length > 0) {
-            pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-        }
+        consumePendingControls(col, pending.get(col) ?? [], antiPending.get(col) ?? []);
 
         triggerSimulation(get(circuitIR));
         return;
@@ -267,187 +348,18 @@ function _dropPaletteGate(
 ) {
     const upperType = gateType.toUpperCase();
 
-    if (upperType === 'RX') {
-        const occupied = isCellOccupied(ir, col, qubit);
-        if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
-
-        const angle = parsePiInput(prompt('Enter RX angle (e.g. pi/2, pi/4, 3pi/4):', 'pi/2') ?? '') ?? 0;
-        const pendingInColumn = pending.get(col) ?? [];
-        const antiPendingInColumn = antiPending.get(col) ?? [];
-        const existingControls = new Set<number>();
-        const existingAntiControls = new Set<number>();
-        for (const op of ir.operations) {
-            if (op.kind === 'unitary' && op.column === col) {
-                (op as UnitaryOperation).controls.forEach(c => existingControls.add(c));
-                (op as UnitaryOperation).antiControls.forEach(c => existingAntiControls.add(c));
-            }
-        }
-
-        const allControls = [...new Set([...pendingInColumn, ...existingControls])];
-        const allAntiControls = [...new Set([...antiPendingInColumn, ...existingAntiControls])];
-
-        const unitaryOp: UnitaryOperation = {
-            id: crypto.randomUUID(),
-            kind: 'unitary',
-            gate: 'rx',
-            column: col,
-            targets: [qubit],
-            controls: allControls,
-            antiControls: allAntiControls,
-            params: [angle],
-        };
-        insertOperation(unitaryOp);
-
-        if (pendingInColumn.length > 0) {
-            pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-        }
-        if (antiPendingInColumn.length > 0) {
-            pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-        }
-
-        triggerSimulation(get(circuitIR));
-        return;
-    }
-
-    if (upperType === 'RY') {
-        const occupied = isCellOccupied(ir, col, qubit);
-        if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
-
-        const angle = parsePiInput(prompt('Enter RY angle (e.g. pi/2, pi/4, 3pi/4):', 'pi/2') ?? '') ?? 0;
-        const pendingInColumn = pending.get(col) ?? [];
-        const antiPendingInColumn = antiPending.get(col) ?? [];
-        const existingControls = new Set<number>();
-        const existingAntiControls = new Set<number>();
-        for (const op of ir.operations) {
-            if (op.kind === 'unitary' && op.column === col) {
-                (op as UnitaryOperation).controls.forEach(c => existingControls.add(c));
-                (op as UnitaryOperation).antiControls.forEach(c => existingAntiControls.add(c));
-            }
-        }
-
-        const allControls = [...new Set([...pendingInColumn, ...existingControls])];
-        const allAntiControls = [...new Set([...antiPendingInColumn, ...existingAntiControls])];
-
-        const unitaryOp: UnitaryOperation = {
-            id: crypto.randomUUID(),
-            kind: 'unitary',
-            gate: 'ry',
-            column: col,
-            targets: [qubit],
-            controls: allControls,
-            antiControls: allAntiControls,
-            params: [angle],
-        };
-        insertOperation(unitaryOp);
-
-        if (pendingInColumn.length > 0) {
-            pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-        }
-        if (antiPendingInColumn.length > 0) {
-            pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-        }
-
-        triggerSimulation(get(circuitIR));
-        return;
-    }
-
-    if (upperType === 'RZ') {
-        const occupied = isCellOccupied(ir, col, qubit);
-        if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
-
-        const angle = parsePiInput(prompt('Enter RZ angle (e.g. pi/2, pi/4, 3pi/4):', 'pi/2') ?? '') ?? 0;
-        const pendingInColumn = pending.get(col) ?? [];
-        const antiPendingInColumn = antiPending.get(col) ?? [];
-        const existingControls = new Set<number>();
-        const existingAntiControls = new Set<number>();
-        for (const op of ir.operations) {
-            if (op.kind === 'unitary' && op.column === col) {
-                (op as UnitaryOperation).controls.forEach(c => existingControls.add(c));
-                (op as UnitaryOperation).antiControls.forEach(c => existingAntiControls.add(c));
-            }
-        }
-
-        const allControls = [...new Set([...pendingInColumn, ...existingControls])];
-        const allAntiControls = [...new Set([...antiPendingInColumn, ...existingAntiControls])];
-
-        const unitaryOp: UnitaryOperation = {
-            id: crypto.randomUUID(),
-            kind: 'unitary',
-            gate: 'rz',
-            column: col,
-            targets: [qubit],
-            controls: allControls,
-            antiControls: allAntiControls,
-            params: [angle],
-        };
-        insertOperation(unitaryOp);
-
-        if (pendingInColumn.length > 0) {
-            pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-        }
-        if (antiPendingInColumn.length > 0) {
-            pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-        }
-
-        triggerSimulation(get(circuitIR));
+    if (upperType === 'RX' || upperType === 'RY' || upperType === 'RZ') {
+        dropParametricGate(upperType.toLowerCase() as 'rx' | 'ry' | 'rz', col, qubit, ir, pending, antiPending);
         return;
     }
 
     if (upperType === 'CONTROL') {
-        // Find all unitary ops in this column
-        const existingOps = ir.operations.filter(
-            op => op.kind === 'unitary' && op.column === col
-        ) as UnitaryOperation[];
-
-        if (existingOps.length > 0) {
-            // Attach control to all unitary ops in this column
-            for (const existingOp of existingOps) {
-                if (!existingOp.controls.includes(qubit)) {
-                    updateOperation(existingOp.id, op => ({
-                        ...op,
-                        controls: [...(op as UnitaryOperation).controls, qubit]
-                    } as CircuitOperation));
-                }
-            }
-        } else {
-            // No unitary op yet — park in pendingControls
-            pendingControls.update(map => {
-                const next = new Map(map);
-                const existing = next.get(col) ?? [];
-                if (!existing.includes(qubit)) next.set(col, [...existing, qubit]);
-                return next;
-            });
-        }
-        triggerSimulation(get(circuitIR));
+        applyControlToColumn('controls', pendingControls, col, qubit, ir);
         return;
     }
 
     if (upperType === 'ANTI_CONTROL') {
-        // Find all unitary ops in this column
-        const existingOps = ir.operations.filter(
-            op => op.kind === 'unitary' && op.column === col
-        ) as UnitaryOperation[];
-
-        if (existingOps.length > 0) {
-            // Attach anti-control to all unitary ops in this column
-            for (const existingOp of existingOps) {
-                if (!existingOp.antiControls.includes(qubit)) {
-                    updateOperation(existingOp.id, op => ({
-                        ...op,
-                        antiControls: [...(op as UnitaryOperation).antiControls, qubit]
-                    } as CircuitOperation));
-                }
-            }
-        } else {
-            // No unitary op yet — park in pendingAntiControls
-            pendingAntiControls.update(map => {
-                const next = new Map(map);
-                const existing = next.get(col) ?? [];
-                if (!existing.includes(qubit)) next.set(col, [...existing, qubit]);
-                return next;
-            });
-        }
-        triggerSimulation(get(circuitIR));
+        applyControlToColumn('antiControls', pendingAntiControls, col, qubit, ir);
         return;
     }
 
@@ -505,21 +417,7 @@ function _dropPaletteGate(
     const occupied = isCellOccupied(ir, col, qubit);
     if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
-    const pendingInColumn = pending.get(col) ?? [];
-    const antiPendingInColumn = antiPending.get(col) ?? [];
-
-    // Also collect controls from other operations in this column
-    const existingControls = new Set<number>();
-    const existingAntiControls = new Set<number>();
-    for (const op of ir.operations) {
-        if (op.kind === 'unitary' && op.column === col) {
-            (op as UnitaryOperation).controls.forEach(c => existingControls.add(c));
-            (op as UnitaryOperation).antiControls.forEach(c => existingAntiControls.add(c));
-        }
-    }
-
-    const allControls = [...new Set([...pendingInColumn, ...existingControls])];
-    const allAntiControls = [...new Set([...antiPendingInColumn, ...existingAntiControls])];
+    const { controls, antiControls } = collectControlsInColumn(ir, col, pending, antiPending);
 
     const unitaryOp: UnitaryOperation = {
         id: crypto.randomUUID(),
@@ -527,20 +425,12 @@ function _dropPaletteGate(
         gate: canonicalGate(gateType) as UnitaryOperation['gate'],
         column: col,
         targets: [qubit],
-        controls: allControls,
-        antiControls: allAntiControls,
+        controls,
+        antiControls,
         params: [],
     };
     insertOperation(unitaryOp);
-
-    // Clear consumed pending controls for this column
-    if (pendingInColumn.length > 0) {
-        pendingControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-    }
-    if (antiPendingInColumn.length > 0) {
-        pendingAntiControls.update(map => { const next = new Map(map); next.delete(col); return next; });
-    }
-
+    consumePendingControls(col, pending.get(col) ?? [], antiPending.get(col) ?? []);
     triggerSimulation(get(circuitIR));
 }
 
