@@ -1,4 +1,5 @@
 import type { CircuitIR, UnitaryOperation, MeasureOperation, ResetOperation, BarrierOperation, CircuitOperation } from '../IR/schema';
+import { isParametricGate, controlledQasmName } from '../quantum/gates';
 
 export interface OpenQasmExportOptions {
 	version?: '2.0' | '3.0';
@@ -127,7 +128,7 @@ function unitaryToOpenQasm3(op: UnitaryOperation): string {
 		instruction = `swap q[${t0}], q[${t1}];`;
 	} else {
 		// Single qubit gates
-		if (['rx', 'ry', 'rz'].includes(gate)) {
+		if (isParametricGate(gate)) {
 			const angle = op.params[0] ?? 0;
 			instruction = `${gate}(${angle}) q[${target}];`;
 		} else {
@@ -153,7 +154,7 @@ function unitaryToOpenQasm2(op: UnitaryOperation): string {
 		instruction = `swap q[${t0}], q[${t1}];`;
 	} else {
 		// Single qubit gates
-		if (['rx', 'ry', 'rz'].includes(gate)) {
+		if (isParametricGate(gate)) {
 			const angle = op.params[0] ?? 0;
 			instruction = `${gate}(${angle}) q[${target}];`;
 		} else {
@@ -174,7 +175,7 @@ function generateControlledGate3(op: UnitaryOperation): string {
 	if (controls.length > 0 && antiControls.length === 0) {
 		if (controls.length === 1) {
 			const control = controls[0];
-			if (['rx', 'ry', 'rz'].includes(gate)) {
+			if (isParametricGate(gate)) {
 				const angle = op.params[0] ?? 0;
 				return `ctrl @ ${gate}(${angle}) q[${control}], q[${target}];`;
 			} else {
@@ -183,7 +184,7 @@ function generateControlledGate3(op: UnitaryOperation): string {
 		} else if (controls.length === 2) {
 			const control1 = controls[0];
 			const control2 = controls[1];
-			if (['rx', 'ry', 'rz'].includes(gate)) {
+			if (isParametricGate(gate)) {
 				const angle = op.params[0] ?? 0;
 				return `ctrl @ ctrl @ ${gate}(${angle}) q[${control1}], q[${control2}], q[${target}];`;
 			} else {
@@ -193,7 +194,7 @@ function generateControlledGate3(op: UnitaryOperation): string {
 	}
 
 	// Fallback to uncontrolled gate
-	if (['rx', 'ry', 'rz'].includes(gate)) {
+	if (isParametricGate(gate)) {
 		const angle = op.params[0] ?? 0;
 		return `${gate}(${angle}) q[${target}];`;
 	} else {
@@ -211,11 +212,10 @@ function generateControlledGate2(op: UnitaryOperation): string {
 	if (controls.length > 0 && antiControls.length === 0) {
 		if (controls.length === 1) {
 			const control = controls[0];
-			if (gate === 'x') {
-				return `cx q[${control}], q[${target}];`;
-			} else if (gate === 'z') {
-				return `cz q[${control}], q[${target}];`;
-			} else if (['rx', 'ry', 'rz'].includes(gate)) {
+			const ctrlName1 = controlledQasmName(gate, 1);
+			if (ctrlName1) {
+				return `${ctrlName1} q[${control}], q[${target}];`;
+			} else if (isParametricGate(gate)) {
 				const angle = op.params[0] ?? 0;
 				return `c${gate}(${angle}) q[${control}], q[${target}];`;
 			} else {
@@ -224,14 +224,15 @@ function generateControlledGate2(op: UnitaryOperation): string {
 		} else if (controls.length === 2) {
 			const control1 = controls[0];
 			const control2 = controls[1];
-			if (gate === 'x') {
-				return `ccx q[${control1}], q[${control2}], q[${target}];`;
+			const ctrlName2 = controlledQasmName(gate, 2);
+			if (ctrlName2) {
+				return `${ctrlName2} q[${control1}], q[${control2}], q[${target}];`;
 			}
 		}
 	}
 
 	// Fallback to uncontrolled gate
-	if (['rx', 'ry', 'rz'].includes(gate)) {
+	if (isParametricGate(gate)) {
 		const angle = op.params[0] ?? 0;
 		return `${gate}(${angle}) q[${target}];`;
 	} else {

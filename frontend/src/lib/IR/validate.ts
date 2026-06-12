@@ -5,18 +5,12 @@
 // It only checks correctness and reports errors.
 
 import type {
-    CanonicalUnitaryGate,
     OperationKind
 } from './schema';
+import { isGateId, isParametricGate } from '../quantum/gates';
 
 // Supported version of the IR schema
 const VALID_VERSION = '1.0';
-
-// List of valid unitary gates we currently support
-const VALID_UNITARY_GATES: CanonicalUnitaryGate[] = ['x', 'y', 'z', 'h', 's', 't', 'rx', 'ry', 'rz', 'swap'] as const;
-
-// Parametric gates that require parameters
-const PARAMETRIC_GATES = new Set(['rx', 'ry', 'rz']);
 
 // Allowed operation types
 const VALID_KINDS = ['unitary', 'measure', 'reset', 'barrier'] as const satisfies readonly OperationKind[];
@@ -159,7 +153,7 @@ function validateUnitaryOperation(
     const opLabel = `Operation "${String(op.id ?? index)}"`;
 
     // Gate must be one of supported unitary gates
-    if (!VALID_UNITARY_GATES.includes(op.gate as CanonicalUnitaryGate)) {
+    if (typeof op.gate !== 'string' || !isGateId(op.gate)) {
         errors.push(`${opLabel}: invalid unitary gate "${String(op.gate)}".`);
     }
 
@@ -181,7 +175,7 @@ function validateUnitaryOperation(
     }
 
     // Parametric gates must have at least one parameter
-    if (PARAMETRIC_GATES.has(op.gate as string) && (!Array.isArray(op.params) || op.params.length === 0)) {
+    if (isParametricGate(op.gate as string) && (!Array.isArray(op.params) || op.params.length === 0)) {
         errors.push(`${opLabel}: parametric gate "${String(op.gate)}" requires at least one parameter.`);
     }
 

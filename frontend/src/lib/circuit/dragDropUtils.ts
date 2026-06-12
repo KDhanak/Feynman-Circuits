@@ -5,6 +5,8 @@ import { isDragging } from '../stores/uiStores';
 import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } from '../IR/operations';
 import { simulateMultipleQubits } from './simulator';
 import { LABEL_WIDTH, GATE_OFFSET, COLUMN_WIDTH, MAX_COLUMNS } from '../utils/constants';
+import { parsePiInput } from '../utils/piMath';
+import { UNITARY_GATE_IDS } from '../quantum/gates';
 
 // UI-only: tracks controls placed in a column before any unitary op exists there
 export const pendingControls = writable<Map<number, number[]>>(new Map());
@@ -269,7 +271,7 @@ function _dropPaletteGate(
         const occupied = isCellOccupied(ir, col, qubit);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
-        const angle = parseFloat(prompt('Enter RX angle (in radians):', '1.57') || '0');
+        const angle = parsePiInput(prompt('Enter RX angle (e.g. pi/2, pi/4, 3pi/4):', 'pi/2') ?? '') ?? 0;
         const pendingInColumn = pending.get(col) ?? [];
         const antiPendingInColumn = antiPending.get(col) ?? [];
         const existingControls = new Set<number>();
@@ -311,7 +313,7 @@ function _dropPaletteGate(
         const occupied = isCellOccupied(ir, col, qubit);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
-        const angle = parseFloat(prompt('Enter RY angle (in radians):', '1.57') || '0');
+        const angle = parsePiInput(prompt('Enter RY angle (e.g. pi/2, pi/4, 3pi/4):', 'pi/2') ?? '') ?? 0;
         const pendingInColumn = pending.get(col) ?? [];
         const antiPendingInColumn = antiPending.get(col) ?? [];
         const existingControls = new Set<number>();
@@ -353,7 +355,7 @@ function _dropPaletteGate(
         const occupied = isCellOccupied(ir, col, qubit);
         if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
-        const angle = parseFloat(prompt('Enter RZ angle (in radians):', '1.57') || '0');
+        const angle = parsePiInput(prompt('Enter RZ angle (e.g. pi/2, pi/4, 3pi/4):', 'pi/2') ?? '') ?? 0;
         const pendingInColumn = pending.get(col) ?? [];
         const antiPendingInColumn = antiPending.get(col) ?? [];
         const existingControls = new Set<number>();
@@ -564,7 +566,7 @@ export function handlePaletteDrop(e: DragEvent) {
 /*──────────────────────── double-click ──────────────────*/
 
 export function handleDoubleClick(data: GateData) {
-    const valid = ['X', 'Y', 'Z', 'H', 'S', 'T', 'RX', 'RY', 'RZ', 'CONTROL', 'ANTI_CONTROL', 'MEASURE', 'SWAP'];
+    const valid = [...UNITARY_GATE_IDS.map((g) => g.toUpperCase()), 'CONTROL', 'ANTI_CONTROL', 'MEASURE'];
 
     if (data.source === 'palette' && data.gateType) {
         if (!valid.includes(data.gateType.toUpperCase())) return;

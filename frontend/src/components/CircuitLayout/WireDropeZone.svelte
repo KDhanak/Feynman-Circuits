@@ -29,6 +29,7 @@ import { updateOperation } from '$lib/IR/operations';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import Icon from '@iconify/svelte';
 	import { MAX_COLUMNS, MAX_QUBITS } from '$lib/utils/constants';
+	import { parsePiInput, formatRadiansAsPi } from '$lib/utils/piMath';
 
 	let columnWidth: number;
 	let gateOffset: number;
@@ -42,7 +43,7 @@ import { updateOperation } from '$lib/IR/operations';
 	let gateMenuX = 0;
 	let gateMenuY = 0;
 	let gateMenuGate: UnitaryOperation | null = null;
-	let gateMenuAngle = 0;
+	let gateMenuAngle = '0';
 	let gateMenuTarget0 = 0;
 	let gateMenuTarget1 = 1;
 	let gateMenuError = '';
@@ -313,7 +314,7 @@ import { updateOperation } from '$lib/IR/operations';
 			gateMenuTarget0 = gate.targets[0];
 			gateMenuTarget1 = gate.targets[1] ?? 1;
 		} else {
-			gateMenuAngle = gate.params[0] ?? 0;
+			gateMenuAngle = formatRadiansAsPi(gate.params[0] ?? 0);
 		}
 		gateMenuVisible = true;
 	}
@@ -333,8 +334,8 @@ import { updateOperation } from '$lib/IR/operations';
 			}
 			updateOperation(gate.id, op => ({ ...(op as UnitaryOperation), targets: [t0, t1] }));
 		} else {
-			const angle = Number(gateMenuAngle);
-			if (isNaN(angle)) { gateMenuError = 'Angle must be a number.'; return; }
+			const angle = parsePiInput(gateMenuAngle);
+			if (angle === null) { gateMenuError = 'Enter an angle like pi/2, pi/4, or a number in radians.'; return; }
 			updateOperation(gate.id, op => ({ ...(op as UnitaryOperation), params: [angle] }));
 		}
 		triggerSimulation($circuitIR);
@@ -991,11 +992,10 @@ import { updateOperation } from '$lib/IR/operations';
 				</div>
 			{:else}
 				<div class="px-4 py-3">
-					<label class="block text-xs text-gray-500 mb-1" for="gate-angle">Angle (radians)</label>
+					<label class="block text-xs text-gray-500 mb-1" for="gate-angle">Angle (e.g. pi/2, pi/4, 3pi/4)</label>
 					<input
 						id="gate-angle"
-						type="number"
-						step="0.01"
+						type="text"
 						bind:value={gateMenuAngle}
 						class="input-field py-1.5 text-sm"
 					/>

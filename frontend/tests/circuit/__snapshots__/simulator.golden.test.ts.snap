@@ -1,0 +1,199 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`simulateMultipleQubits — golden snapshots > anti-control gate (X fires only when control is |0>) 1`] = `
+{
+  "formattedState": "(1.00)|01⟩",
+  "probabilities": {
+    "01": [
+      1,
+      0,
+    ],
+  },
+}
+`;
+
+exports[`simulateMultipleQubits — golden snapshots > controlled rotation (RY with control) 1`] = `
+{
+  "formattedState": "(0.71)|10⟩ + (0.71)|11⟩",
+  "probabilities": {
+    "10": [
+      0.5,
+      0,
+    ],
+    "11": [
+      0.5,
+      0,
+    ],
+  },
+}
+`;
+
+exports[`simulateMultipleQubits — golden snapshots > multi-control Toffoli (CCX) 1`] = `
+{
+  "formattedState": "(1.00)|111⟩",
+  "probabilities": {
+    "111": [
+      1,
+      0,
+    ],
+  },
+}
+`;
+
+exports[`simulateMultipleQubits — golden snapshots > rx/ry/rz with non-trivial angles 1`] = `
+[
+  [
+    "rx",
+    {
+      "formattedState": "(0.87)|0⟩ + (-0.50i)|1⟩",
+      "probabilities": {
+        "0": [
+          0.75,
+          0,
+        ],
+        "1": [
+          0.25,
+          0,
+        ],
+      },
+    },
+  ],
+  [
+    "ry",
+    {
+      "formattedState": "(0.87)|0⟩ + (0.50)|1⟩",
+      "probabilities": {
+        "0": [
+          0.75,
+          0,
+        ],
+        "1": [
+          0.25,
+          0,
+        ],
+      },
+    },
+  ],
+  [
+    "rz",
+    {
+      "formattedState": "(0.87 - 0.50i)|0⟩",
+      "probabilities": {
+        "0": [
+          1,
+          0,
+        ],
+      },
+    },
+  ],
+]
+`;
+
+exports[`simulateMultipleQubits — golden snapshots > single-control CNOT (Bell state) 1`] = `
+{
+  "formattedState": "(0.71)|00⟩ + (0.71)|11⟩",
+  "probabilities": {
+    "00": [
+      0.5,
+      0,
+    ],
+    "11": [
+      0.5,
+      0,
+    ],
+  },
+}
+`;
+
+exports[`simulateMultipleQubits — golden snapshots > single-qubit gates on |0> 1`] = `
+[
+  [
+    "x",
+    {
+      "formattedState": "(1.00)|1⟩",
+      "probabilities": {
+        "1": [
+          1,
+          0,
+        ],
+      },
+    },
+  ],
+  [
+    "y",
+    {
+      "formattedState": "(i)|1⟩",
+      "probabilities": {
+        "1": [
+          1,
+          0,
+        ],
+      },
+    },
+  ],
+  [
+    "z",
+    {
+      "formattedState": "(1.00)|0⟩",
+      "probabilities": {
+        "0": [
+          1,
+          0,
+        ],
+      },
+    },
+  ],
+  [
+    "h",
+    {
+      "formattedState": "(0.71)|0⟩ + (0.71)|1⟩",
+      "probabilities": {
+        "0": [
+          0.5,
+          0,
+        ],
+        "1": [
+          0.5,
+          0,
+        ],
+      },
+    },
+  ],
+  [
+    "s",
+    {
+      "formattedState": "(1.00)|0⟩",
+      "probabilities": {
+        "0": [
+          1,
+          0,
+        ],
+      },
+    },
+  ],
+  [
+    "t",
+    {
+      "formattedState": "(1.00)|0⟩",
+      "probabilities": {
+        "0": [
+          1,
+          0,
+        ],
+      },
+    },
+  ],
+]
+`;
+
+exports[`simulateMultipleQubits — golden snapshots > swap entangled-looking pair 1`] = `
+{
+  "formattedState": "(1.00)|01⟩",
+  "probabilities": {
+    "01": [
+      1,
+      0,
+    ],
+  },
+}
+`;

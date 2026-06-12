@@ -95,7 +95,9 @@ export const RX_GATE: QuantumGate = createRXGate(0);
 export const RY_GATE: QuantumGate = createRYGate(0);
 export const RZ_GATE: QuantumGate = createRZGate(0);
 
-export const GATE_MAP: Record<CanonicalUnitaryGate, QuantumGate> = {
+// swap has no single 2×2 matrix (the simulator special-cases it), so it is
+// intentionally absent here — hence Partial. Consumers must null-check lookups.
+export const GATE_MAP: Partial<Record<CanonicalUnitaryGate, QuantumGate>> = {
     "x": X_GATE,
     "y": Y_GATE,
     "z": Z_GATE,
@@ -105,4 +107,56 @@ export const GATE_MAP: Record<CanonicalUnitaryGate, QuantumGate> = {
     "rx": RX_GATE,
     "ry": RY_GATE,
     "rz": RZ_GATE,
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gate registry — single source of truth for gate identity.
+//
+// Every consumer (IR validator, gate palette, drag-drop, OpenQASM
+// converter, and the backend manifest) should derive its gate list,
+// parametric check, and QASM names from here instead of hard-coding
+// its own copy. The matrix factory wraps the math above so this is
+// the one place a new gate has to be declared.
+// ─────────────────────────────────────────────────────────────
+
+export interface GateSpec {
+    id: CanonicalUnitaryGate;
+    label: string;                              // palette display, e.g. "RX"
+    category: 'pauli' | 'phase' | 'hadamard' | 'rotation' | 'multi';
+    arity: number;                              // number of target qubits (swap = 2)
+    numParams: number;                          // 0, or 1 for rotations
+    qasmName: string;                           // base OpenQASM name
+    controlledQasm?: Record<number, string>;    // special controlled spellings, e.g. { 1: 'cx', 2: 'ccx' }
+    matrix?: (params: number[]) => Complex[][]; // omitted for swap (simulator special-cases it)
+}
+
+export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
+    x: { id: 'x', label: 'X', category: 'pauli', arity: 1, numParams: 0, qasmName: 'x', controlledQasm: { 1: 'cx', 2: 'ccx' }, matrix: () => X_GATE.matrix },
+    y: { id: 'y', label: 'Y', category: 'pauli', arity: 1, numParams: 0, qasmName: 'y', matrix: () => Y_GATE.matrix },
+    z: { id: 'z', label: 'Z', category: 'pauli', arity: 1, numParams: 0, qasmName: 'z', controlledQasm: { 1: 'cz' }, matrix: () => Z_GATE.matrix },
+    h: { id: 'h', label: 'H', category: 'hadamard', arity: 1, numParams: 0, qasmName: 'h', matrix: () => H_GATE.matrix },
+    s: { id: 's', label: 'S', category: 'phase', arity: 1, numParams: 0, qasmName: 's', matrix: () => S_GATE.matrix },
+    t: { id: 't', label: 'T', category: 'phase', arity: 1, numParams: 0, qasmName: 't', matrix: () => T_GATE.matrix },
+    rx: { id: 'rx', label: 'RX', category: 'rotation', arity: 1, numParams: 1, qasmName: 'rx', matrix: (p) => createRXGate(p[0] ?? 0).matrix },
+    ry: { id: 'ry', label: 'RY', category: 'rotation', arity: 1, numParams: 1, qasmName: 'ry', matrix: (p) => createRYGate(p[0] ?? 0).matrix },
+    rz: { id: 'rz', label: 'RZ', category: 'rotation', arity: 1, numParams: 1, qasmName: 'rz', matrix: (p) => createRZGate(p[0] ?? 0).matrix },
+    swap: { id: 'swap', label: 'SWAP', category: 'multi', arity: 2, numParams: 0, qasmName: 'swap' },
+};
+
+// Derived lookups — use these instead of re-listing gate ids anywhere else.
+export const UNITARY_GATE_IDS = Object.keys(GATE_REGISTRY) as CanonicalUnitaryGate[];
+export const PARAMETRIC_GATE_IDS = UNITARY_GATE_IDS.filter((g) => GATE_REGISTRY[g].numParams > 0);
+
+export function isGateId(value: string): value is CanonicalUnitaryGate {
+    return value in GATE_REGISTRY;
+}
+
+export function isParametricGate(value: string): boolean {
+    return isGateId(value) && GATE_REGISTRY[value].numParams > 0;
+}
+
+// Returns the special controlled OpenQASM name (e.g. cx, ccx, cz) or undefined
+// if the gate uses the generic `ctrl @` form.
+export function controlledQasmName(gate: CanonicalUnitaryGate, numControls: number): string | undefined {
+    return GATE_REGISTRY[gate].controlledQasm?.[numControls];
 }
