@@ -2,82 +2,32 @@
 	import Icon from '@iconify/svelte';
 	import type { DataViewMode, OpenQasmVersion } from '$lib/circuit/circuitDataModal';
 	import { fade, scale } from 'svelte/transition';
+	import { tick } from 'svelte';
+	import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
+	import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 
 	let monaco: typeof import('monaco-editor');
 
-	export let open = false;
-	export let activeView: DataViewMode = 'cir';
-	export let value = '';
-	export let qasmVersion: OpenQasmVersion = '3.0';
-
-	export let onClose: () => void;
-	export let onTabChange: (mode: DataViewMode) => void;
-	export let onVersionChange: (version: OpenQasmVersion) => void;
-	export let onCopy: () => void;
-	export let onDownload: () => void;
-	export let onImport: () => void;
-
-	let showVersionMenu = false;
-	let editor: any = null;
-	let monacoPromise: Promise<any> | null = null;
-	let isDarkMode = true;
-
-	// Pre-load Monaco in the background
-	if (typeof window !== 'undefined') {
-		monacoPromise = import('monaco-editor').catch(() => null);
-	}
-
-	function handleQasmClick() {
-		onTabChange('qasm');
-	}
-
-	function toggleVersionMenu() {
-		showVersionMenu = !showVersionMenu;
-	}
-
-	$: if (open && !editor) {
-		// Give Svelte time to render the DOM
-		setTimeout(() => {
-			initializeMonaco();
-		}, 100);
-	}
-
-	$: if (!open && editor) {
-		// Dispose editor when modal closes
-		editor.dispose();
-		editor = null;
-	}
-
-	function handleVersionSelect(version: OpenQasmVersion) {
-		qasmVersion = version;
-		onVersionChange(version);
-		showVersionMenu = false;
-	}
-
-	function focusOnMount(node: HTMLElement) {
-		node.focus();
-		return {
-			destroy() {}
+	let monacoEnvironmentConfigured = false;
+	function configureMonacoEnvironment() {
+		if (monacoEnvironmentConfigured) return;
+		monacoEnvironmentConfigured = true;
+		self.MonacoEnvironment = {
+			getWorker(_workerId: string, label: string) {
+				if (label === 'json') return new jsonWorker();
+				return new editorWorker();
+			}
 		};
 	}
 
-	async function initializeMonaco() {
-		// Query for the editor container div by id
-		const container = document.getElementById('monaco-editor-container') as HTMLDivElement;
-
-		if (!container) {
-			return;
-		}
-
-		// Use pre-loaded Monaco or import if not ready
-		monaco = await monacoPromise;
-		if (!monaco) {
-			monaco = await import('monaco-editor');
-		}
+	let qasmSupportRegistered = false;
+	function registerOpenQasmSupport(monacoInstance: typeof import('monaco-editor'), isDark: boolean) {
+		if (qasmSupportRegistered) return;
+		qasmSupportRegistered = true;
 
 		// Define OpenQASM language (supports both 2.0 and 3.0)
-		monaco.languages.register({ id: 'openqasm' });
-		monaco.languages.setMonarchTokensProvider('openqasm', {
+		monacoInstance.languages.register({ id: 'openqasm' });
+		monacoInstance.languages.setMonarchTokensProvider('openqasm', {
 			keywords: [
 				// OpenQASM 2.0 & 3.0 common
 				'OPENQASM', 'include', 'gate', 'opaque', 'measure', 'reset', 'barrier',
@@ -112,6 +62,104 @@
 			}
 		});
 
+		// Define OpenQASM theme colors
+		const themeToUse = isDark ? 'vs-dark' : 'vs';
+		monacoInstance.editor.defineTheme('openqasm-theme', {
+			base: themeToUse,
+			inherit: true,
+			rules: [
+				{ token: 'keyword', foreground: isDark ? '569cd6' : '0000ff' },
+				{ token: 'string', foreground: isDark ? 'ce9178' : 'a31515' },
+				{ token: 'comment', foreground: isDark ? '6a9955' : '008000' },
+				{ token: 'number', foreground: isDark ? 'b5cea8' : '098658' },
+				{ token: 'operator', foreground: isDark ? 'd4d4d4' : '000000' },
+			],
+			colors: {
+				'editor.background': isDark ? '#1e1e1e' : '#ffffff',
+				'editor.foreground': isDark ? '#d4d4d4' : '#000000',
+			}
+		});
+	}
+
+	export let open = false;
+	export let activeView: DataViewMode = 'cir';
+	export let value = '';
+	export let qasmVersion: OpenQasmVersion = '3.0';
+
+	export let onClose: () => void;
+	export let onTabChange: (mode: DataViewMode) => void;
+	export let onVersionChange: (version: OpenQasmVersion) => void;
+	export let onCopy: () => void;
+	export let onDownload: () => void;
+	export let onImport: () => void;
+
+	let showVersionMenu = false;
+	let editor: any = null;
+	let monacoPromise: Promise<any> | null = null;
+	let isDarkMode = true;
+	let isInitializing = false;
+
+	// Pre-load Monaco in the background
+	if (typeof window !== 'undefined') {
+		configureMonacoEnvironment();
+		monacoPromise = import('monaco-editor').catch(() => null);
+	}
+
+	function handleQasmClick() {
+		onTabChange('qasm');
+	}
+
+	function toggleVersionMenu() {
+		showVersionMenu = !showVersionMenu;
+	}
+
+	$: if (open && !editor && !isInitializing) {
+		isInitializing = true;
+		// Wait for Svelte to render the container DOM before mounting Monaco into it
+		tick().then(() => initializeMonaco());
+	}
+
+	$: if (!open && editor) {
+		// Dispose editor when modal closes
+		editor.dispose();
+		editor = null;
+	}
+
+	function handleVersionSelect(version: OpenQasmVersion) {
+		qasmVersion = version;
+		onVersionChange(version);
+		showVersionMenu = false;
+	}
+
+	function focusOnMount(node: HTMLElement) {
+		node.focus();
+		return {
+			destroy() {}
+		};
+	}
+
+	async function initializeMonaco() {
+		// Query for the editor container div by id
+		const container = document.getElementById('monaco-editor-container') as HTMLDivElement;
+
+		if (!container) {
+			isInitializing = false;
+			return;
+		}
+
+		// Use pre-loaded Monaco or import if not ready
+		monaco = await monacoPromise;
+		if (!monaco) {
+			monaco = await import('monaco-editor');
+		}
+
+		// The modal may have been closed while Monaco was still loading — bail out
+		// instead of mounting an editor instance that nothing will ever dispose.
+		if (!open) {
+			isInitializing = false;
+			return;
+		}
+
 		// Detect if dark mode is active based on background color luminance
 		const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--color-background').trim();
 
@@ -125,24 +173,9 @@
 			isDarkMode = luminance < 0.5;
 		}
 
-		const themeToUse = isDarkMode ? 'vs-dark' : 'vs';
+		registerOpenQasmSupport(monaco, isDarkMode);
 
-		// Define OpenQASM theme colors
-		monaco.editor.defineTheme('openqasm-theme', {
-			base: themeToUse,
-			inherit: true,
-			rules: [
-				{ token: 'keyword', foreground: isDarkMode ? '569cd6' : '0000ff' },
-				{ token: 'string', foreground: isDarkMode ? 'ce9178' : 'a31515' },
-				{ token: 'comment', foreground: isDarkMode ? '6a9955' : '008000' },
-				{ token: 'number', foreground: isDarkMode ? 'b5cea8' : '098658' },
-				{ token: 'operator', foreground: isDarkMode ? 'd4d4d4' : '000000' },
-			],
-			colors: {
-				'editor.background': isDarkMode ? '#1e1e1e' : '#ffffff',
-				'editor.foreground': isDarkMode ? '#d4d4d4' : '#000000',
-			}
-		});
+		const themeToUse = isDarkMode ? 'vs-dark' : 'vs';
 
 		// Create editor
 		const editorTheme = activeView === 'qasm' ? 'openqasm-theme' : themeToUse;
@@ -170,8 +203,9 @@
 		editor.onDidChangeModelContent(() => {
 			value = editor?.getValue() || '';
 		});
-	}
 
+		isInitializing = false;
+	}
 
 	// Update editor language and content when activeView changes
 	$: if (editor && open) {
@@ -185,14 +219,6 @@
 			monaco.editor.setTheme(newTheme);
 		}
 
-		const currentValue = editor.getValue();
-		if (value !== currentValue) {
-			editor.setValue(value);
-		}
-	}
-
-	// Handle version change
-	$: if (editor && activeView === 'qasm' && qasmVersion) {
 		const currentValue = editor.getValue();
 		if (value !== currentValue) {
 			editor.setValue(value);
@@ -370,11 +396,6 @@
 		font-family: 'Courier New', monospace !important;
 		height: 100% !important;
 		width: 100% !important;
-	}
-
-	:global(.monaco-editor-container) {
-		height: 100%;
-		width: 100%;
 	}
 
 	:global(.monaco-editor .overflow-guard) {
