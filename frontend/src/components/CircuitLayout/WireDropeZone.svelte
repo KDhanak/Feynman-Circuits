@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { UnitaryOperation, MeasureOperation } from '$lib/IR/schema';
-import { updateOperation } from '$lib/IR/operations';
 	import { tick, onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
 	import { simulationResult, circuitIR } from '$lib/IR/stores';
 	import {
@@ -28,15 +28,28 @@ import { updateOperation } from '$lib/IR/operations';
 	import { copyToClipboard } from '$lib/circuit/circuitActions';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import ConnectorLayer from './ConnectorLayer.svelte';
+	import BoardContextMenu from './BoardContextMenu.svelte';
+	import GateContextMenu from './GateContextMenu.svelte';
 	import Icon from '@iconify/svelte';
 	import { MAX_COLUMNS, MAX_QUBITS } from '$lib/utils/constants';
-	import { parsePiInput, formatRadiansAsPi } from '$lib/utils/piMath';
+	import {
+		selectedGateIds,
+		isDragSelecting,
+		dragStart,
+		dragCurrent,
+		handleGateSelection,
+		handleBoardMouseDown,
+		handleBoardMouseMove,
+		handleBoardMouseUp,
+		deleteSelectedGates,
+		cancelDrag,
+		clearSelection
+	} from '$lib/circuit/selection';
 
 	let columnWidth: number;
 	let gateOffset: number;
 	let scrollContainer: HTMLDivElement | null = null;
 	let hoveredWire: number | null = null;
-	let selectedGateIds = new Set<string>();
 	let contextMenuVisible = false;
 	let contextMenuX = 0;
 	let contextMenuY = 0;
@@ -44,16 +57,6 @@ import { updateOperation } from '$lib/IR/operations';
 	let gateMenuX = 0;
 	let gateMenuY = 0;
 	let gateMenuGate: UnitaryOperation | null = null;
-	let gateMenuAngle = '0';
-	let gateMenuTarget0 = 0;
-	let gateMenuTarget1 = 1;
-	let gateMenuError = '';
-	let isDragSelecting = false;
-	let dragStart: { x: number; y: number } | null = null;
-	let dragCurrent: { x: number; y: number } | null = null;
-	let gateRectCache: Map<string, DOMRect> = new Map();
-	let dragRafId: number | null = null;
-
 	$: ({ columnWidth, gateOffset } = $circuitLayout);
 
 	let boardEl: HTMLDivElement | null = null;
@@ -142,7 +145,6 @@ import { updateOperation } from '$lib/IR/operations';
 	function closeGateMenu() {
 		gateMenuVisible = false;
 		gateMenuGate = null;
-		gateMenuError = '';
 	}
 
 	function handleGateContextMenu(e: MouseEvent, gate: UnitaryOperation) {
@@ -154,143 +156,7 @@ import { updateOperation } from '$lib/IR/operations';
 		gateMenuGate = gate;
 		gateMenuX = e.clientX;
 		gateMenuY = e.clientY;
-		gateMenuError = '';
-		if (gate.gate === 'swap') {
-			gateMenuTarget0 = gate.targets[0];
-			gateMenuTarget1 = gate.targets[1] ?? 1;
-		} else {
-			gateMenuAngle = formatRadiansAsPi(gate.params[0] ?? 0);
-		}
 		gateMenuVisible = true;
-	}
-
-	function applyGateEdit() {
-		if (!gateMenuGate) return;
-		const gate = gateMenuGate;
-		gateMenuError = '';
-
-		if (gate.gate === 'swap') {
-			const numQubits = $circuitIR.registers.q;
-			const t0 = Number(gateMenuTarget0);
-			const t1 = Number(gateMenuTarget1);
-			if (t0 === t1) { gateMenuError = 'Targets must be different.'; return; }
-			if (t0 < 0 || t0 >= numQubits || t1 < 0 || t1 >= numQubits) {
-				gateMenuError = `Each target must be between 0 and ${numQubits - 1}.`; return;
-			}
-			updateOperation(gate.id, op => ({ ...(op as UnitaryOperation), targets: [t0, t1] }));
-		} else {
-			const angle = parsePiInput(gateMenuAngle);
-			if (angle === null) { gateMenuError = 'Enter an angle like pi/2, pi/4, or a number in radians.'; return; }
-			updateOperation(gate.id, op => ({ ...(op as UnitaryOperation), params: [angle] }));
-		}
-		triggerSimulation($circuitIR);
-		closeGateMenu();
-	}
-
-	function handleGateSelection(gateId: string, event: MouseEvent) {
-		if (event.ctrlKey || event.metaKey) {
-			// Ctrl/Cmd+Click: toggle selection
-			if (selectedGateIds.has(gateId)) {
-				selectedGateIds.delete(gateId);
-			} else {
-				selectedGateIds.add(gateId);
-			}
-			selectedGateIds = selectedGateIds; // trigger reactivity
-		} else {
-			// Regular click: select only this gate
-			selectedGateIds.clear();
-			selectedGateIds.add(gateId);
-			selectedGateIds = selectedGateIds; // trigger reactivity
-		}
-	}
-
-	function handleBoardMouseDown(e: MouseEvent) {
-		const target = e.target as HTMLElement;
-		// Only start drag selection if clicking on empty space (not on gates, wires, or labels)
-		if (
-			target.classList.contains('gate') ||
-			target.classList.contains('wire-container') ||
-			target.classList.contains('qubit-label')
-		) {
-			return;
-		}
-
-		isDragSelecting = true;
-		dragStart = { x: e.clientX, y: e.clientY };
-		dragCurrent = { x: e.clientX, y: e.clientY };
-
-		// Precompute gate bounding rects at start of drag
-		gateRectCache.clear();
-		document.querySelectorAll('[data-gate-id]').forEach((gate) => {
-			const gateId = gate.getAttribute('data-gate-id');
-			if (gateId) {
-				gateRectCache.set(gateId, (gate as HTMLElement).getBoundingClientRect());
-			}
-		});
-	}
-
-	function handleBoardMouseMove(e: MouseEvent) {
-		if (!isDragSelecting || !dragStart) return;
-
-		if (dragRafId !== null) cancelAnimationFrame(dragRafId);
-		dragRafId = requestAnimationFrame(() => {
-			dragCurrent = { x: e.clientX, y: e.clientY };
-			dragRafId = null;
-		});
-	}
-
-	function handleBoardMouseUp(e: MouseEvent) {
-		if (!isDragSelecting || !dragStart || !dragCurrent) {
-			isDragSelecting = false;
-			return;
-		}
-
-		const minX = Math.min(dragStart.x, dragCurrent.x);
-		const maxX = Math.max(dragStart.x, dragCurrent.x);
-		const minY = Math.min(dragStart.y, dragCurrent.y);
-		const maxY = Math.max(dragStart.y, dragCurrent.y);
-
-		// If drag rectangle is too small, treat as click on empty space
-		if (maxX - minX < 5 || maxY - minY < 5) {
-			// Clear selection unless Ctrl/Cmd is held
-			if (!(e.ctrlKey || e.metaKey)) {
-				selectedGateIds.clear();
-				selectedGateIds = selectedGateIds;
-			}
-			isDragSelecting = false;
-			dragStart = null;
-			dragCurrent = null;
-			gateRectCache.clear();
-			return;
-		}
-
-		// Use cached rects computed at mousedown
-		const selectedInDrag = new Set<string>();
-
-		gateRectCache.forEach((rect, gateId) => {
-			if (rect.right > minX && rect.left < maxX && rect.bottom > minY && rect.top < maxY) {
-				selectedInDrag.add(gateId);
-			}
-		});
-
-		// If Ctrl/Cmd is held, add to existing selection; otherwise replace
-		if (e.ctrlKey || e.metaKey) {
-			selectedInDrag.forEach((id) => selectedGateIds.add(id));
-		} else {
-			selectedGateIds = selectedInDrag;
-		}
-		selectedGateIds = selectedGateIds; // trigger reactivity
-
-		isDragSelecting = false;
-		dragStart = null;
-		dragCurrent = null;
-		gateRectCache.clear();
-	}
-
-	function deleteSelectedGates() {
-		selectedGateIds.forEach((gateId) => removeGate(gateId));
-		selectedGateIds.clear();
-		selectedGateIds = selectedGateIds; // trigger reactivity
 	}
 
 	function resetAndClose() {
@@ -313,7 +179,7 @@ import { updateOperation } from '$lib/IR/operations';
 		};
 
 		const handleDeleteKey = (e: KeyboardEvent) => {
-			if (e.key === 'Delete' && selectedGateIds.size > 0) {
+			if (e.key === 'Delete' && get(selectedGateIds).size > 0) {
 				e.preventDefault();
 				deleteSelectedGates();
 			}
@@ -336,13 +202,7 @@ import { updateOperation } from '$lib/IR/operations';
 	on:mousedown={handleBoardMouseDown}
 	on:mousemove={handleBoardMouseMove}
 	on:mouseup={handleBoardMouseUp}
-	on:mouseleave={() => {
-		if (dragRafId !== null) cancelAnimationFrame(dragRafId);
-		isDragSelecting = false;
-		dragStart = null;
-		dragCurrent = null;
-		gateRectCache.clear();
-	}}
+	on:mouseleave={cancelDrag}
 	on:click={(e) => {
 		closeContextMenu();
 		const target = e.target as HTMLElement;
@@ -355,8 +215,7 @@ import { updateOperation } from '$lib/IR/operations';
 				target.classList.contains('wire-bloch-anchor') ||
 				target === boardEl)
 		) {
-			selectedGateIds.clear();
-			selectedGateIds = selectedGateIds; // trigger reactivity
+			clearSelection();
 		}
 	}}
 	on:keydown={(e) => {
@@ -364,11 +223,11 @@ import { updateOperation } from '$lib/IR/operations';
 	}}
 >
 	<!-- Drag selection box -->
-	{#if isDragSelecting && dragStart && dragCurrent}
-		{@const minX = Math.min(dragStart.x, dragCurrent.x)}
-		{@const maxX = Math.max(dragStart.x, dragCurrent.x)}
-		{@const minY = Math.min(dragStart.y, dragCurrent.y)}
-		{@const maxY = Math.max(dragStart.y, dragCurrent.y)}
+	{#if $isDragSelecting && $dragStart && $dragCurrent}
+		{@const minX = Math.min($dragStart.x, $dragCurrent.x)}
+		{@const maxX = Math.max($dragStart.x, $dragCurrent.x)}
+		{@const minY = Math.min($dragStart.y, $dragCurrent.y)}
+		{@const maxY = Math.max($dragStart.y, $dragCurrent.y)}
 		<div
 			class="selection-box fixed pointer-events-none border border-blue-400 border-dashed"
 			style="left: {minX}px; top: {minY}px; width: {maxX - minX}px; height: {maxY -
@@ -476,7 +335,7 @@ import { updateOperation } from '$lib/IR/operations';
 									on:click={(e) => handleGateSelection(gate.id, e)}
 									on:keydown={(e) => {
 										if (e.key === 'Delete') {
-											if (selectedGateIds.size > 0) {
+											if ($selectedGateIds.size > 0) {
 												deleteSelectedGates();
 											} else {
 												removeGate(gate.id);
@@ -494,7 +353,7 @@ import { updateOperation } from '$lib/IR/operations';
 											? 'bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white h-11 w-10 font-extralight'
 											: 'bg-surface text-text active:bg-ternary-1 px-3 py-2 text-base'
 									}`}
-									class:selected={selectedGateIds.has(gate.id)}
+									class:selected={$selectedGateIds.has(gate.id)}
 									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 								>
 									{#if gate.gate === 'swap'}
@@ -526,7 +385,7 @@ import { updateOperation } from '$lib/IR/operations';
 									on:click={(e) => handleGateSelection(gate.id, e)}
 									on:keydown={(e) => {
 										if (e.key === 'Delete') {
-											if (selectedGateIds.size > 0) {
+											if ($selectedGateIds.size > 0) {
 												deleteSelectedGates();
 											} else {
 												removeGate(gate.id);
@@ -571,7 +430,7 @@ import { updateOperation } from '$lib/IR/operations';
 									on:click={(e) => handleGateSelection(gate.id, e)}
 									on:keydown={(e) => {
 										if (e.key === 'Delete') {
-											if (selectedGateIds.size > 0) {
+											if ($selectedGateIds.size > 0) {
 												deleteSelectedGates();
 											} else {
 												removeGate(gate.id);
@@ -744,112 +603,27 @@ import { updateOperation } from '$lib/IR/operations';
 
 	<!-- Board Context Menu -->
 	{#if contextMenuVisible}
-		<div
-			class="ctx-menu board-ctx-menu z-100"
-			style="left: {contextMenuX}px; top: {contextMenuY}px;"
-			role="menu"
-			tabindex="0"
-			on:click|stopPropagation={() => {}}
-			on:keydown={(e) => {
-				if (e.key === 'Escape') closeContextMenu();
+		<BoardContextMenu
+			x={contextMenuX}
+			y={contextMenuY}
+			on:close={closeContextMenu}
+			on:edit={() => {
+				circuitDataModalContent.set(buildCanonicalString($circuitIR));
+				showCircuitDataModal.set(true);
 			}}
-		>
-			<button
-				type="button"
-				role="menuitem"
-				class="ctx-menu-item rounded-t-sm"
-				on:click={() => {
-					closeContextMenu();
-					circuitDataModalContent.set(buildCanonicalString($circuitIR));
-					showCircuitDataModal.set(true);
-				}}
-			>
-				<Icon icon="material-symbols:edit-outline" width="16" height="16" />
-				Edit Circuit
-			</button>
-			<button
-				type="button"
-				role="menuitem"
-				class="ctx-menu-item"
-				on:click={() => copyToClipboard(buildCanonicalString($circuitIR))}
-			>
-				<Icon icon="material-symbols:content-copy" width="16" height="16" />
-				Copy Circuit
-			</button>
-			<button
-				type="button"
-				role="menuitem"
-				class="ctx-menu-item-danger rounded-b-sm"
-				on:click={resetAndClose}
-			>
-				<Icon icon="material-symbols:restart-alt" width="16" height="16" />
-				Reset Circuit
-			</button>
-		</div>
+			on:copy={() => copyToClipboard(buildCanonicalString($circuitIR))}
+			on:reset={resetAndClose}
+		/>
 	{/if}
 
 	<!-- Gate Edit Context Menu -->
 	{#if gateMenuVisible && gateMenuGate}
-		<div
-			class="ctx-menu gate-ctx-menu z-200 w-52"
-			style="left: {gateMenuX}px; top: {gateMenuY}px;"
-			role="menu"
-			tabindex="0"
-			on:click|stopPropagation={() => {}}
-			on:keydown={(e) => { if (e.key === 'Escape') closeGateMenu(); }}
-		>
-			<div class="px-4 py-2 text-xs font-semibold text-gray-500 border-b border-gray-100 uppercase tracking-wide">
-				Edit {gateMenuGate.gate.toUpperCase()} Gate
-			</div>
-
-			{#if gateMenuGate.gate === 'swap'}
-				<div class="px-4 py-3 space-y-2">
-					<div>
-						<label class="block text-xs text-gray-500 mb-1" for="swap-t0">Target 1</label>
-						<input
-							id="swap-t0"
-							type="number"
-							min="0"
-							max={$circuitIR.registers.q - 1}
-							bind:value={gateMenuTarget0}
-							class="input-field py-1.5 text-sm"
-						/>
-					</div>
-					<div>
-						<label class="block text-xs text-gray-500 mb-1" for="swap-t1">Target 2</label>
-						<input
-							id="swap-t1"
-							type="number"
-							min="0"
-							max={$circuitIR.registers.q - 1}
-							bind:value={gateMenuTarget1}
-							class="input-field py-1.5 text-sm"
-						/>
-					</div>
-					{#if gateMenuError}
-						<p class="text-xs text-red-500">{gateMenuError}</p>
-					{/if}
-				</div>
-			{:else}
-				<div class="px-4 py-3">
-					<label class="block text-xs text-gray-500 mb-1" for="gate-angle">Angle (e.g. pi/2, pi/4, 3pi/4)</label>
-					<input
-						id="gate-angle"
-						type="text"
-						bind:value={gateMenuAngle}
-						class="input-field py-1.5 text-sm"
-					/>
-					{#if gateMenuError}
-						<p class="mt-1 text-xs text-red-500">{gateMenuError}</p>
-					{/if}
-				</div>
-			{/if}
-
-			<div class="flex gap-2 px-4 py-2.5 border-t border-gray-100">
-				<button class="btn-primary flex-1 py-1.5 text-sm" on:click={applyGateEdit}>Apply</button>
-				<button class="btn-secondary flex-1 py-1.5 text-sm" on:click={closeGateMenu}>Cancel</button>
-			</div>
-		</div>
+		<GateContextMenu
+			gate={gateMenuGate}
+			x={gateMenuX}
+			y={gateMenuY}
+			on:close={closeGateMenu}
+		/>
 	{/if}
 </div>
 
