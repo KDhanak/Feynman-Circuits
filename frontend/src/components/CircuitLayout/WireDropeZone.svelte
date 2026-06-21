@@ -458,6 +458,17 @@
 		border-radius: 4px;
 	}
 
+	/* Pending control/anti-control boxes use the `.gate` class for positioning.
+	   The committed gates moved to GateToken.svelte (with their own scoped
+	   `.gate` rule), but these pending boxes still live here and need it too. */
+	.gate {
+		position: absolute;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 10;
+		white-space: nowrap;
+	}
+
 	.dropzone {
 		position: absolute;
 		top: 0;
