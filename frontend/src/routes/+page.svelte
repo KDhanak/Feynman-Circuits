@@ -4,7 +4,8 @@
 	import SignUp_In from '../components/SidePanel/AuthPanel.svelte';
 	import { onMount } from 'svelte';
 	import { loadSession } from '$lib/auth/session';
-	import { theme, toggleTheme } from '$lib/stores/themeStore';
+	import { resolvedTheme, toggleTheme } from '$lib/stores/themeStore';
+	import { settings } from '$lib/stores/settingsStore';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 	import Icon from '@iconify/svelte';
@@ -81,7 +82,7 @@
 				class="shrink-0 p-2 rounded-full cursor-pointer transition-colors"
 			>
 				<Icon
-					icon={$theme === 'dark' ? 'ph:sun-bold' : 'ph:moon-bold'}
+					icon={$resolvedTheme === 'dark' ? 'ph:sun-bold' : 'ph:moon-bold'}
 					width="22"
 					height="22"
 					style="color: var(--color-text)"
@@ -110,6 +111,7 @@
 		>
 			<SimulationResult />
 		</div>
+		{#if $settings.showBlochSphere}
 		<Tooltip
 			quick="Bloch Sphere"
 			detail="A 3D representation of a single qubit's state. The north pole is |0⟩, south pole is |1⟩, and the equator is superposition."
@@ -120,6 +122,7 @@
 				<OverallBlochSphere />
 			</div>
 		</Tooltip>
+		{/if}
 	</div>
 </main>
 

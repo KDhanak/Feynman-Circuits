@@ -9,11 +9,12 @@
 	import ResetPassword from './ResetPassword.svelte';
 	import MyCircuits from './MyCircuits.svelte';
 	import MyAccount from './MyAccount.svelte';
+	import Settings from './Settings.svelte';
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import { normalizeBackendErrors } from '$lib/utils/errorUtils';
 	import { clickOutside } from '$lib/utils/clickOutside';
 
-	type AuthView = 'signin' | 'signup' | 'forgot' | 'otp' | 'reset' | 'account';
+	type AuthView = 'signin' | 'signup' | 'forgot' | 'otp' | 'reset' | 'account' | 'settings';
 
 	let isOpen = false;
 	let circuitsOpen = false;
@@ -38,7 +39,8 @@
 		forgot: { title: 'Forgot Password', showTabs: false, showBack: true, backTo: 'signin' },
 		otp: { title: 'Verify OTP', showTabs: false, showBack: true, backTo: 'forgot' },
 		reset: { title: 'Reset Password', showTabs: false, showBack: true, backTo: 'otp' },
-		account: { title: 'My Account', showTabs: false, showBack: false }
+		account: { title: 'My Account', showTabs: false, showBack: false },
+		settings: { title: 'Settings', showTabs: false, showBack: false }
 	};
 
 	$: currentView = viewMeta[activeView];
@@ -135,6 +137,7 @@
 				<button
 					on:click={() => {
 						dropdownOpen = false;
+						activeView = 'settings';
 						openDrawer();
 					}}
 					class="btn-highlight-item">Settings</button
@@ -280,6 +283,8 @@
 										activeView = 'forgot';
 									}}
 								/>
+							{:else if activeView === 'settings'}
+								<Settings />
 							{/if}
 						</div>
 					{/key}

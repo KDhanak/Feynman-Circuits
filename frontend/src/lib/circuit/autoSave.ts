@@ -4,6 +4,7 @@ import { get } from "svelte/store";
 import { upsertCircuit, getNextUntitledName } from "../api/circuitApi";
 import { session } from "$lib/auth/session";
 import { saveStatus } from "../stores/uiStores";
+import { settings } from "../stores/settingsStore";
 
 let isDirty = false;
 let isReset = false;
@@ -19,15 +20,29 @@ circuitIR.subscribe(() => {
     if (get(session).status !== 'authenticated') return;
     isReset = false;  // any store change after a reset means the user is editing again
     isDirty = true;
-    saveStatus.set('saving');
+    if (get(settings).autoSaveEnabled) saveStatus.set('saving');
 });
 
-setInterval(async () => {
-    if (!isDirty) return;
+let autoSaveTimer: ReturnType<typeof setInterval> | null = null;
 
-    await attemptAutoSave();
+function startAutoSaveTimer(intervalMs: number) {
+    if (autoSaveTimer) clearInterval(autoSaveTimer);
+    autoSaveTimer = setInterval(async () => {
+        if (!isDirty) return;
+        if (!get(settings).autoSaveEnabled) return;
+        await attemptAutoSave();
+    }, intervalMs);
+}
 
-}, 10_000); // Check every 10 seconds
+// Restart the timer whenever the configured interval changes; the initial
+// subscription call also kicks off the timer on module load.
+let currentInterval: number | null = null;
+settings.subscribe((s) => {
+    if (s.autoSaveIntervalMs !== currentInterval) {
+        currentInterval = s.autoSaveIntervalMs;
+        startAutoSaveTimer(s.autoSaveIntervalMs);
+    }
+});
 
 export function markAsReset() {
     isReset = true;

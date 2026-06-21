@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { simulationResult } from '$lib/IR/stores';
 	import { circuitIR } from '$lib/IR/stores';
+	import { settings, updateSettings } from '$lib/stores/settingsStore';
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import Icon from '@iconify/svelte';
@@ -91,7 +92,7 @@
 	$: columns = chunkArray(probabilitiesArray, 4);
 	$: shouldShowPopupButton = $circuitIR.registers.q >= 4;
 
-	let showHistogram = false;
+	$: showHistogram = $settings.defaultResultView === 'histogram';
 	$: isMeasured = ($simulationResult.measuredQubits ?? []).length > 0;
 	$: barColor = isMeasured ? 'var(--color-measured)' : 'var(--color-probability)';
 	$: histogramStates = shouldShowPopupButton
@@ -275,7 +276,7 @@
 	<div class="flex items-center justify-end px-3 pt-2 shrink-0">
 		<button
 			type="button"
-			on:click={() => showHistogram = !showHistogram}
+			on:click={() => updateSettings({ defaultResultView: showHistogram ? 'list' : 'histogram' })}
 			class="p-1 rounded cursor-pointer transition-colors"
 			style="color: var(--color-muted);"
 			title={showHistogram ? 'Switch to list view' : 'Switch to histogram'}
@@ -385,7 +386,7 @@
 					{#each top3 as item}
 						<div class="flex justify-between items-center py-1 border-b text-sm font-mono" style="border-color: var(--color-ternary-2);">
 							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">|{item.state}⟩</span>
-							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">{(item.prob * 100).toFixed(2)}%</span>
+							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">{(item.prob * 100).toFixed($settings.probabilityDecimals)}%</span>
 						</div>
 					{/each}
 				</div>
@@ -464,7 +465,7 @@
 									>|{item.state}⟩</span
 								>
 								<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">
-									{(item.prob * 100).toFixed(2)}%
+									{(item.prob * 100).toFixed($settings.probabilityDecimals)}%
 								</span>
 							</div>
 						{/each}
