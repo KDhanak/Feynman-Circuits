@@ -1,8 +1,11 @@
+import json
 from rest_framework import serializers
 from .models import Circuit
+from pathlib import Path
+_gates_path = Path(__file__).parents[2] / 'shared' / 'gates.json'
 
 VALID_KINDS = {'unitary', 'measure', 'reset', 'barrier'}
-VALID_GATES = {'x', 'y', 'z', 'h', 's', 't', 'rx', 'ry', 'rz', 'swap'}
+VALID_GATES = {g['id'] for g in json.loads(_gates_path.read_text())}
 
 
 class CircuitListSerializer(serializers.ModelSerializer):

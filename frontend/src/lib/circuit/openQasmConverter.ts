@@ -1,5 +1,5 @@
 import type { CircuitIR, UnitaryOperation, MeasureOperation, ResetOperation, BarrierOperation, CircuitOperation } from '../IR/schema';
-import { isParametricGate, controlledQasmName } from '../quantum/gates';
+import { isGateId, isParametricGate, controlledQasmName } from '../quantum/gates';
 
 export interface OpenQasmExportOptions {
 	version?: '2.0' | '3.0';
@@ -158,7 +158,6 @@ export function openQasmToCircuit(qasmCode: string): CircuitIR | null {
 		let numQubits = 0;
 		let numClassicalBits = 0;
 		const operations: CircuitOperation[] = [];
-		const columnMap = new Map<number, number>(); // Track which column each qubit is at
 
 		// Parse register declarations (both OpenQASM 2.0 and 3.0)
 		for (const line of lines) {
@@ -184,7 +183,9 @@ export function openQasmToCircuit(qasmCode: string): CircuitIR | null {
 		if (numQubits === 0) return null;
 
 		// Parse gate operations
-		let currentColumn = 0;
+		// Track the next free column for each qubit so multi-qubit gates
+		// don't collide with later single-qubit gates on the same qubit.
+		const qubitNextColumn = new Array<number>(numQubits).fill(0);
 		for (const line of lines) {
 			// Skip headers, imports, and declarations
 			if (
@@ -203,22 +204,21 @@ export function openQasmToCircuit(qasmCode: string): CircuitIR | null {
 			// Skip empty lines
 			if (!line || line.length === 0) continue;
 
-			const gateOp = parseGateLine(line, currentColumn);
+			const gateOp = parseGateLine(line, 0);
 			if (gateOp) {
-				operations.push(gateOp);
-				// Update column for next gate
 				if ('targets' in gateOp) {
-					const maxQubit = Math.max(
+					const involvedQubits = [
 						...(gateOp.targets as number[]),
 						...('controls' in gateOp ? (gateOp.controls as number[]) : []),
 						...('antiControls' in gateOp ? (gateOp.antiControls as number[]) : [])
-					);
-					if (!columnMap.has(maxQubit)) {
-						columnMap.set(maxQubit, 0);
+					];
+					const column = Math.max(...involvedQubits.map((q) => qubitNextColumn[q] ?? 0));
+					gateOp.column = column;
+					for (const q of involvedQubits) {
+						qubitNextColumn[q] = column + 1;
 					}
-					columnMap.set(maxQubit, (columnMap.get(maxQubit) ?? 0) + 1);
-					currentColumn = Math.max(...Array.from(columnMap.values()));
 				}
+				operations.push(gateOp);
 			}
 		}
 
@@ -235,14 +235,17 @@ export function openQasmToCircuit(qasmCode: string): CircuitIR | null {
 
 function parseGateLine(line: string, column: number): CircuitOperation | null {
 	// Single qubit gates: h q[0]; or H q[0];
-	const singleQubitMatch = line.match(/^([hxyzst])\s+q\[(\d+)\];?$/i);
+	// Regex is intentionally broad; isGateId + !isParametricGate narrows to
+	// non-parametric registry gates so adding a new gate here requires no regex change.
+	const singleQubitMatch = line.match(/^([a-z]+)\s+q\[(\d+)\];?$/i);
 	if (singleQubitMatch) {
 		const gate = singleQubitMatch[1].toLowerCase();
+		if (!isGateId(gate) || isParametricGate(gate)) return null;
 		const target = parseInt(singleQubitMatch[2], 10);
 		return {
 			id: crypto.randomUUID(),
 			kind: 'unitary',
-			gate: gate as any,
+			gate,
 			column,
 			targets: [target],
 			controls: [],
@@ -252,15 +255,16 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	}
 
 	// Parametric gates: rx(1.57) q[0]; or rx(pi/2) q[0];
-	const paramGateMatch = line.match(/^(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\];?$/i);
+	const paramGateMatch = line.match(/^([a-z]+)\s*\(([^)]+)\)\s+q\[(\d+)\];?$/i);
 	if (paramGateMatch) {
 		const gate = paramGateMatch[1].toLowerCase();
+		if (!isGateId(gate) || !isParametricGate(gate)) return null;
 		let angle = parseAngle(paramGateMatch[2]);
 		const target = parseInt(paramGateMatch[3], 10);
 		return {
 			id: crypto.randomUUID(),
 			kind: 'unitary',
-			gate: gate as any,
+			gate,
 			column,
 			targets: [target],
 			controls: [],
@@ -273,13 +277,14 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	const cParamGateMatch = line.match(/^c(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
 	if (cParamGateMatch) {
 		const gate = cParamGateMatch[1].toLowerCase();
+		if (!isGateId(gate)) return null;
 		const angle = parseAngle(cParamGateMatch[2]);
 		const control = parseInt(cParamGateMatch[3], 10);
 		const target = parseInt(cParamGateMatch[4], 10);
 		return {
 			id: crypto.randomUUID(),
 			kind: 'unitary',
-			gate: gate as any,
+			gate,
 			column,
 			targets: [target],
 			controls: [control],
@@ -292,13 +297,14 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	const ctrlParamMatch = line.match(/^ctrl\s*@\s*(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
 	if (ctrlParamMatch) {
 		const gate = ctrlParamMatch[1].toLowerCase();
+		if (!isGateId(gate)) return null;
 		const angle = parseAngle(ctrlParamMatch[2]);
 		const control = parseInt(ctrlParamMatch[3], 10);
 		const target = parseInt(ctrlParamMatch[4], 10);
 		return {
 			id: crypto.randomUUID(),
 			kind: 'unitary',
-			gate: gate as any,
+			gate,
 			column,
 			targets: [target],
 			controls: [control],
@@ -311,6 +317,7 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	const ctrlCtrlParamMatch = line.match(/^ctrl\s*@\s*ctrl\s*@\s*(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
 	if (ctrlCtrlParamMatch) {
 		const gate = ctrlCtrlParamMatch[1].toLowerCase();
+		if (!isGateId(gate)) return null;
 		const angle = parseAngle(ctrlCtrlParamMatch[2]);
 		const control1 = parseInt(ctrlCtrlParamMatch[3], 10);
 		const control2 = parseInt(ctrlCtrlParamMatch[4], 10);
@@ -318,7 +325,7 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 		return {
 			id: crypto.randomUUID(),
 			kind: 'unitary',
-			gate: gate as any,
+			gate,
 			column,
 			targets: [target],
 			controls: [control1, control2],

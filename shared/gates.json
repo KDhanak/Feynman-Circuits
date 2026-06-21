@@ -1,0 +1,12 @@
+[
+  { "id": "x",    "qasmName": "x",    "numParams": 0, "arity": 1 },
+  { "id": "y",    "qasmName": "y",    "numParams": 0, "arity": 1 },
+  { "id": "z",    "qasmName": "z",    "numParams": 0, "arity": 1 },
+  { "id": "h",    "qasmName": "h",    "numParams": 0, "arity": 1 },
+  { "id": "s",    "qasmName": "s",    "numParams": 0, "arity": 1 },
+  { "id": "t",    "qasmName": "t",    "numParams": 0, "arity": 1 },
+  { "id": "rx",   "qasmName": "rx",   "numParams": 1, "arity": 1 },
+  { "id": "ry",   "qasmName": "ry",   "numParams": 1, "arity": 1 },
+  { "id": "rz",   "qasmName": "rz",   "numParams": 1, "arity": 1 },
+  { "id": "swap", "qasmName": "swap", "numParams": 0, "arity": 2 }
+]
