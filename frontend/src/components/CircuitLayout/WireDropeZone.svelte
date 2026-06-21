@@ -470,26 +470,6 @@
 		border-radius: 4px;
 	}
 
-	.gate {
-		position: absolute;
-		top: 50%;
-		transform: translate(-50%, -50%);
-		z-index: 10;
-		white-space: nowrap;
-	}
-
-	.gate.copying {
-		box-shadow: 0 0 0 2px #3bc96f;
-		outline: 2px solid #28ff33;
-		outline-offset: -1px;
-	}
-
-	.gate.selected {
-		box-shadow: 0 0 0 3px #3b82f6;
-		outline: 2px solid #1e40af;
-		outline-offset: -1px;
-	}
-
 	.qubit-label:hover {
 		transform: scale(1.05);
 		transition: transform 400ms ease-in-out;
