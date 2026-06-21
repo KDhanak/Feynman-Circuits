@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { UnitaryOperation, MeasureOperation } from '$lib/IR/schema';
+	import type { UnitaryOperation } from '$lib/IR/schema';
 	import { tick, onMount } from 'svelte';
 	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
@@ -13,12 +13,6 @@
 	import {
 		handleDrop,
 		handleDragOver,
-		handleGateDragStart,
-		handleDoubleClick,
-		removeGate,
-		handleTouchStart,
-		handleTouchMove,
-		handleTouchEnd,
 		triggerSimulation,
 		pendingControls,
 		pendingAntiControls
@@ -30,14 +24,13 @@
 	import ConnectorLayer from './ConnectorLayer.svelte';
 	import BoardContextMenu from './BoardContextMenu.svelte';
 	import GateContextMenu from './GateContextMenu.svelte';
-	import Icon from '@iconify/svelte';
+	import GateToken from './GateToken.svelte';
 	import { MAX_COLUMNS, MAX_QUBITS } from '$lib/utils/constants';
 	import {
 		selectedGateIds,
 		isDragSelecting,
 		dragStart,
 		dragCurrent,
-		handleGateSelection,
 		handleBoardMouseDown,
 		handleBoardMouseMove,
 		handleBoardMouseUp,
@@ -147,15 +140,11 @@
 		gateMenuGate = null;
 	}
 
-	function handleGateContextMenu(e: MouseEvent, gate: UnitaryOperation) {
-		const editableGates = ['rx', 'ry', 'rz', 'swap'];
-		if (!editableGates.includes(gate.gate)) return;
-		e.preventDefault();
-		e.stopPropagation();
+	function handleGateContextMenu(e: CustomEvent<{ gate: UnitaryOperation; x: number; y: number }>) {
 		contextMenuVisible = false;
-		gateMenuGate = gate;
-		gateMenuX = e.clientX;
-		gateMenuY = e.clientY;
+		gateMenuGate = e.detail.gate;
+		gateMenuX = e.detail.x;
+		gateMenuY = e.detail.y;
 		gateMenuVisible = true;
 	}
 
@@ -317,180 +306,13 @@
 
 					<!-- Gates -->
 					{#each $circuitIR.operations as op (op.id)}
-						{#if op.kind === 'unitary'}
-							{@const gate = op as UnitaryOperation}
-
-							{#if gate.targets.includes(wire.qubit)}
-								<div
-									data-gate-id={gate.id}
-									data-col={gate.column}
-									data-qubit={wire.qubit}
-									data-type="GATE"
-									role="button"
-									aria-label={`Remove ${gate.gate} gate`}
-									tabindex="0"
-									draggable="true"
-									on:dragstart={(e) => handleGateDragStart(e, gate.id)}
-									on:dragend={() => isDragging.set(false)}
-									on:click={(e) => handleGateSelection(gate.id, e)}
-									on:keydown={(e) => {
-										if (e.key === 'Delete') {
-											if ($selectedGateIds.size > 0) {
-												deleteSelectedGates();
-											} else {
-												removeGate(gate.id);
-											}
-										}
-									}}
-									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
-									on:contextmenu={(e) => handleGateContextMenu(e, gate)}
-									on:touchstart={(e) =>
-										handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gate })}
-									on:touchmove={handleTouchMove}
-									on:touchend={handleTouchEnd}
-									class={`gate z-10 cursor-grab select-none rounded-sm border border-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center ${
-										gate.gate === 'swap'
-											? 'bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white h-11 w-10 font-extralight'
-											: 'bg-surface text-text active:bg-ternary-1 px-3 py-2 text-base'
-									}`}
-									class:selected={$selectedGateIds.has(gate.id)}
-									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
-								>
-									{#if gate.gate === 'swap'}
-										<span class="text-[40px]">×</span>
-									{:else if gate.gate === 'x'}
-										<svg viewBox="0 0 28 28" width="20" height="20" aria-hidden="true">
-											<circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="2"/>
-											<line x1="2"  y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="2"/>
-											<line x1="14" y1="2"  x2="14" y2="26" stroke="currentColor" stroke-width="2"/>
-										</svg>
-									{:else}
-										{gate.gate.toUpperCase()}
-									{/if}
-								</div>
-							{/if}
-
-							{#if gate.controls.includes(wire.qubit)}
-								<div
-									data-gate-id={gate.id}
-									data-col={gate.column}
-									data-qubit={wire.qubit}
-									data-type="CONTROL"
-									role="button"
-									aria-label="Control gate"
-									tabindex="0"
-									draggable="true"
-									on:dragstart={(e) => handleGateDragStart(e, gate.id, 'CONTROL', wire.qubit)}
-									on:dragend={() => isDragging.set(false)}
-									on:click={(e) => handleGateSelection(gate.id, e)}
-									on:keydown={(e) => {
-										if (e.key === 'Delete') {
-											if ($selectedGateIds.size > 0) {
-												deleteSelectedGates();
-											} else {
-												removeGate(gate.id);
-											}
-										}
-									}}
-									on:dblclick={() =>
-										handleDoubleClick({
-											source: 'wire',
-											gateId: gate.id,
-											gateType: 'CONTROL',
-											qubit: wire.qubit
-										})}
-									on:touchstart={(e) =>
-										handleTouchStart(e, {
-											source: 'wire',
-											gateId: gate.id,
-											gateType: 'CONTROL',
-											qubit: wire.qubit
-										})}
-									on:touchmove={handleTouchMove}
-									on:touchend={handleTouchEnd}
-									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
-									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
-								>
-									<div class="w-3 h-3 rounded-full bg-text"></div>
-								</div>
-							{/if}
-
-							{#if gate.antiControls.includes(wire.qubit)}
-								<div
-									data-gate-id={gate.id}
-									data-col={gate.column}
-									data-qubit={wire.qubit}
-									data-type="ANTI_CONTROL"
-									role="button"
-									aria-label="Anti-control gate"
-									tabindex="0"
-									draggable="true"
-									on:dragstart={(e) => handleGateDragStart(e, gate.id, 'ANTI_CONTROL', wire.qubit)}
-									on:dragend={() => isDragging.set(false)}
-									on:click={(e) => handleGateSelection(gate.id, e)}
-									on:keydown={(e) => {
-										if (e.key === 'Delete') {
-											if ($selectedGateIds.size > 0) {
-												deleteSelectedGates();
-											} else {
-												removeGate(gate.id);
-											}
-										}
-									}}
-									on:dblclick={() =>
-										handleDoubleClick({
-											source: 'wire',
-											gateId: gate.id,
-											gateType: 'ANTI_CONTROL',
-											qubit: wire.qubit
-										})}
-									on:touchstart={(e) =>
-										handleTouchStart(e, {
-											source: 'wire',
-											gateId: gate.id,
-											gateType: 'ANTI_CONTROL',
-											qubit: wire.qubit
-										})}
-									on:touchmove={handleTouchMove}
-									on:touchend={handleTouchEnd}
-									class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
-									style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
-								>
-									<div class="w-3 h-3 rounded-full border border-text"></div>
-								</div>
-							{/if}
-						{:else if op.kind === 'measure'}
-							{@const measureOp = op as MeasureOperation}
-
-							{#if (measureOp.targets as number[]).includes(wire.qubit)}
-								<div
-									data-gate-id={measureOp.id}
-									data-col={measureOp.column}
-									data-qubit={wire.qubit}
-									data-type="GATE"
-									role="button"
-									aria-label="Remove measure gate"
-									tabindex="0"
-									draggable="true"
-									on:dragstart={(e) => handleGateDragStart(e, measureOp.id)}
-									on:dragend={() => isDragging.set(false)}
-									on:keydown={(e) => e.key === 'Delete' && removeGate(measureOp.id)}
-									on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: measureOp.id })}
-									on:touchstart={(e) =>
-										handleTouchStart(e, {
-											source: 'wire',
-											gateId: measureOp.id,
-											gateType: 'MEASURE'
-										})}
-									on:touchmove={handleTouchMove}
-									on:touchend={handleTouchEnd}
-									class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-orange-100 text-orange-700 active:bg-orange-400 border-orange-300 active:text-white active:border-white shadow transition-colors duration-100"
-									style="left: {gateOffset + (measureOp.column + 0.5) * columnWidth}px;"
-								>
-									M
-								</div>
-							{/if}
-						{/if}
+						<GateToken
+							{op}
+							qubit={wire.qubit}
+							{gateOffset}
+							{columnWidth}
+							on:gatecontextmenu={handleGateContextMenu}
+						/>
 					{/each}
 
 					<!-- Pending control gate boxes (uncommitted controls)
