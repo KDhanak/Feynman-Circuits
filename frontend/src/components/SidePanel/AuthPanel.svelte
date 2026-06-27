@@ -13,6 +13,8 @@
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import { normalizeBackendErrors } from '$lib/utils/errorUtils';
 	import { clickOutside } from '$lib/utils/clickOutside';
+	import { browser } from '$app/environment';
+	import { onDestroy } from 'svelte';
 
 	type AuthView = 'signin' | 'signup' | 'forgot' | 'otp' | 'reset' | 'account' | 'settings';
 
@@ -44,6 +46,16 @@
 	};
 
 	$: currentView = viewMeta[activeView];
+
+	// Lock background page scroll while the drawer is open so touch scrolling
+	// stays inside the panel instead of moving the page behind it.
+	$: if (browser) {
+		document.body.style.overflow = isOpen || circuitsOpen ? 'hidden' : '';
+	}
+
+	onDestroy(() => {
+		if (browser) document.body.style.overflow = '';
+	});
 
 	function openDrawer() {
 		isOpen = true;
@@ -201,7 +213,7 @@
 				</button>
 			</div>
 
-			<div class="px-6 pt-5">
+			<div class="px-6 pt-5 pb-8">
 				{#if currentView.showTabs}
 					<div class="mb-6 relative rounded-sm border border-secondary-2 bg-white overflow-hidden">
 						<div
@@ -228,11 +240,12 @@
 					</div>
 				{/if}
 
-				<div class="relative" style="min-height: 420px;">
+				<div class="grid" style="min-height: 420px;">
 					{#key activeView}
 						<div
 							transition:fly={{ x: activeView === 'signup' ? 40 : -40, duration: 450, opacity: 0 }}
-							class="absolute w-full"
+							class="w-full"
+							style="grid-area: 1 / 1;"
 						>
 							{#if activeView === 'signin'}
 								<SignIn
