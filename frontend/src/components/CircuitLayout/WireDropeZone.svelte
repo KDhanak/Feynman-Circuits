@@ -8,18 +8,21 @@
 		circuitLayout,
 		isDragging,
 		showCircuitDataModal,
-		circuitDataModalContent
+		circuitDataModalContent,
+		armedGate
 	} from '$lib/stores/uiStores';
 	import {
 		handleDrop,
 		handleDragOver,
 		triggerSimulation,
+		placeArmedGate,
 		pendingControls,
 		pendingAntiControls
 	} from '$lib/circuit/dragDropUtils';
 	import { updateQubitLabel } from '$lib/circuit/qubitLables';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 	import { copyToClipboard } from '$lib/circuit/circuitActions';
+	import Icon from '@iconify/svelte';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import ConnectorLayer from './ConnectorLayer.svelte';
 	import BoardContextMenu from './BoardContextMenu.svelte';
@@ -38,6 +41,7 @@
 		cancelDrag,
 		clearSelection
 	} from '$lib/circuit/selection';
+	import { isMobile } from '$lib/stores/isMobile';
 
 	let columnWidth: number;
 	let gateOffset: number;
@@ -50,7 +54,8 @@
 	let gateMenuX = 0;
 	let gateMenuY = 0;
 	let gateMenuGate: UnitaryOperation | null = null;
-	$: ({ columnWidth, gateOffset } = $circuitLayout);
+	let totalWidth: number;
+	$: ({ columnWidth, gateOffset, totalWidth } = $circuitLayout);
 
 	let boardEl: HTMLDivElement | null = null;
 	let connectorLayer: ConnectorLayer | undefined;
@@ -60,7 +65,8 @@
 		qubit: i
 	}));
 
-	$: showGhostWire = $isDragging && $circuitIR.registers.q < MAX_QUBITS;
+	$: showGhostWire =
+		($isDragging || ($isMobile && $armedGate)) && $circuitIR.registers.q < MAX_QUBITS;
 
 	$: if (showGhostWire && scrollContainer) {
 		(async () => {
@@ -188,10 +194,10 @@
 	class="w-full h-full relative mx-auto z-50 select-none"
 	bind:this={boardEl}
 	on:contextmenu={handleContextMenu}
-	on:mousedown={handleBoardMouseDown}
-	on:mousemove={handleBoardMouseMove}
-	on:mouseup={handleBoardMouseUp}
-	on:mouseleave={cancelDrag}
+	on:mousedown={(e) => !$isMobile && handleBoardMouseDown(e)}
+	on:mousemove={(e) => !$isMobile && handleBoardMouseMove(e)}
+	on:mouseup={(e) => !$isMobile && handleBoardMouseUp(e)}
+	on:mouseleave={() => !$isMobile && cancelDrag()}
 	on:click={(e) => {
 		closeContextMenu();
 		const target = e.target as HTMLElement;
@@ -211,6 +217,19 @@
 		if (e.key === 'Escape') closeContextMenu();
 	}}
 >
+	<!-- Mobile: delete-selected button, pinned to the board's top-left corner -->
+	{#if $isMobile && $selectedGateIds.size > 0}
+		<button
+			type="button"
+			class="absolute top-2 left-2 z-200 flex items-center gap-1 rounded-sm bg-red-500 px-3 py-2 text-sm font-semibold text-white shadow-lg active:bg-red-600"
+			on:click={deleteSelectedGates}
+			aria-label="Delete selected gates"
+		>
+			<Icon icon="ph:trash-bold" width="18" height="18" />
+			{$selectedGateIds.size}
+		</button>
+	{/if}
+
 	<!-- Drag selection box -->
 	{#if $isDragSelecting && $dragStart && $dragCurrent}
 		{@const minX = Math.min($dragStart.x, $dragCurrent.x)}
@@ -225,7 +244,7 @@
 	{/if}
 	<div class="rounded-sm overflow-hidden h-full">
 		<div
-			class="space-y-1 p-2 overflow-y-auto overflow-x-hidden h-full"
+			class={`space-y-1 p-2 overflow-y-auto h-full ${$isMobile ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
 			bind:this={scrollContainer}
 			on:scroll={() => connectorLayer?.recomputeConnectorsSync()}
 		>
@@ -237,7 +256,8 @@
 				<div
 					role="row"
 					tabindex="-1"
-					class="relative flex h-16 items-center"
+					class={`relative flex ${$isMobile ? 'h-12' : 'h-14'} items-center`}
+					style={$isMobile ? `min-width: ${totalWidth}px` : ''}
 					data-qubit={wire.qubit}
 					on:mouseenter={() => (hoveredWire = wire.qubit)}
 					on:mouseleave={() => (hoveredWire = null)}
@@ -250,23 +270,32 @@
 						{#each Array(MAX_COLUMNS) as _, colIndex}
 							<div
 								class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
+								class:dropzone-armed={$isMobile && $armedGate}
 								on:drop={(e) => handleDrop(e, colIndex, wire.qubit)}
 								on:dragover={handleDragOver}
+								on:click={() => $isMobile && $armedGate && placeArmedGate(colIndex, wire.qubit)}
+								on:keydown={(e) =>
+									$isMobile &&
+									$armedGate &&
+									(e.key === 'Enter' || e.key === ' ') &&
+									(e.preventDefault(), placeArmedGate(colIndex, wire.qubit))}
 								role="button"
 								aria-label={`Drop gate here at column ${colIndex + 1}`}
 								tabindex="0"
 								style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
 							></div>
 						{/each}
-						<div class="wire-bloch-anchor">
-							<WireBloch qubit={wire.qubit} />
-						</div>
+						{#if !$isMobile}
+							<div class="wire-bloch-anchor">
+								<WireBloch qubit={wire.qubit} />
+							</div>
+						{/if}
 					</div>
 
 					<!-- Qubit circle with hover-reveal delete button -->
 					<div class="relative mr-2 z-10 shrink-0">
 						<div
-							class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 text-base shadow-sm ${
+							class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 text-sm shadow-sm ${
 								$simulationResult?.measuredQubits?.includes(wire.qubit)
 									? 'bg-orange-300 border-orange-700 text-orange-800'
 									: 'bg-ternary-2 border-white text-white'
@@ -297,7 +326,7 @@
 						value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 						on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 						placeholder="Label"
-						class={`qubit-label z-10 w-15 h-6.5 px-1.5 cursor-text text-xs border text-center rounded-sm shadow-sm focus:outline-none focus:ring-1 select-auto ${
+						class={`qubit-label z-10 w-13 h-6 px-1.5 cursor-text text-[11px] border text-center rounded-sm shadow-sm focus:outline-none focus:ring-1 select-auto ${
 							$simulationResult?.measuredQubits?.includes(wire.qubit)
 								? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
 								: 'border-ternary-3 text-black bg-purple-100 focus:ring-purple-600 focus:border-purple-600'
@@ -339,7 +368,7 @@
 											if (next.get(col)?.length === 0) next.delete(col);
 											return next;
 										})}
-									class="gate z-10 select-none rounded-sm h-11 w-10 py-3 text-base border bg-orange-200 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
+									class="gate z-10 select-none rounded-sm h-9 w-9 text-sm border bg-orange-200 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
 									style="left: {gateOffset + (col + 0.5) * columnWidth}px;"
 								>
 									<div class="w-3 h-3 rounded-full border border-orange-600"></div>
@@ -371,7 +400,7 @@
 											if (next.get(col)?.length === 0) next.delete(col);
 											return next;
 										})}
-									class="gate z-10 select-none rounded-sm h-11 w-10 py-3 text-base border bg-yellow-300 border-yellow-500 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
+									class="gate z-10 select-none rounded-sm h-9 w-9 text-sm border bg-yellow-300 border-yellow-500 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
 									style="left: {gateOffset + (col + 0.5) * columnWidth}px;"
 								>
 									<div class="w-3 h-3 rounded-full bg-yellow-600"></div>
@@ -386,6 +415,7 @@
 			{#if showGhostWire}
 				<div
 					class="ghost-wire relative flex h-14 items-center"
+					style={$isMobile ? `min-width: ${totalWidth}px` : ''}
 					data-qubit={$circuitIR.registers.q}
 					transition:slide={{ duration: 300 }}
 				>
@@ -396,11 +426,19 @@
 						{#each Array(MAX_COLUMNS) as _, colIndex}
 							<div
 								class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
+								class:dropzone-armed={$isMobile && $armedGate}
 								aria-label={`Add qubit and drop gate at column ${colIndex + 1}`}
 								role="button"
 								tabindex="0"
 								on:drop={(e) => handleDrop(e, colIndex, $circuitIR.registers.q)}
 								on:dragover={handleDragOver}
+								on:click={() =>
+									$isMobile && $armedGate && placeArmedGate(colIndex, $circuitIR.registers.q)}
+								on:keydown={(e) =>
+									$isMobile &&
+									$armedGate &&
+									(e.key === 'Enter' || e.key === ' ') &&
+									(e.preventDefault(), placeArmedGate(colIndex, $circuitIR.registers.q))}
 								style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
 							></div>
 						{/each}
@@ -416,7 +454,7 @@
 						type="text"
 						value="Qubit {$circuitIR.registers.q}"
 						disabled
-						class="z-10 w-15 h-7.5 px-1.5 text-xs border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
+						class="z-10 w-13 h-6 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
 					/>
 				</div>
 			{/if}
@@ -440,12 +478,7 @@
 
 	<!-- Gate Edit Context Menu -->
 	{#if gateMenuVisible && gateMenuGate}
-		<GateContextMenu
-			gate={gateMenuGate}
-			x={gateMenuX}
-			y={gateMenuY}
-			on:close={closeGateMenu}
-		/>
+		<GateContextMenu gate={gateMenuGate} x={gateMenuX} y={gateMenuY} on:close={closeGateMenu} />
 	{/if}
 </div>
 
@@ -479,6 +512,16 @@
 	.dropzone:hover {
 		background-color: rgba(168, 85, 247, 0.15);
 		border-radius: 4px;
+	}
+
+	/* Mobile tap-to-place: highlight tappable cells while a gate is armed. */
+	.dropzone-armed {
+		background-color: rgba(168, 85, 247, 0.12);
+		border: 1px dashed var(--color-secondary-2);
+		border-radius: 4px;
+	}
+	.dropzone-armed:active {
+		background-color: rgba(168, 85, 247, 0.3);
 	}
 
 	.qubit-label:hover {

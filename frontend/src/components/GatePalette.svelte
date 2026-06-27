@@ -3,13 +3,10 @@
 	import type { GateData } from '$lib/IR/schema';
 	import {
 		handlePaletteDrop,
-		handleDoubleClick,
-		handleTouchStart,
-		handleTouchEnd,
-		handleTouchMove
+		handleDoubleClick
 	} from '$lib/circuit/dragDropUtils';
 	import { circuitIR } from '$lib/IR/stores';
-	import { isDragging, showCircuitDataModal, circuitDataModalContent } from '$lib/stores/uiStores';
+	import { isDragging, showCircuitDataModal, circuitDataModalContent, armedGate } from '$lib/stores/uiStores';
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import { manualSave } from '$lib/circuit/autoSave';
 	import { currentCircuitName } from '$lib/IR/stores';
@@ -29,9 +26,11 @@
 		downloadCircuit,
 		downloadCircuitAsOpenQasm,
 		importOpenQasm,
-		applyBellPairPreset
+		applyBellPairPreset,
+		compactCircuit
 	} from '$lib/circuit/circuitActions';
 	import Tooltip from './Tooltip.svelte';
+	import {isMobile} from '$lib/stores/isMobile';
 
 	const gates: { type: string; name: string; category: string; quick: string; detail: string }[] = [
 		{
@@ -183,6 +182,13 @@
 		}
 	}
 
+	// Mobile tap-to-place: tapping a gate arms it (tapping the armed gate disarms).
+	function toggleArm(gateType: string) {
+		armedGate.update((cur) =>
+			cur?.gateType === gateType ? null : { source: 'palette', gateType }
+		);
+	}
+
 	async function saveCircuit() {
 		if (get(session).status !== 'authenticated') {
 			showNotification('Please sign in to save your circuit.', 'error');
@@ -239,19 +245,28 @@
 		<Tooltip quick={gate.quick} detail={gate.detail}>
 			<div
 				title={gate.name}
-				role="region"
+				role="button"
+				tabindex="0"
 				draggable="true"
+				on:keydown={(e) => {
+					if ($isMobile && (e.key === 'Enter' || e.key === ' ')) {
+						e.preventDefault();
+						toggleArm(gate.type);
+					}
+				}}
 				on:dragstart={(e) => {
 					const dragData: GateData = { source: 'palette', gateType: gate.type };
 					e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
 					isDragging.set(true);
 				}}
 				on:dragend={() => isDragging.set(false)}
-				on:dblclick={() => handleDoubleClick({ source: 'palette', gateType: gate.type })}
-				on:touchstart={(e) => handleTouchStart(e, { source: 'palette', gateType: gate.type })}
-				on:touchmove={handleTouchMove}
-				on:touchend={(e) => handleTouchEnd(e)}
-				class="cursor-grab select-none h-11 w-11 rounded-sm border border-ternary-1 text-text bg-surface active:bg-ternary-1 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 "
+				on:dblclick={() => !$isMobile && handleDoubleClick({ source: 'palette', gateType: gate.type })}
+				on:click={() => $isMobile && toggleArm(gate.type)}
+				class={`cursor-grab select-none ${$isMobile ? 'h-9 w-9' : 'h-11 w-11'} rounded-sm border text-text bg-surface active:bg-ternary-1 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
+					$armedGate?.gateType === gate.type
+						? 'border-measured ring-2 ring-measured'
+						: 'border-ternary-1'
+				}`}
 			>
 				{#if gate.type === 'CONTROL'}
 					<span class="h-3 w-3 rounded-full bg-text"></span>
@@ -259,10 +274,10 @@
 					<span class="h-3 w-3 rounded-full border border-text"></span>
 				{:else if gate.type === 'MEASURE'}
 					<span class="text-text">
-						<Icon icon="si:meter-fill" width="20" height="20" />
+						<Icon icon="si:meter-fill" width={$isMobile ? '16' : '20'} height={$isMobile ? '16' : '20'} />
 					</span>
 				{:else if gate.type === 'X'}
-					<svg viewBox="0 0 28 28" width="20" height="20" aria-hidden="true">
+					<svg viewBox="0 0 28 28" width={$isMobile ? '16' : '20'} height={$isMobile ? '16' : '20'} aria-hidden="true">
 						<circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="2" />
 						<line x1="2" y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="2" />
 						<line x1="14" y1="2" x2="14" y2="26" stroke="currentColor" stroke-width="2" />
@@ -274,12 +289,16 @@
 		</Tooltip>
 	{/each}
 	<button
-		class="border rounded-sm bg-surface px-4 py-2 cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
 		on:click={saveCircuit}>Save Circuit</button
 	>
 	<button
-		class="border rounded-sm bg-surface px-4 py-2 cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
 		on:click={applyBellPairPreset}>Bell Pair</button
+	>
+	<button
+		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+		on:click={compactCircuit}>Compact</button
 	>
 </div>
 

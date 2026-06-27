@@ -22,15 +22,43 @@
 	$: minusX = project(-1, 0, 0);
 	$: minusY = project(0, -1, 0);
 	$: minusZ = project(0, 0, -1);
+	// Radius at which axis labels sit. <1 keeps them inside the sphere outline,
+	// >1 pushes them outside it. Scales with size automatically via project().
+	const LABEL_RADIUS = 0.82;
+	$: xLabel = project(LABEL_RADIUS, 0, 0);
+	$: yLabel = project(0, LABEL_RADIUS, 0);
+	$: zLabel = project(0, 0, LABEL_RADIUS);
+	$: labelFont = Math.max(8, size * 0.06);
 	$: coordText = `x=${vector.x.toFixed(2)} y=${vector.y.toFixed(2)} z=${vector.z.toFixed(2)}`;
 </script>
 
 <div class="bloch-card">
 	<svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
 		{#if showAxisLabels}
-			<text x={plusX.x + 8} y={plusX.y + 4} class="axis-label">+x</text>
-			<text x={plusY.x - 18} y={plusY.y + 4} class="axis-label">+y</text>
-			<text x={plusZ.x - 6} y={plusZ.y - 8} class="axis-label">+z</text>
+			<text
+				x={xLabel.x}
+				y={xLabel.y}
+				font-size={labelFont}
+				text-anchor="middle"
+				dominant-baseline="middle"
+				class="axis-label">+x</text
+			>
+			<text
+				x={yLabel.x}
+				y={yLabel.y}
+				font-size={labelFont}
+				text-anchor="middle"
+				dominant-baseline="middle"
+				class="axis-label">+y</text
+			>
+			<text
+				x={zLabel.x}
+				y={zLabel.y}
+				font-size={labelFont}
+				text-anchor="middle"
+				dominant-baseline="middle"
+				class="axis-label">+z</text
+			>
 		{/if}
 
 		<circle cx={CENTER} cy={CENTER} r={R} class="sphere" />
@@ -94,7 +122,6 @@
 	}
 	.axis-label {
 		fill: var(--color-line);
-		font-size: 0.7rem;
 		font-weight: 700;
 		pointer-events: none;
 	}

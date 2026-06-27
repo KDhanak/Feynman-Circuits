@@ -1,10 +1,9 @@
 import type { CircuitIR, UnitaryOperation, MeasureOperation, CircuitOperation, GateData } from '../IR/schema';
 import { writable, get } from 'svelte/store';
 import { circuitIR, simulationResult } from '../IR/stores';
-import { isDragging } from '../stores/uiStores';
+import { isDragging, armedGate } from '../stores/uiStores';
 import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } from '../IR/operations';
 import { simulateMultipleQubits } from './simulator';
-import { LABEL_WIDTH, GATE_OFFSET, COLUMN_WIDTH, MAX_COLUMNS } from '../utils/constants';
 import { parsePiInput } from '../utils/piMath';
 import { UNITARY_GATE_IDS, GATE_REGISTRY } from '../quantum/gates';
 
@@ -140,9 +139,6 @@ function applyControlToColumn(
 
 /*──────────────────────── drag helpers ──────────────────*/
 
-let touchData: GateData | null = null;
-let ghostElement: HTMLElement | null = null;
-
 export function handleGateDragStart(e: DragEvent, id: string, gateType?: string, qubit?: number) {
     const isCopy = e.ctrlKey || e.metaKey;
     const dragData: GateData = { source: 'wire', gateId: id, isCopy, gateType, qubit };
@@ -160,71 +156,22 @@ export function handleDragOver(e: DragEvent) {
     e.preventDefault();
 }
 
-/*──────────────────────── touch drag ────────────────────*/
+/*──────────────────────── tap-to-place ──────────────────*/
 
-export function handleTouchStart(event: TouchEvent, gateData: GateData) {
-    event.preventDefault();
-    touchData = gateData;
+// Mobile tap-to-place: drops the currently armed palette gate at (col, qubit) by
+// reusing the full handleDrop pipeline via a synthetic event — so ghost-wire
+// expansion, controls, SWAP and parametric prompts all behave identically to a
+// real drag-drop. The gate stays armed so repeated taps place more of it.
+export function placeArmedGate(col: number, qubit: number) {
+    const armed = get(armedGate);
+    if (!armed?.gateType) return;
 
-    ghostElement = document.createElement('div');
-    ghostElement.style.pointerEvents = 'none';
-    ghostElement.textContent = gateData.gateType || '';
-    ghostElement.className = 'ghost-gate';
-    ghostElement.style.cssText += 'position:fixed;z-index:1000;padding:8px 16px;border-radius:6px;background:#7e22ce;color:white;border:solid #3b0764';
-    document.body.appendChild(ghostElement);
+    const syntheticEvent = {
+        preventDefault: () => { },
+        dataTransfer: { getData: () => JSON.stringify(armed) }
+    } as unknown as DragEvent;
 
-    const touch = event.touches[0];
-    ghostElement.style.left = `${touch.clientX - 50}px`;
-    ghostElement.style.top = `${touch.clientY - 50}px`;
-}
-
-export function handleTouchMove(event: TouchEvent) {
-    event.preventDefault();
-    if (ghostElement) {
-        const touch = event.touches[0];
-        ghostElement.style.left = `${touch.clientX - 40}px`;
-        ghostElement.style.top = `${touch.clientY - 40}px`;
-    }
-}
-
-export function handleTouchEnd(event: TouchEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    isDragging.set(false);
-
-    if (!touchData) {
-        ghostElement?.remove();
-        ghostElement = null;
-        return;
-    }
-
-    if (ghostElement) ghostElement.style.display = 'none';
-    const touch = event.changedTouches[0];
-    const elementUnderFinger = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (ghostElement) ghostElement.style.display = '';
-
-    const wireContainer = elementUnderFinger?.closest('.wire-container');
-    if (wireContainer) {
-        const qubit = parseInt(wireContainer.getAttribute('data-qubit') ?? '0', 10);
-        const wireRect = wireContainer.getBoundingClientRect();
-        let col = Math.floor((touch.clientX - wireRect.left - GATE_OFFSET) / COLUMN_WIDTH);
-        col = Math.max(0, Math.min(col, MAX_COLUMNS - 1));
-
-        const syntheticEvent = {
-            preventDefault: () => { },
-            dataTransfer: { getData: () => JSON.stringify(touchData) }
-        } as unknown as DragEvent;
-        handleDrop(syntheticEvent, col, qubit);
-    } else {
-        const palette = elementUnderFinger?.closest('[aria-label="Quantum Circuit Gate Palette"]');
-        if (palette && touchData.source === 'wire' && touchData.gateId) {
-            removeGate(touchData.gateId);
-        }
-    }
-
-    ghostElement?.remove();
-    ghostElement = null;
-    touchData = null;
+    handleDrop(syntheticEvent, col, qubit);
 }
 
 /*──────────────────────── drop logic ────────────────────*/

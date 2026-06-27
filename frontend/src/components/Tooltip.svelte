@@ -23,8 +23,8 @@
     <button
         type="button"
         on:click={toggle}
-        class="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center
-               w-4 h-4 rounded-full text-ternary-1 border border-ternary-1 text-xs font-boldcursor-pointer leading-none bg-surface font-size: [9px];"
+        class="absolute cursor-pointer -top-1.5 -right-1.5 z-10 flex items-center justify-center
+               w-4 h-4 rounded-full text-ternary-1 border border-ternary-1 text-xs font-bold leading-none bg-surface font-size: [9px];"
         aria-label="More info"
     >
         i

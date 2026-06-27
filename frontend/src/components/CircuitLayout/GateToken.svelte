@@ -5,12 +5,15 @@
 	import {
 		handleGateDragStart,
 		handleDoubleClick,
-		removeGate,
-		handleTouchStart,
-		handleTouchMove,
-		handleTouchEnd
+		removeGate
 	} from '$lib/circuit/dragDropUtils';
-	import { selectedGateIds, handleGateSelection, deleteSelectedGates } from '$lib/circuit/selection';
+	import {
+		selectedGateIds,
+		handleGateSelection,
+		toggleGateSelection,
+		deleteSelectedGates
+	} from '$lib/circuit/selection';
+	import { isMobile } from '$lib/stores/isMobile';
 
 	export let op: CircuitOperation;
 	export let qubit: number;
@@ -56,26 +59,24 @@
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 			on:dragend={() => isDragging.set(false)}
-			on:click={(e) => handleGateSelection(gate.id, e)}
+			on:click={(e) => ($isMobile ? toggleGateSelection(gate.id) : handleGateSelection(gate.id, e))}
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 			on:contextmenu={(e) => onContextMenu(e, gate)}
-			on:touchstart={(e) =>
-				handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: gate.gate })}
-			on:touchmove={handleTouchMove}
-			on:touchend={handleTouchEnd}
 			class={`gate z-10 cursor-grab select-none rounded-sm border border-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center ${
 				gate.gate === 'swap'
-					? 'bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white h-11 w-10 font-extralight'
-					: 'bg-surface text-text active:bg-ternary-1 px-3 py-2 text-base'
+					? `bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white font-extralight ${$isMobile ? 'h-9 w-8' : 'h-11 w-10'}`
+					: gate.gate === 'x'
+						? `bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-1.5 py-1.5' : 'px-2 py-2'}`
+						: `bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-2.5 py-1.5 text-sm' : 'px-3 py-2 text-base'}`
 			}`}
 			class:selected={$selectedGateIds.has(gate.id)}
 			style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 		>
 			{#if gate.gate === 'swap'}
-				<span class="text-[40px]">×</span>
+				<span class={$isMobile ? 'text-[20px]' : 'text-[32px]'}>×</span>
 			{:else if gate.gate === 'x'}
-				<svg viewBox="0 0 28 28" width="20" height="20" aria-hidden="true">
+				<svg viewBox="0 0 28 28" width={$isMobile ? '16' : '20'} height={$isMobile ? '16' : '20'} aria-hidden="true">
 					<circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="2" />
 					<line x1="2" y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="2" />
 					<line x1="14" y1="2" x2="14" y2="26" stroke="currentColor" stroke-width="2" />
@@ -98,15 +99,11 @@
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id, 'CONTROL', qubit)}
 			on:dragend={() => isDragging.set(false)}
-			on:click={(e) => handleGateSelection(gate.id, e)}
+			on:click={(e) => ($isMobile ? toggleGateSelection(gate.id) : handleGateSelection(gate.id, e))}
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() =>
 				handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'CONTROL', qubit })}
-			on:touchstart={(e) =>
-				handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: 'CONTROL', qubit })}
-			on:touchmove={handleTouchMove}
-			on:touchend={handleTouchEnd}
-			class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+			class={`gate z-10 cursor-grab select-none rounded-sm ${$isMobile ? 'h-8 w-8' : 'h-11 w-10'} text-sm border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center`}
 			style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 		>
 			<div class="w-3 h-3 rounded-full bg-text"></div>
@@ -125,15 +122,11 @@
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id, 'ANTI_CONTROL', qubit)}
 			on:dragend={() => isDragging.set(false)}
-			on:click={(e) => handleGateSelection(gate.id, e)}
+			on:click={(e) => ($isMobile ? toggleGateSelection(gate.id) : handleGateSelection(gate.id, e))}
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() =>
 				handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'ANTI_CONTROL', qubit })}
-			on:touchstart={(e) =>
-				handleTouchStart(e, { source: 'wire', gateId: gate.id, gateType: 'ANTI_CONTROL', qubit })}
-			on:touchmove={handleTouchMove}
-			on:touchend={handleTouchEnd}
-			class="gate z-10 cursor-grab select-none rounded-sm h-11 w-10 text-base border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+			class={`gate z-10 cursor-grab select-none rounded-sm ${$isMobile ? 'h-8 w-8' : 'h-11 w-10'} text-sm border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center`}
 			style="left: {gateOffset + (gate.column + 0.5) * columnWidth}px;"
 		>
 			<div class="w-3 h-3 rounded-full border border-text"></div>
@@ -155,12 +148,10 @@
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, measureOp.id)}
 			on:dragend={() => isDragging.set(false)}
+			on:click={(e) =>
+				$isMobile ? toggleGateSelection(measureOp.id) : handleGateSelection(measureOp.id, e)}
 			on:keydown={(e) => e.key === 'Delete' && removeGate(measureOp.id)}
 			on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: measureOp.id })}
-			on:touchstart={(e) =>
-				handleTouchStart(e, { source: 'wire', gateId: measureOp.id, gateType: 'MEASURE' })}
-			on:touchmove={handleTouchMove}
-			on:touchend={handleTouchEnd}
 			class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-orange-100 text-orange-700 active:bg-orange-400 border-orange-300 active:text-white active:border-white shadow transition-colors duration-100"
 			style="left: {gateOffset + (measureOp.column + 0.5) * columnWidth}px;"
 		>

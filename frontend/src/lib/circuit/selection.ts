@@ -22,6 +22,16 @@ export function handleGateSelection(gateId: string, event: MouseEvent) {
 	}
 }
 
+// Mobile: every tap toggles the gate in/out of the selection (no modifier key).
+export function toggleGateSelection(gateId: string) {
+	selectedGateIds.update((ids) => {
+		const next = new Set(ids);
+		if (next.has(gateId)) next.delete(gateId);
+		else next.add(gateId);
+		return next;
+	});
+}
+
 export function clearSelection() {
 	selectedGateIds.set(new Set());
 }

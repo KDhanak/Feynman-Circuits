@@ -6,6 +6,7 @@
 	import { loadSession } from '$lib/auth/session';
 	import { resolvedTheme, toggleTheme } from '$lib/stores/themeStore';
 	import { settings } from '$lib/stores/settingsStore';
+	import { isMobile } from '$lib/stores/isMobile';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 	import Icon from '@iconify/svelte';
@@ -31,9 +32,11 @@
 </script>
 
 <main
-	class="flex h-screen flex-col overflow-hidden items-center"
+	class="flex pb-20 sm:pb-0 min-h-screen sm:h-screen sm:overflow-hidden flex-col overflow-hidden items-center"
 	style="background: radial-gradient(at center, var(--color-background) 50%, var(--color-surface) 90%)"
 >
+	<p>mobile: {$isMobile}</p>
+
 	<!-- Header -->
 	<header class="relative w-full flex items-center justify-between px-4 sm:px-7 py-2 shrink-0">
 		<a href="/" class="shrink-0">
@@ -99,7 +102,7 @@
 	<GatePalette />
 
 	<!-- Circuit board — fills all remaining vertical space -->
-	<div class="shadow-sm shadow-ternary-1 bg-ternary-3/20 w-[96%] flex-1 min-h-0 overflow-hidden">
+	<div class="shadow-sm shadow-ternary-1 bg-ternary-3/20 w-[96%] min-h-[55vh] sm:flex-1 sm:min-h-0 overflow-hidden">
 		<CircuitLayout />
 	</div>
 	<!-- Results row — fixed height on desktop, never shifts layout -->
@@ -107,21 +110,21 @@
 		class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5"
 	>
 		<div
-			class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-sm overflow-y-auto"
+			class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-none sm:max-w-sm overflow-y-auto"
 		>
 			<SimulationResult />
 		</div>
-		{#if $settings.showBlochSphere}
-		<Tooltip
-			quick="Bloch Sphere"
-			detail="A 3D representation of a single qubit's state. The north pole is |0⟩, south pole is |1⟩, and the equator is superposition."
-		>
-			<div
-				class="shrink-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
+		{#if $settings.showBlochSphere && !$isMobile}
+			<Tooltip
+				quick="Bloch Sphere"
+				detail="A 3D representation of a single qubit's state. The north pole is |0⟩, south pole is |1⟩, and the equator is superposition."
 			>
-				<OverallBlochSphere />
-			</div>
-		</Tooltip>
+				<div
+					class="w-full sm:shrink-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
+				>
+					<OverallBlochSphere />
+				</div>
+			</Tooltip>
 		{/if}
 	</div>
 </main>
@@ -130,7 +133,7 @@
 <button
 	type="button"
 	on:click={() => (feedbackOpen = true)}
-	class="fixed flex items-center cursor-pointer justify-center bottom-5 right-1/2 z-100 gap-2 border rounded-sm bg-surface px-4 py-2 text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 "
+	class="fixed flex items-center cursor-pointer justify-center bottom-5 left-1/2 -translate-x-1/2 z-100 gap-2 border rounded-sm bg-surface px-4 py-2 text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100"
 	aria-label="Open feedback form"
 >
 	<Icon icon="ph:chat-circle-text-bold" width="17" height="17" />

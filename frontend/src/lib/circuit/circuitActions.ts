@@ -1,7 +1,12 @@
 import { importCircuit, exportToOpenQasm, importFromOpenQasm } from './IE';
 import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
-import type { CircuitIR } from '../IR/schema';
-import { triggerSimulation, findNextAvailableColumn } from '$lib/circuit/dragDropUtils';
+import type { CircuitIR, CircuitOperation } from '../IR/schema';
+import {
+    triggerSimulation,
+    findNextAvailableColumn,
+    pendingControls,
+    pendingAntiControls
+} from '$lib/circuit/dragDropUtils';
 import { showNotification } from '../utils/notificationUtils';
 import { circuitIR } from '$lib/IR/stores';
 import { setNumQubitsIR } from '$lib/IR/operations';
@@ -103,6 +108,54 @@ export function applyBellPairPreset(): void {
         return next;
     });
     showNotification('Bell pair circuit applied!', 'success');
+}
+
+/**
+ * Left-packs the circuit by removing empty column gaps (ASAP scheduling).
+ *
+ * Each operation is moved to the earliest column where every qubit it touches
+ * (targets + controls + antiControls) is free. Taking the max free-column over
+ * all involved qubits keeps multi-qubit ops (controls, SWAP) aligned in a single
+ * column, and processing in column order preserves each qubit's gate sequence —
+ * so the simulation result is unchanged, just visually tighter.
+ */
+export function compactCircuit(): void {
+    if (get(circuitIR).operations.length === 0) {
+        showNotification('Nothing to compact.', 'error');
+        return;
+    }
+
+    const qubitsOf = (op: CircuitOperation): number[] =>
+        op.kind === 'unitary'
+            ? [...op.targets, ...op.controls, ...op.antiControls]
+            : 'targets' in op
+              ? (op.targets as number[])
+              : [];
+
+    circuitIR.update((ir) => {
+        // Process operations left-to-right by their current column (stable sort
+        // keeps same-column ops in their existing relative order).
+        const sorted = [...ir.operations].sort((a, b) => a.column - b.column);
+
+        const freeCol = new Array(ir.registers.q).fill(0);
+        const remapped = sorted.map((op) => {
+            const qs = qubitsOf(op);
+            const col = qs.length ? Math.max(...qs.map((q) => freeCol[q] ?? 0)) : 0;
+            for (const q of qs) freeCol[q] = col + 1;
+            return { ...op, column: col } as CircuitOperation;
+        });
+
+        const next: CircuitIR = { ...ir, operations: remapped };
+        triggerSimulation(next);
+        return next;
+    });
+
+    // Uncommitted control dots are keyed by column, which we just remapped — drop
+    // them so they don't linger at stale positions.
+    pendingControls.set(new Map());
+    pendingAntiControls.set(new Map());
+
+    showNotification('Circuit compacted!', 'success');
 }
 
 export function importOpenQasm(qasmText: string): void {
