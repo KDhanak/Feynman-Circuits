@@ -35,8 +35,6 @@
 	class="flex pb-20 sm:pb-0 min-h-screen sm:h-screen sm:overflow-hidden flex-col overflow-hidden items-center"
 	style="background: radial-gradient(at center, var(--color-background) 50%, var(--color-surface) 90%)"
 >
-	<p>mobile: {$isMobile}</p>
-
 	<!-- Header -->
 	<header class="relative w-full flex items-center justify-between px-4 sm:px-7 py-2 shrink-0">
 		<a href="/" class="shrink-0">
@@ -102,7 +100,9 @@
 	<GatePalette />
 
 	<!-- Circuit board — fills all remaining vertical space -->
-	<div class="shadow-sm shadow-ternary-1 bg-ternary-3/20 w-[96%] min-h-[55vh] sm:flex-1 sm:min-h-0 overflow-hidden">
+	<div
+		class="shadow-sm shadow-ternary-1 bg-ternary-3/20 w-[96%] min-h-[55vh] sm:flex-1 sm:min-h-0 overflow-hidden"
+	>
 		<CircuitLayout />
 	</div>
 	<!-- Results row — fixed height on desktop, never shifts layout -->
