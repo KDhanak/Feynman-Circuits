@@ -154,6 +154,44 @@
 		gateMenuVisible = true;
 	}
 
+	// Board-level drag/drop delegation. Instead of attaching listeners to every
+	// (column × wire) dropzone — O(columns × wires) — resolve the target cell from
+	// the pointer's coordinates against the wire row under it.
+	function resolveCell(
+		target: EventTarget | null,
+		clientX: number
+	): { col: number; qubit: number } | null {
+		const row = (target as HTMLElement | null)?.closest?.('[data-wire-row]') as HTMLElement | null;
+		if (!row) return null;
+		const qubit = Number(row.dataset.qubit);
+		if (Number.isNaN(qubit)) return null;
+		const x = clientX - row.getBoundingClientRect().left - gateOffset;
+		if (x < 0) return null;
+		const col = Math.floor(x / columnWidth);
+		if (col < 0 || col >= MAX_COLUMNS) return null;
+		return { col, qubit };
+	}
+
+	function handleBoardDragOver(e: DragEvent) {
+		// Only allow the drop (preventDefault) when the pointer is over a valid cell.
+		if (resolveCell(e.target, e.clientX)) handleDragOver(e);
+	}
+
+	function handleBoardDrop(e: DragEvent) {
+		const cell = resolveCell(e.target, e.clientX);
+		if (cell) handleDrop(e, cell.col, cell.qubit);
+	}
+
+	// Mobile tap-to-place, delegated from the board click handler. Returns true when
+	// it consumed the tap so the caller can skip selection-clearing.
+	function handleBoardTap(e: MouseEvent): boolean {
+		if (!$isMobile || !$armedGate) return false;
+		const cell = resolveCell(e.target, e.clientX);
+		if (!cell) return false;
+		placeArmedGate(cell.col, cell.qubit);
+		return true;
+	}
+
 	function resetAndClose() {
 		closeContextMenu();
 		// Import resetCircuit from simulator
@@ -198,8 +236,11 @@
 	on:mousemove={(e) => !$isMobile && handleBoardMouseMove(e)}
 	on:mouseup={(e) => !$isMobile && handleBoardMouseUp(e)}
 	on:mouseleave={() => !$isMobile && cancelDrag()}
+	on:drop={handleBoardDrop}
+	on:dragover={handleBoardDragOver}
 	on:click={(e) => {
 		closeContextMenu();
+		if (handleBoardTap(e)) return;
 		const target = e.target as HTMLElement;
 		// Clear selection when clicking on empty space (not gates or labels)
 		if (
@@ -258,6 +299,7 @@
 					tabindex="-1"
 					class={`relative flex ${$isMobile ? 'h-12' : 'h-14'} items-center`}
 					style={$isMobile ? `min-width: ${totalWidth}px` : ''}
+					data-wire-row
 					data-qubit={wire.qubit}
 					on:mouseenter={() => (hoveredWire = wire.qubit)}
 					on:mouseleave={() => (hoveredWire = null)}
@@ -271,17 +313,6 @@
 							<div
 								class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
 								class:dropzone-armed={$isMobile && $armedGate}
-								on:drop={(e) => handleDrop(e, colIndex, wire.qubit)}
-								on:dragover={handleDragOver}
-								on:click={() => $isMobile && $armedGate && placeArmedGate(colIndex, wire.qubit)}
-								on:keydown={(e) =>
-									$isMobile &&
-									$armedGate &&
-									(e.key === 'Enter' || e.key === ' ') &&
-									(e.preventDefault(), placeArmedGate(colIndex, wire.qubit))}
-								role="button"
-								aria-label={`Drop gate here at column ${colIndex + 1}`}
-								tabindex="0"
 								style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
 							></div>
 						{/each}
@@ -416,6 +447,7 @@
 				<div
 					class="ghost-wire relative flex h-14 items-center"
 					style={$isMobile ? `min-width: ${totalWidth}px` : ''}
+					data-wire-row
 					data-qubit={$circuitIR.registers.q}
 					transition:slide={{ duration: 300 }}
 				>
@@ -427,18 +459,6 @@
 							<div
 								class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
 								class:dropzone-armed={$isMobile && $armedGate}
-								aria-label={`Add qubit and drop gate at column ${colIndex + 1}`}
-								role="button"
-								tabindex="0"
-								on:drop={(e) => handleDrop(e, colIndex, $circuitIR.registers.q)}
-								on:dragover={handleDragOver}
-								on:click={() =>
-									$isMobile && $armedGate && placeArmedGate(colIndex, $circuitIR.registers.q)}
-								on:keydown={(e) =>
-									$isMobile &&
-									$armedGate &&
-									(e.key === 'Enter' || e.key === ' ') &&
-									(e.preventDefault(), placeArmedGate(colIndex, $circuitIR.registers.q))}
 								style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
 							></div>
 						{/each}

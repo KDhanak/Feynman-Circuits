@@ -1,6 +1,6 @@
 import { createComplex, type Complex } from "./complex";
 import { type QuantumState } from "./vector";
-import { add, multiply } from "./complex";
+import { add, multiply, isZero } from "./complex";
 
 export type QuantumMatrix = Complex[][];
 
@@ -101,7 +101,7 @@ export function computeControlledUMatrix(controlQubit: number, targetQubit: numb
         for (let rowBit = 0; rowBit < 2; rowBit++) {
             const amp = U[rowBit][beforeBit];
 
-            if (amp.re === 0 && amp.im === 0) continue;
+            if (isZero(amp)) continue;
 
             const dest = (rowBit === beforeBit) ? src : (src ^ bitMask);
 
@@ -123,7 +123,6 @@ export function computeControlledUMatrix(controlQubit: number, targetQubit: numb
 export function computeMultiControlledUMatrix(controlQubits: number[], targetQubit: number, numQubits: number, U: Complex[][]): Complex[][] {
     const dim = 1 << numQubits;
     const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(createComplex(0, 0)));
-    const zero = createComplex(0, 0);
     const one = createComplex(1, 0);
 
     for (let src = 0; src < dim; src++) {
@@ -141,7 +140,7 @@ export function computeMultiControlledUMatrix(controlQubits: number[], targetQub
 
         for (let rowBit = 0; rowBit < 2; rowBit++) {
             const amp = U[rowBit][targetBit];
-            if (amp.re === 0 && amp.im === 0) continue;
+            if (isZero(amp)) continue;
 
             const dest = (rowBit === targetBit) ? src : (src ^ targetMask);
             matrix[dest][src] = amp;
@@ -169,7 +168,6 @@ export function computeMultiControlledUMatrixWithAntiControls(
 ): Complex[][] {
     const dim = 1 << numQubits;
     const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(createComplex(0, 0)));
-    const zero = createComplex(0, 0);
     const one = createComplex(1, 0);
 
     for (let src = 0; src < dim; src++) {
@@ -189,7 +187,7 @@ export function computeMultiControlledUMatrixWithAntiControls(
 
         for (let rowBit = 0; rowBit < 2; rowBit++) {
             const amp = U[rowBit][targetBit];
-            if (amp.re === 0 && amp.im === 0) continue;
+            if (isZero(amp)) continue;
 
             const dest = (rowBit === targetBit) ? src : (src ^ targetMask);
             matrix[dest][src] = amp;

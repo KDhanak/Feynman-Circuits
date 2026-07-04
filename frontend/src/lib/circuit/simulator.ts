@@ -1,4 +1,4 @@
-import type { CircuitIR } from "../IR/schema";
+import type { CircuitIR, UnitaryOperation } from "../IR/schema";
 import { circuitIR } from "../IR/stores";
 import type { SimulationResult } from "../IR/schema";
 import { simulationResult } from "../IR/stores";
@@ -48,6 +48,40 @@ export function collapseQubit(
 	};
 }
 
+/**
+ * Builds the full-system matrix for a single unitary op, applying any controls/anti-controls.
+ * `swap` is handled directly on the state (it isn't matrix-based), so it is not covered here.
+ * Returns null for an unknown gate so the caller can skip it.
+ */
+function getGateMatrix(op: UnitaryOperation, numQubits: number): Complex[][] | null {
+	let baseMatrix: Complex[][];
+
+	switch (op.gate) {
+		case 'rx':
+			baseMatrix = createRXGate(op.params[0] ?? 0).matrix;
+			break;
+		case 'ry':
+			baseMatrix = createRYGate(op.params[0] ?? 0).matrix;
+			break;
+		case 'rz':
+			baseMatrix = createRZGate(op.params[0] ?? 0).matrix;
+			break;
+		default: {
+			const gateDef = GATE_MAP[op.gate];
+			if (!gateDef) return null;
+			baseMatrix = gateDef.matrix;
+		}
+	}
+
+	if (op.controls.length === 0 && op.antiControls.length === 0) {
+		return extendGateMatrix(baseMatrix, op.targets[0], numQubits);
+	} else if (op.antiControls.length === 0) {
+		return computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, baseMatrix);
+	} else {
+		return computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, baseMatrix);
+	}
+}
+
 // ─────────────────────────────────────────────────────────────
 // Unified simulator (works for 1 qubit AND multi-qubit)
 // ─────────────────────────────────────────────────────────────
@@ -84,7 +118,7 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 			if (op.kind === 'unitary') {
 				if (measuredQubits.has(op.targets[0])) continue; // skip gates on measured qubits
 
-				let matrix: Complex[][];
+				let matrix: Complex[][] | null;
 
 				if (op.gate === 'swap') {
 					if (op.targets.length !== 2) continue;
@@ -102,48 +136,11 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 					}
 					state = swapped;
 					continue;
-				} else if (op.gate === 'rx') {
-					const angle = op.params[0] ?? 0;
-					const rxGate = createRXGate(angle);
-					if (op.controls.length === 0 && op.antiControls.length === 0) {
-						matrix = extendGateMatrix(rxGate.matrix, op.targets[0], numQubits);
-					} else if (op.antiControls.length === 0) {
-						matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, rxGate.matrix);
-					} else {
-						matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, rxGate.matrix);
-					}
-				} else if (op.gate === 'ry') {
-					const angle = op.params[0] ?? 0;
-					const ryGate = createRYGate(angle);
-					if (op.controls.length === 0 && op.antiControls.length === 0) {
-						matrix = extendGateMatrix(ryGate.matrix, op.targets[0], numQubits);
-					} else if (op.antiControls.length === 0) {
-						matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, ryGate.matrix);
-					} else {
-						matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, ryGate.matrix);
-					}
-				} else if (op.gate === 'rz') {
-					const angle = op.params[0] ?? 0;
-					const rzGate = createRZGate(angle);
-					if (op.controls.length === 0 && op.antiControls.length === 0) {
-						matrix = extendGateMatrix(rzGate.matrix, op.targets[0], numQubits);
-					} else if (op.antiControls.length === 0) {
-						matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, rzGate.matrix);
-					} else {
-						matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, rzGate.matrix);
-					}
 				} else {
-					const gateDef = GATE_MAP[op.gate];
-					if (!gateDef) continue;
-
-					if (op.controls.length === 0 && op.antiControls.length === 0) {
-						matrix = extendGateMatrix(gateDef.matrix, op.targets[0], numQubits);
-					} else if (op.antiControls.length === 0) {
-						matrix = computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, gateDef.matrix);
-					} else {
-						matrix = computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, gateDef.matrix);
-					}
+					matrix = getGateMatrix(op, numQubits);
+					if (!matrix) continue; // unknown or unsupported gate
 				}
+
 				state = applyMatrix(matrix, state);
 			}
 		}

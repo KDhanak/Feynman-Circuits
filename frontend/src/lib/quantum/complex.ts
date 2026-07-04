@@ -7,6 +7,20 @@ export function createComplex(re: number, im: number): Complex {
     return { re, im };
 }
 
+// Tolerance for treating floating-point results as zero. Gate matrices accumulate
+// rounding error (e.g. cos(π/2) computes as ~6.12e-17), so exact `=== 0` checks are unreliable.
+export const EPSILON = 1e-10;
+
+// True when a real value is within EPSILON of zero.
+export function isNearZero(value: number): boolean {
+    return Math.abs(value) < EPSILON;
+}
+
+// True when both components of a complex number are within EPSILON of zero.
+export function isZero(z: Complex): boolean {
+    return isNearZero(z.re) && isNearZero(z.im);
+}
+
 export function conjugate(z: Complex): Complex {
     return { re: z.re, im: -z.im };
 }
@@ -35,24 +49,26 @@ export function scale(z: Complex, scalar: number): Complex {
 }
 
 export function formatComplex({ re, im }: Complex): string {
-    if (re === 0 && im === 0) {
+    if (isNearZero(re) && isNearZero(im)) {
         return '(0)';
     }
 
     let result = '';
 
-    if (re !== 0) {
+    const reIsZero = isNearZero(re);
+
+    if (!reIsZero) {
         result += re.toFixed(2);
     }
 
-    if (im !== 0) {
+    if (!isNearZero(im)) {
         if (im === 1) {
-            result += (re === 0 ? '' : ' + ') + 'i';
+            result += (reIsZero ? '' : ' + ') + 'i';
         } else if (im === -1) {
-            result += (re === 0 ? '-' : ' - ') + 'i';
+            result += (reIsZero ? '-' : ' - ') + 'i';
         } else {
             const imPart = Math.abs(im).toFixed(2) + 'i';
-            result += (re === 0 ? (im < 0 ? '-' : '') : im < 0 ? ' - ' : ' + ') + imPart;
+            result += (reIsZero ? (im < 0 ? '-' : '') : im < 0 ? ' - ' : ' + ') + imPart;
         }
     }
 
@@ -91,7 +107,7 @@ export function formatQuantumStatePolar(state: Complex[]): string {
     return state
         .map((amplitude, index) => {
             const { magnitude, phase } = getPolar(amplitude);
-            if (parseFloat(magnitude) === 0) return null;
+            if (isNearZero(parseFloat(magnitude))) return null;
 
             const basis = index.toString(2).padStart(numQubits, '0');
             return `|${basis}⟩: ${magnitude}e^(i * ${phase}°)`;
