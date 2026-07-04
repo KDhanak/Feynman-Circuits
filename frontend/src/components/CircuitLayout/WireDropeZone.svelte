@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { UnitaryOperation } from '$lib/IR/schema';
-	import { tick, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
 	import { simulationResult, circuitIR } from '$lib/IR/stores';
@@ -68,15 +68,55 @@
 	$: showGhostWire =
 		($isDragging || ($isMobile && $armedGate)) && $circuitIR.registers.q < MAX_QUBITS;
 
-	$: if (showGhostWire && scrollContainer) {
-		(async () => {
-			await tick();
-			await tick();
-			setTimeout(() => {
-				scrollContainer?.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
-			}, 350);
-		})();
+	// While dragging a gate, auto-scroll the board when the pointer nears the top/bottom
+	// edge (speed scales with proximity). This replaces the old force-scroll-to-bottom that
+	// yanked the view down every time the ghost wire appeared.
+	const EDGE_ZONE = 60; // px from an edge that starts auto-scrolling
+	const MAX_EDGE_SPEED = 14; // px per frame at the very edge
+	let edgeScrollDir = 0; // -1 = up, 1 = down, 0 = idle
+	let edgeScrollSpeed = 0;
+	let edgeScrollRaf: number | null = null;
+
+	function updateEdgeScroll(clientY: number) {
+		if (!scrollContainer) return;
+		const rect = scrollContainer.getBoundingClientRect();
+		const topDist = clientY - rect.top;
+		const bottomDist = rect.bottom - clientY;
+
+		if (topDist < EDGE_ZONE) {
+			edgeScrollDir = -1;
+			edgeScrollSpeed = Math.ceil(((EDGE_ZONE - topDist) / EDGE_ZONE) * MAX_EDGE_SPEED);
+		} else if (bottomDist < EDGE_ZONE) {
+			edgeScrollDir = 1;
+			edgeScrollSpeed = Math.ceil(((EDGE_ZONE - bottomDist) / EDGE_ZONE) * MAX_EDGE_SPEED);
+		} else {
+			edgeScrollDir = 0;
+		}
+
+		if (edgeScrollDir !== 0 && edgeScrollRaf === null) {
+			const step = () => {
+				if (edgeScrollDir === 0 || !scrollContainer) {
+					edgeScrollRaf = null;
+					return;
+				}
+				scrollContainer.scrollTop += edgeScrollDir * edgeScrollSpeed;
+				connectorLayer?.recomputeConnectorsSync();
+				edgeScrollRaf = requestAnimationFrame(step);
+			};
+			edgeScrollRaf = requestAnimationFrame(step);
+		}
 	}
+
+	function stopEdgeScroll() {
+		edgeScrollDir = 0;
+		if (edgeScrollRaf !== null) {
+			cancelAnimationFrame(edgeScrollRaf);
+			edgeScrollRaf = null;
+		}
+	}
+
+	// End edge-scrolling as soon as the drag finishes.
+	$: if (!$isDragging) stopEdgeScroll();
 
 	function hasGatesOnWire(qubitIndex: number) {
 		return $circuitIR.operations.some((op) => {
@@ -173,11 +213,14 @@
 	}
 
 	function handleBoardDragOver(e: DragEvent) {
+		// Scroll when hovering near an edge, even over non-cell areas (labels, ghost wire).
+		updateEdgeScroll(e.clientY);
 		// Only allow the drop (preventDefault) when the pointer is over a valid cell.
 		if (resolveCell(e.target, e.clientX)) handleDragOver(e);
 	}
 
 	function handleBoardDrop(e: DragEvent) {
+		stopEdgeScroll();
 		const cell = resolveCell(e.target, e.clientX);
 		if (cell) handleDrop(e, cell.col, cell.qubit);
 	}
@@ -218,11 +261,24 @@
 			}
 		};
 
+		// Let the mouse wheel scroll the board during a native drag. Browsers suppress
+		// default wheel-scrolling while an HTML5 drag is active, so we scroll manually.
+		// Non-passive is required for preventDefault to take effect.
+		const handleDragWheel = (e: WheelEvent) => {
+			if (!scrollContainer || !get(isDragging)) return;
+			e.preventDefault();
+			scrollContainer.scrollTop += e.deltaY;
+			connectorLayer?.recomputeConnectorsSync();
+		};
+
 		document.addEventListener('click', handleClickOutside);
 		document.addEventListener('keydown', handleDeleteKey);
+		scrollContainer?.addEventListener('wheel', handleDragWheel, { passive: false });
 		return () => {
 			document.removeEventListener('click', handleClickOutside);
 			document.removeEventListener('keydown', handleDeleteKey);
+			scrollContainer?.removeEventListener('wheel', handleDragWheel);
+			stopEdgeScroll();
 		};
 	});
 </script>

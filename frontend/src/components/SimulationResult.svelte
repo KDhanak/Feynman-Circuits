@@ -28,6 +28,7 @@
 	}
 
 	let popupWindow: Window | null = null;
+	let popupRebuildTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function toEntriesArray(probObj: Record<string, number> | undefined) {
 		if (!probObj) return [];
@@ -247,6 +248,16 @@
 		popupWindow.document.close();
 	}
 
+	// Rebuilding the popup does a full document.write, so coalesce rapid store
+	// changes (e.g. dragging several gates) into a single rebuild once they settle.
+	function schedulePopupUpdate() {
+		if (!popupWindow || popupWindow.closed) return;
+		clearTimeout(popupRebuildTimer);
+		popupRebuildTimer = setTimeout(() => {
+			if (popupWindow && !popupWindow.closed) updatePopupContent();
+		}, 150);
+	}
+
 	$: if (popupWindow && !popupWindow.closed && $circuitIR.registers.q < 3) {
 		popupWindow.close();
 		popupWindow = null;
@@ -254,16 +265,17 @@
 
 	onMount(() => {
 		const unsubCircuit = circuitIR.subscribe(() => {
-			if (popupWindow && !popupWindow.closed) updatePopupContent();
+			schedulePopupUpdate();
 		});
 
 		const unsubSim = simulationResult.subscribe(() => {
-			if (popupWindow && !popupWindow.closed) updatePopupContent();
+			schedulePopupUpdate();
 		});
 
 		return () => {
 			unsubCircuit();
 			unsubSim();
+			clearTimeout(popupRebuildTimer);
 			if (popupWindow && !popupWindow.closed) popupWindow.close();
 		};
 	});
