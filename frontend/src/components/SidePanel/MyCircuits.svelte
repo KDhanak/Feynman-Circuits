@@ -387,7 +387,7 @@
 								<div class="flex items-center gap-3 min-w-0">
 									<input
 										type="checkbox"
-										class="h-4 w-4 shrink-0 cursor-pointer accent-measured"
+										class="select-checkbox shrink-0 cursor-pointer"
 										checked={selectedIds.has(circuit.circuit_id)}
 										on:click|stopPropagation
 										on:change={() => toggleSelect(circuit.circuit_id)}
@@ -554,3 +554,36 @@
 	onConfirm={deleteSelected}
 	onCancel={() => (confirmDeleteOpen = false)}
 />
+
+<style>
+	/* Custom checkbox: transparent background when unselected, brand fill + check
+	   when selected (native `accent-color` leaves an opaque white box unchecked). */
+	.select-checkbox {
+		appearance: none;
+		-webkit-appearance: none;
+		width: 1rem;
+		height: 1rem;
+		border: 1.5px solid var(--color-muted);
+		border-radius: 0.125rem;
+		background-color: transparent;
+		display: inline-grid;
+		place-content: center;
+		transition: border-color 0.15s ease, background-color 0.15s ease;
+	}
+	.select-checkbox::before {
+		content: '';
+		width: 0.6rem;
+		height: 0.6rem;
+		transform: scale(0);
+		transition: transform 0.1s ease-in-out;
+		background-color: #ffffff;
+		clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+	}
+	.select-checkbox:checked {
+		background-color: var(--color-measured);
+		border-color: var(--color-measured);
+	}
+	.select-checkbox:checked::before {
+		transform: scale(1);
+	}
+</style>
