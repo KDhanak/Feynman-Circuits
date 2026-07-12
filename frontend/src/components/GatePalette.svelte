@@ -6,8 +6,9 @@
 	} from '$lib/circuit/dragDropUtils';
 	import { isDragging, armedGate } from '$lib/stores/uiStores';
 	import { showNotification } from '$lib/utils/notificationUtils';
-	import { manualSave } from '$lib/circuit/autoSave';
+	import { manualSave, isCircuitSaved } from '$lib/circuit/autoSave';
 	import { currentCircuitName } from '$lib/IR/stores';
+	import NameDialog from './NameDialog.svelte';
 	import Icon from '@iconify/svelte';
 	import { session } from '$lib/auth/session';
 	import { get } from 'svelte/store';
@@ -125,23 +126,24 @@
 		);
 	}
 
-	async function saveCircuit() {
+	let showNameDialog = false;
+
+	function openNameDialog() {
 		if (get(session).status !== 'authenticated') {
 			showNotification('Please sign in to save your circuit.', 'error');
 			return;
 		}
-		const newName = prompt('Enter a name for your circuit:', $currentCircuitName);
-		if (newName === null) return;
-		if (newName.trim() === '') {
-			showNotification('Circuit name cannot be empty.', 'error');
-			return;
-		}
+		showNameDialog = true;
+	}
 
+	async function saveCircuit(newName: string) {
+		showNameDialog = false;
+		const wasSaved = get(isCircuitSaved);
 		const previousName = $currentCircuitName;
-		currentCircuitName.set(newName.trim());
+		currentCircuitName.set(newName);
 		try {
 			await manualSave();
-			showNotification('Circuit saved!', 'success');
+			showNotification(wasSaved ? 'Circuit renamed!' : 'Circuit saved!', 'success');
 		} catch (err: unknown) {
 			currentCircuitName.set(previousName);
 			const apiMessage = (err as { response?: { data?: { name?: string[] } } })?.response?.data
@@ -226,7 +228,7 @@
 	{/each}
 	<button
 		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
-		on:click={saveCircuit}>Save Circuit</button
+		on:click={openNameDialog}>{$isCircuitSaved ? 'Rename Circuit' : 'Save Circuit'}</button
 	>
 	<button
 		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
@@ -237,6 +239,15 @@
 		on:click={compactCircuit}>Compact</button
 	>
 </div>
+
+<NameDialog
+	open={showNameDialog}
+	title={$isCircuitSaved ? 'Rename Circuit' : 'Save Circuit'}
+	value={$currentCircuitName}
+	confirmLabel="Save"
+	onConfirm={saveCircuit}
+	onCancel={() => (showNameDialog = false)}
+/>
 
 <style>
 </style>

@@ -31,6 +31,10 @@ const INITIAL_STATE: AutoSaveState = {
 
 const autoSaveState = writable<AutoSaveState>({ ...INITIAL_STATE });
 
+// Whether the current circuit exists on the server (saved at least once, or
+// loaded from the user's saved circuits). Drives the Save/Rename button label.
+export const isCircuitSaved = writable<boolean>(false);
+
 // Exposed for tests: restore a clean slate between cases.
 export function resetAutoSaveState() {
     autoSaveState.set({ ...INITIAL_STATE });
@@ -94,6 +98,7 @@ async function attemptAutoSave(): Promise<boolean> {
         saveStatus.set('saving');
         await upsertCircuit(circuit_id, name, get(circuitIR));
         autoSaveState.update((st) => ({ ...st, isDirty: false, consecutiveFailures: 0 }));
+        isCircuitSaved.set(true);
         saveStatus.set('saved');
         setTimeout(() => saveStatus.set('idle'), 2000);
         return true;

@@ -11,10 +11,11 @@
 	} from '$lib/api/circuitApi';
 	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
 	import { triggerSimulation } from '$lib/circuit/dragDropUtils';
-	import { markNameResolved } from '$lib/circuit/autoSave';
+	import { markNameResolved, isCircuitSaved } from '$lib/circuit/autoSave';
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import { downloadCircuit, copyToClipboard } from '$lib/circuit/circuitActions';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
+	import NameDialog from '../NameDialog.svelte';
 	import { circuitIR } from '$lib/IR/stores';
 	import { get } from 'svelte/store';
 	import { tick } from 'svelte';
@@ -95,6 +96,7 @@
 			currentCircuitId.set(circuit.circuit_id);
 			currentCircuitName.set(circuit.name);
 			markNameResolved();
+			isCircuitSaved.set(true);
 			triggerSimulation(ir);
 			showNotification(`"${circuit.name}" loaded.`, 'success');
 			onClose();
@@ -103,17 +105,24 @@
 		}
 	}
 
-	async function renameCircuit(circuit: CircuitSummary) {
+	let renameTarget: CircuitSummary | null = null;
+
+	function renameCircuit(circuit: CircuitSummary) {
 		closeContextMenu();
-		const newName = prompt('Enter a new name for your circuit:', circuit.name);
-		if (newName === null || newName.trim() === '') return;
+		renameTarget = circuit;
+	}
+
+	async function confirmRename(newName: string) {
+		const circuit = renameTarget;
+		renameTarget = null;
+		if (!circuit) return;
 		try {
-			await renameCircuitApi(circuit.circuit_id, newName.trim());
+			await renameCircuitApi(circuit.circuit_id, newName);
 			circuits = circuits.map((c) =>
-				c.circuit_id === circuit.circuit_id ? { ...c, name: newName.trim() } : c
+				c.circuit_id === circuit.circuit_id ? { ...c, name: newName } : c
 			);
 			if (circuit.circuit_id === get(currentCircuitId)) {
-				currentCircuitName.set(newName.trim());
+				currentCircuitName.set(newName);
 			}
 			showNotification('Circuit renamed!', 'success');
 		} catch (err: unknown) {
@@ -351,3 +360,12 @@
 		</button>
 	</div>
 {/if}
+
+<NameDialog
+	open={renameTarget !== null}
+	title="Rename Circuit"
+	value={renameTarget?.name ?? ''}
+	confirmLabel="Rename"
+	onConfirm={confirmRename}
+	onCancel={() => (renameTarget = null)}
+/>
