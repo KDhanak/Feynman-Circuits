@@ -21,15 +21,25 @@
 	import { circuitIR } from '$lib/IR/stores';
 	import { get } from 'svelte/store';
 	import { tick } from 'svelte';
+	import {
+		circuitListCache,
+		setCircuitListCache,
+		removeFromCircuitListCache,
+		renameInCircuitListCache
+	} from '$lib/stores/circuitListCache';
 
 	export let onClose: () => void;
 
-	let circuits: CircuitSummary[] = [];
-	let total = 0;
-	let loading = true;
+	// Hydrate from the module-level cache so a reopen renders instantly; onMount
+	// still revalidates in the background (no spinner when we already have data).
+	const cached = get(circuitListCache);
+
+	let circuits: CircuitSummary[] = cached.circuits;
+	let total = cached.total;
+	let loading = !cached.loaded;
 	let loadingMore = false;
 	let page = 1;
-	let hasMore = false;
+	let hasMore = cached.hasMore;
 	let deletingId = '';
 
 	let contextMenuVisible = false;
@@ -88,18 +98,20 @@
 		if (selectedCount === 0 || bulkDeleting) return;
 		bulkDeleting = true;
 		const ids = [...selectedIds];
-		let deleted = 0;
+		const deletedIds: string[] = [];
 		let failed = 0;
 		for (const id of ids) {
 			try {
 				await deleteCircuit(id);
 				circuits = circuits.filter((c) => c.circuit_id !== id);
-				deleted++;
+				deletedIds.push(id);
 			} catch {
 				failed++;
 			}
 		}
+		const deleted = deletedIds.length;
 		total = Math.max(0, total - deleted);
+		removeFromCircuitListCache(deletedIds, deleted);
 		selectedIds = new Set();
 		bulkDeleting = false;
 		if (failed === 0) {
@@ -116,8 +128,10 @@
 			total = count;
 			page = 1;
 			hasMore = next !== null;
+			setCircuitListCache(results, count, next !== null);
 		} catch {
-			showNotification('Failed to load circuits.', 'error');
+			// Keep any cached list on screen if a background refresh fails.
+			if (!get(circuitListCache).loaded) showNotification('Failed to load circuits.', 'error');
 		} finally {
 			loading = false;
 		}
@@ -198,6 +212,7 @@
 			circuits = circuits.map((c) =>
 				c.circuit_id === circuit.circuit_id ? { ...c, name: newName } : c
 			);
+			renameInCircuitListCache(circuit.circuit_id, newName);
 			if (circuit.circuit_id === get(currentCircuitId)) {
 				currentCircuitName.set(newName);
 			}
@@ -242,6 +257,7 @@
 			await deleteCircuit(circuit.circuit_id);
 			circuits = circuits.filter((c) => c.circuit_id !== circuit.circuit_id);
 			total = Math.max(0, total - 1);
+			removeFromCircuitListCache([circuit.circuit_id]);
 			if (selectedIds.has(circuit.circuit_id)) {
 				const next = new Set(selectedIds);
 				next.delete(circuit.circuit_id);

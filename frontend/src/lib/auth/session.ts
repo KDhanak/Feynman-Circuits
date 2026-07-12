@@ -1,5 +1,6 @@
 import { writable } from "svelte/store";
 import { api } from "../api/axios";
+import { clearCircuitListCache } from "../stores/circuitListCache";
 
 export type Me = {
 	id: number;
@@ -70,6 +71,7 @@ export async function signOut() {
 		// ignore, session still needs clearing
 	}
 
+	clearCircuitListCache();
 	session.set({ status: "anonymous", user: null });
 }
 
