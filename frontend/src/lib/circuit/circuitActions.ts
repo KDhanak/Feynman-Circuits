@@ -110,11 +110,12 @@ export function applyBellPairPreset(): void {
 /**
  * Left-packs the circuit by removing empty column gaps (ASAP scheduling).
  *
- * Each operation is moved to the earliest column where every qubit it touches
- * (targets + controls + antiControls) is free. Taking the max free-column over
- * all involved qubits keeps multi-qubit ops (controls, SWAP) aligned in a single
- * column, and processing in column order preserves each qubit's gate sequence —
- * so the simulation result is unchanged, just visually tighter.
+ * Each operation is moved to the earliest column where its full vertical span is
+ * free. A multi-qubit gate (controls, SWAP) paints a connector line across every
+ * row between its topmost and bottommost qubit, so we reserve that whole span —
+ * not just the endpoints — otherwise a gate on a pass-through qubit in the same
+ * column would visually collide with the connector. Processing in column order
+ * preserves each qubit's gate sequence, so the simulation result is unchanged.
  */
 export function compactCircuit(): void {
     if (get(circuitIR).operations.length === 0) {
@@ -129,6 +130,16 @@ export function compactCircuit(): void {
               ? (op.targets as number[])
               : [];
 
+    // The contiguous range of rows a gate occupies visually: every qubit between
+    // its lowest and highest involved qubit (inclusive), covering connector lines.
+    const spanOf = (op: CircuitOperation): number[] => {
+        const qs = qubitsOf(op);
+        if (qs.length === 0) return [];
+        const min = Math.min(...qs);
+        const max = Math.max(...qs);
+        return Array.from({ length: max - min + 1 }, (_, i) => min + i);
+    };
+
     circuitIR.update((ir) => {
         // Process operations left-to-right by their current column (stable sort
         // keeps same-column ops in their existing relative order).
@@ -136,7 +147,7 @@ export function compactCircuit(): void {
 
         const freeCol = new Array(ir.registers.q).fill(0);
         const remapped = sorted.map((op) => {
-            const qs = qubitsOf(op);
+            const qs = spanOf(op);
             const col = qs.length ? Math.max(...qs.map((q) => freeCol[q] ?? 0)) : 0;
             for (const q of qs) freeCol[q] = col + 1;
             return { ...op, column: col } as CircuitOperation;

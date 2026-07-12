@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { UnitaryOperation } from '$lib/IR/schema';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
 	import { simulationResult, circuitIR } from '$lib/IR/stores';
@@ -11,7 +11,8 @@
 		triggerSimulation,
 		placeArmedGate,
 		pendingControls,
-		pendingAntiControls
+		pendingAntiControls,
+		editGateRequest
 	} from '$lib/circuit/dragDropUtils';
 	import { updateQubitLabel } from '$lib/circuit/qubitLables';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
@@ -228,6 +229,25 @@
 		gateMenuGate = e.detail.gate;
 		gateMenuX = e.detail.x;
 		gateMenuY = e.detail.y;
+		gateMenuVisible = true;
+	}
+
+	// A freshly dropped RX/RY/RZ/SWAP gate parks its id here; open the same inline
+	// editor for it, anchored to the just-rendered gate token.
+	$: openRequestedGateEditor($editGateRequest);
+
+	async function openRequestedGateEditor(id: string | null) {
+		if (!id) return;
+		editGateRequest.set(null); // consume the request
+		await tick(); // wait for the new gate token to render
+		const op = $circuitIR.operations.find((o) => o.id === id);
+		if (!op || op.kind !== 'unitary') return;
+		const el = boardEl?.querySelector(`[data-gate-id="${id}"]`) as HTMLElement | null;
+		const rect = el?.getBoundingClientRect();
+		gateMenuGate = op as UnitaryOperation;
+		gateMenuX = rect ? rect.left : 0;
+		gateMenuY = rect ? rect.bottom + 6 : 0;
+		contextMenuVisible = false;
 		gateMenuVisible = true;
 	}
 

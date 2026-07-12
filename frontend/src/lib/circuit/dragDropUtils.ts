@@ -4,14 +4,21 @@ import { circuitIR, simulationResult } from '../IR/stores';
 import { isDragging, armedGate } from '../stores/uiStores';
 import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } from '../IR/operations';
 import { simulateMultipleQubits } from './simulator';
-import { parsePiInput } from '../utils/piMath';
-import { UNITARY_GATE_IDS, GATE_REGISTRY } from '../quantum/gates';
+import { UNITARY_GATE_IDS } from '../quantum/gates';
 
 // UI-only: tracks controls placed in a column before any unitary op exists there
 export const pendingControls = writable<Map<number, number[]>>(new Map());
 
 // UI-only: tracks anti-controls placed in a column before any unitary op exists there
 export const pendingAntiControls = writable<Map<number, number[]>>(new Map());
+
+// UI-only: after a parametric (RX/RY/RZ) or SWAP gate is dropped it's inserted
+// with a default, then its id is parked here so the board can pop the inline
+// editor for it — the same editor used for right-click edit. Null = nothing to open.
+export const editGateRequest = writable<string | null>(null);
+
+// Default rotation angle for a freshly dropped RX/RY/RZ gate (π/2).
+const DEFAULT_ROTATION = Math.PI / 2;
 
 /*──────────────────────── simulation ────────────────────*/
 
@@ -72,7 +79,8 @@ function consumePendingControls(col: number, controls: number[], antiControls: n
     }
 }
 
-// Shared RX/RY/RZ drop handler — prompts for the angle and inserts the rotation gate.
+// Shared RX/RY/RZ drop handler — inserts the rotation gate with a default angle,
+// then requests the inline editor so the user can adjust it.
 function dropParametricGate(
     gate: 'rx' | 'ry' | 'rz',
     col: number,
@@ -84,9 +92,6 @@ function dropParametricGate(
     const occupied = isCellOccupied(ir, col, qubit);
     if (occupied) { console.warn(`Cell (${col}, q=${qubit}) is occupied.`); return; }
 
-    const label = GATE_REGISTRY[gate].label;
-    const angle = parsePiInput(prompt(`Enter ${label} angle (e.g. pi/2, pi/4, 3pi/4):`, 'pi/2') ?? '') ?? 0;
-
     const { controls, antiControls } = collectControlsInColumn(ir, col, pending, antiPending);
 
     const unitaryOp: UnitaryOperation = {
@@ -97,11 +102,25 @@ function dropParametricGate(
         targets: [qubit],
         controls,
         antiControls,
-        params: [angle],
+        params: [DEFAULT_ROTATION],
     };
     insertOperation(unitaryOp);
     consumePendingControls(col, pending.get(col) ?? [], antiPending.get(col) ?? []);
     triggerSimulation(get(circuitIR));
+    editGateRequest.set(unitaryOp.id);
+}
+
+// Pick a partner qubit for a freshly dropped SWAP: prefer the adjacent wire, then
+// any other free cell in the column. Returns null if the column has no room.
+function pickSwapPartner(ir: CircuitIR, col: number, qubit: number): number | null {
+    const q = ir.registers.q;
+    const preferred = qubit + 1 < q ? qubit + 1 : qubit - 1;
+    const candidates = [preferred, ...Array.from({ length: q }, (_, i) => i)];
+    for (const c of candidates) {
+        if (c < 0 || c >= q || c === qubit) continue;
+        if (!isCellOccupied(ir, col, c)) return c;
+    }
+    return null;
 }
 
 // Shared CONTROL/ANTI_CONTROL drop handler — attaches to existing ops in the
@@ -160,8 +179,9 @@ export function handleDragOver(e: DragEvent) {
 
 // Mobile tap-to-place: drops the currently armed palette gate at (col, qubit) by
 // reusing the full handleDrop pipeline via a synthetic event — so ghost-wire
-// expansion, controls, SWAP and parametric prompts all behave identically to a
-// real drag-drop. The gate stays armed so repeated taps place more of it.
+// expansion, controls, SWAP and parametric gates all behave identically to a
+// real drag-drop (including popping the inline editor for RX/RY/RZ/SWAP). The
+// gate stays armed so repeated taps place more of it.
 export function placeArmedGate(col: number, qubit: number) {
     const armed = get(armedGate);
     if (!armed?.gateType) return;
@@ -336,18 +356,9 @@ function _dropPaletteGate(
             ir = get(circuitIR);
         }
 
-        const secondQubitStr = prompt(
-            `Enter the second qubit index to SWAP with (0–${ir.registers.q - 1}):`,
-            String(qubit + 1 < ir.registers.q ? qubit + 1 : qubit - 1)
-        );
-        if (secondQubitStr === null) return;
-        const secondQubit = parseInt(secondQubitStr, 10);
-
-        if (isNaN(secondQubit) || secondQubit < 0 || secondQubit >= ir.registers.q || secondQubit === qubit) {
-            console.warn('Invalid second qubit for SWAP.'); return;
-        }
-        if (isCellOccupied(ir, col, secondQubit)) {
-            console.warn(`Cell (${col}, q=${secondQubit}) is occupied.`); return;
+        const secondQubit = pickSwapPartner(ir, col, qubit);
+        if (secondQubit === null) {
+            console.warn('No free qubit in this column to SWAP with.'); return;
         }
 
         const unitaryOp: UnitaryOperation = {
@@ -362,6 +373,7 @@ function _dropPaletteGate(
         };
         insertOperation(unitaryOp);
         triggerSimulation(get(circuitIR));
+        editGateRequest.set(unitaryOp.id);
         return;
     }
 
