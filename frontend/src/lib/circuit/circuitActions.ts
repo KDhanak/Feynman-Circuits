@@ -10,7 +10,6 @@ import {
 import { showNotification } from '../utils/notificationUtils';
 import { circuitIR } from '$lib/IR/stores';
 import { setNumQubitsIR } from '$lib/IR/operations';
-import { circuitDataModalContent, showCircuitDataModal } from '$lib/stores/uiStores';
 import { get } from 'svelte/store';
 
 export async function copyToClipboard(content: string): Promise<void> {
@@ -60,9 +59,7 @@ export function importJson(jsonText: string): void {
     } catch {
         showNotification('Circuit imported but simulation failed', 'error');
     }
-    circuitDataModalContent.set(buildCanonicalString(ir));
     showNotification('Circuit imported successfully!', 'success');
-    showCircuitDataModal.set(false);
 }
 
 export function downloadCircuitAsOpenQasm(name: string, ir: CircuitIR, version: '2.0' | '3.0' = '2.0'): void {
@@ -172,7 +169,5 @@ export function importOpenQasm(qasmText: string): void {
     } catch {
         showNotification('Circuit imported but simulation failed', 'error');
     }
-    circuitDataModalContent.set(exportToOpenQasm(ir, { version: '2.0', includeComments: true }));
     showNotification('Circuit imported from OpenQasm successfully!', 'success');
-    showCircuitDataModal.set(false);
 }

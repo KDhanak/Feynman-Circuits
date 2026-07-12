@@ -18,10 +18,6 @@ export const circuitLayout = writable({
 	totalWidth: MAX_COLUMNS * COLUMN_WIDTH,
 });
 
-// Circuit data modal state
-export const showCircuitDataModal = writable<boolean>(false);
-export const circuitDataModalContent = writable<string>('');
-
 // Toast notification
 export const notification = writable<{ message: string; type: 'success' | 'error' } | null>(null);
 

@@ -7,7 +7,6 @@
 
 	const dispatch = createEventDispatcher<{
 		close: void;
-		edit: void;
 		copy: void;
 		reset: void;
 	}>();
@@ -25,15 +24,6 @@
 		type="button"
 		role="menuitem"
 		class="ctx-menu-item rounded-t-sm"
-		on:click={() => { dispatch('close'); dispatch('edit'); }}
-	>
-		<Icon icon="material-symbols:edit-outline" width="16" height="16" />
-		Edit Circuit
-	</button>
-	<button
-		type="button"
-		role="menuitem"
-		class="ctx-menu-item"
 		on:click={() => { dispatch('close'); dispatch('copy'); }}
 	>
 		<Icon icon="material-symbols:content-copy" width="16" height="16" />

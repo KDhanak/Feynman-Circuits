@@ -9,6 +9,7 @@
 	import { isMobile } from '$lib/stores/isMobile';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
+	import CircuitDataPanel from '../components/CircuitDataPanel.svelte';
 	import Icon from '@iconify/svelte';
 	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
 	import { session } from '$lib/auth/session';
@@ -114,6 +115,13 @@
 		>
 			<SimulationResult />
 		</div>
+		{#if !$isMobile}
+			<div
+				class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
+			>
+				<CircuitDataPanel />
+			</div>
+		{/if}
 		{#if $settings.showBlochSphere && !$isMobile}
 			<Tooltip
 				quick="Bloch Sphere"

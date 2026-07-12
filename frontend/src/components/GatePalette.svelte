@@ -1,34 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { GateData } from '$lib/IR/schema';
 	import {
 		handlePaletteDrop,
 		handleDoubleClick
 	} from '$lib/circuit/dragDropUtils';
-	import { circuitIR } from '$lib/IR/stores';
-	import { isDragging, showCircuitDataModal, circuitDataModalContent, armedGate } from '$lib/stores/uiStores';
+	import { isDragging, armedGate } from '$lib/stores/uiStores';
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import { manualSave } from '$lib/circuit/autoSave';
 	import { currentCircuitName } from '$lib/IR/stores';
 	import Icon from '@iconify/svelte';
-	import CircuitDataModal from './CircuitDataModal.svelte';
-	import {
-		buildCanonicalString,
-		buildQASMString,
-		type DataViewMode,
-		type OpenQasmVersion
-	} from '$lib/circuit/circuitDataModal';
 	import { session } from '$lib/auth/session';
 	import { get } from 'svelte/store';
-	import {
-		importJson,
-		copyToClipboard,
-		downloadCircuit,
-		downloadCircuitAsOpenQasm,
-		importOpenQasm,
-		applyBellPairPreset,
-		compactCircuit
-	} from '$lib/circuit/circuitActions';
+	import { applyBellPairPreset, compactCircuit } from '$lib/circuit/circuitActions';
 	import Tooltip from './Tooltip.svelte';
 	import {isMobile} from '$lib/stores/isMobile';
 
@@ -133,54 +116,7 @@
 		}
 	];
 
-	let activeView: DataViewMode = 'cir';
-	let qasmVersion: OpenQasmVersion = '2.0';
 	let dragEnterCount = 0;
-
-	onMount(() => {
-		// Load user's last selected view from localStorage
-		const savedView = localStorage.getItem('circuitDataModalView') as DataViewMode | null;
-		if (savedView && (savedView === 'cir' || savedView === 'qasm')) {
-			activeView = savedView;
-			// Update content to match the saved view
-			if (savedView === 'qasm') {
-				circuitDataModalContent.set(buildQASMString($circuitIR, qasmVersion));
-			} else {
-				circuitDataModalContent.set(buildCanonicalString($circuitIR));
-			}
-		}
-	});
-
-	function closeModal() {
-		showCircuitDataModal.set(false);
-	}
-
-	function handleTabChange(mode: DataViewMode) {
-		activeView = mode;
-		// Save user's preference to localStorage
-		localStorage.setItem('circuitDataModalView', mode);
-
-		if (mode === 'cir') {
-			circuitDataModalContent.set(buildCanonicalString($circuitIR));
-		} else if (mode === 'qasm') {
-			circuitDataModalContent.set(buildQASMString($circuitIR, qasmVersion));
-		}
-	}
-
-	function handleVersionChange(version: OpenQasmVersion) {
-		qasmVersion = version;
-		// Immediately update textarea content when version changes
-		circuitDataModalContent.set(buildQASMString($circuitIR, version));
-	}
-
-	// Ensure content always matches the active view when modal is open
-	$: if ($showCircuitDataModal) {
-		if (activeView === 'qasm') {
-			circuitDataModalContent.set(buildQASMString($circuitIR, qasmVersion));
-		} else {
-			circuitDataModalContent.set(buildCanonicalString($circuitIR));
-		}
-	}
 
 	// Mobile tap-to-place: tapping a gate arms it (tapping the armed gate disarms).
 	function toggleArm(gateType: string) {
@@ -301,31 +237,6 @@
 		on:click={compactCircuit}>Compact</button
 	>
 </div>
-
-<CircuitDataModal
-	open={$showCircuitDataModal}
-	{activeView}
-	{qasmVersion}
-	bind:value={$circuitDataModalContent}
-	onClose={closeModal}
-	onTabChange={handleTabChange}
-	onVersionChange={handleVersionChange}
-	onCopy={() => copyToClipboard($circuitDataModalContent)}
-	onDownload={() => {
-		if (activeView === 'qasm') {
-			downloadCircuitAsOpenQasm($currentCircuitName, $circuitIR, qasmVersion);
-		} else {
-			downloadCircuit($currentCircuitName, $circuitIR);
-		}
-	}}
-	onImport={() => {
-		if (activeView === 'qasm') {
-			importOpenQasm($circuitDataModalContent);
-		} else {
-			importJson($circuitDataModalContent);
-		}
-	}}
-/>
 
 <style>
 </style>

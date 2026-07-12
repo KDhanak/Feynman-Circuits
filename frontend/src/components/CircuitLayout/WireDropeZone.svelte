@@ -4,13 +4,7 @@
 	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
 	import { simulationResult, circuitIR } from '$lib/IR/stores';
-	import {
-		circuitLayout,
-		isDragging,
-		showCircuitDataModal,
-		circuitDataModalContent,
-		armedGate
-	} from '$lib/stores/uiStores';
+	import { circuitLayout, isDragging, armedGate } from '$lib/stores/uiStores';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -586,10 +580,6 @@
 			x={contextMenuX}
 			y={contextMenuY}
 			on:close={closeContextMenu}
-			on:edit={() => {
-				circuitDataModalContent.set(buildCanonicalString($circuitIR));
-				showCircuitDataModal.set(true);
-			}}
 			on:copy={() => copyToClipboard(buildCanonicalString($circuitIR))}
 			on:reset={resetAndClose}
 		/>
