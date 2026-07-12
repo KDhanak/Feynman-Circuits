@@ -31,6 +31,23 @@ export async function listCircuits(page = 1): Promise<PaginatedCircuits> {
     return { results, next, count };
 }
 
+// Fetch every circuit id across all pages (used by "select all"). Requests the
+// server's max page size to minimise round-trips.
+export async function fetchAllCircuitIds(): Promise<string[]> {
+    const ids: string[] = [];
+    let page = 1;
+    for (;;) {
+        const response = await api.get('/circuits/api/circuits/', {
+            params: { page, page_size: 100 },
+        });
+        const { results, next } = response.data as PaginatedCircuits;
+        for (const c of results) ids.push(c.circuit_id);
+        if (!next) break;
+        page += 1;
+    }
+    return ids;
+}
+
 export async function loadCircuit(circuit_id: string): Promise<CircuitIR> {
     const response = await api.get(`/circuits/api/circuits/${circuit_id}/`);
     return response.data.ir;

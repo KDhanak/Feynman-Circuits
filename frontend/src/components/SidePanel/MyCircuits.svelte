@@ -7,6 +7,7 @@
 		loadCircuit,
 		deleteCircuit,
 		renameCircuit as renameCircuitApi,
+		fetchAllCircuitIds,
 		type CircuitSummary
 	} from '$lib/api/circuitApi';
 	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
@@ -16,6 +17,7 @@
 	import { downloadCircuit, copyToClipboard } from '$lib/circuit/circuitActions';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 	import NameDialog from '../NameDialog.svelte';
+	import ConfirmDialog from '../ConfirmDialog.svelte';
 	import { circuitIR } from '$lib/IR/stores';
 	import { get } from 'svelte/store';
 	import { tick } from 'svelte';
@@ -23,6 +25,7 @@
 	export let onClose: () => void;
 
 	let circuits: CircuitSummary[] = [];
+	let total = 0;
 	let loading = true;
 	let loadingMore = false;
 	let page = 1;
@@ -34,10 +37,83 @@
 	let contextMenuY = 0;
 	let contextMenuCircuit: CircuitSummary | null = null;
 
+	// Multi-select for bulk delete. Reassigned (not mutated) so the list re-renders.
+	let selectedIds = new Set<string>();
+	let bulkDeleting = false;
+	let confirmDeleteOpen = false;
+	let selectingAll = false;
+	$: selectedCount = selectedIds.size;
+	$: allSelected = total > 0 && selectedCount >= total;
+
+	// Any active selection puts the list in "select mode": clicking a row toggles
+	// its selection instead of loading the circuit, so a stray click can't open one.
+	$: selecting = selectedCount > 0;
+
+	// Select every circuit — including ones on pages not yet loaded — by fetching
+	// all ids. Toggles back to a clear when everything is already selected.
+	async function toggleSelectAll() {
+		if (allSelected) {
+			clearSelection();
+			return;
+		}
+		selectingAll = true;
+		try {
+			const ids = await fetchAllCircuitIds();
+			selectedIds = new Set(ids);
+		} catch {
+			showNotification('Failed to select all circuits.', 'error');
+		} finally {
+			selectingAll = false;
+		}
+	}
+
+	function toggleSelect(id: string) {
+		const next = new Set(selectedIds);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		selectedIds = next;
+	}
+
+	function onRowClick(circuit: CircuitSummary) {
+		if (selecting) toggleSelect(circuit.circuit_id);
+		else openCircuit(circuit);
+	}
+
+	function clearSelection() {
+		selectedIds = new Set();
+	}
+
+	async function deleteSelected() {
+		confirmDeleteOpen = false;
+		if (selectedCount === 0 || bulkDeleting) return;
+		bulkDeleting = true;
+		const ids = [...selectedIds];
+		let deleted = 0;
+		let failed = 0;
+		for (const id of ids) {
+			try {
+				await deleteCircuit(id);
+				circuits = circuits.filter((c) => c.circuit_id !== id);
+				deleted++;
+			} catch {
+				failed++;
+			}
+		}
+		total = Math.max(0, total - deleted);
+		selectedIds = new Set();
+		bulkDeleting = false;
+		if (failed === 0) {
+			showNotification(`${deleted} circuit${deleted === 1 ? '' : 's'} deleted.`, 'success');
+		} else {
+			showNotification(`Deleted ${deleted}, ${failed} failed.`, 'error');
+		}
+	}
+
 	async function fetchCircuits() {
 		try {
-			const { results, next } = await listCircuits(1);
+			const { results, next, count } = await listCircuits(1);
 			circuits = results;
+			total = count;
 			page = 1;
 			hasMore = next !== null;
 		} catch {
@@ -51,8 +127,9 @@
 		if (loadingMore || !hasMore) return;
 		loadingMore = true;
 		try {
-			const { results, next } = await listCircuits(page + 1);
+			const { results, next, count } = await listCircuits(page + 1);
 			circuits = [...circuits, ...results];
+			total = count;
 			page += 1;
 			hasMore = next !== null;
 		} catch {
@@ -126,8 +203,8 @@
 			}
 			showNotification('Circuit renamed!', 'success');
 		} catch (err: unknown) {
-			const apiMessage =
-				(err as { response?: { data?: { name?: string[] } } })?.response?.data?.name?.[0];
+			const apiMessage = (err as { response?: { data?: { name?: string[] } } })?.response?.data
+				?.name?.[0];
 			showNotification(apiMessage ?? 'Failed to rename circuit.', 'error');
 		}
 	}
@@ -135,9 +212,10 @@
 	async function handleCopy(circuit: CircuitSummary) {
 		closeContextMenu();
 		try {
-			const ir = circuit.circuit_id === get(currentCircuitId)
-				? get(circuitIR)
-				: await loadCircuit(circuit.circuit_id);
+			const ir =
+				circuit.circuit_id === get(currentCircuitId)
+					? get(circuitIR)
+					: await loadCircuit(circuit.circuit_id);
 			await copyToClipboard(buildCanonicalString(ir));
 		} catch {
 			showNotification('Failed to copy circuit.', 'error');
@@ -147,9 +225,10 @@
 	async function handleDownload(circuit: CircuitSummary) {
 		closeContextMenu();
 		try {
-			const ir = circuit.circuit_id === get(currentCircuitId)
-				? get(circuitIR)
-				: await loadCircuit(circuit.circuit_id);
+			const ir =
+				circuit.circuit_id === get(currentCircuitId)
+					? get(circuitIR)
+					: await loadCircuit(circuit.circuit_id);
 			downloadCircuit(circuit.name, ir);
 		} catch {
 			showNotification('Failed to download circuit.', 'error');
@@ -162,6 +241,12 @@
 		try {
 			await deleteCircuit(circuit.circuit_id);
 			circuits = circuits.filter((c) => c.circuit_id !== circuit.circuit_id);
+			total = Math.max(0, total - 1);
+			if (selectedIds.has(circuit.circuit_id)) {
+				const next = new Set(selectedIds);
+				next.delete(circuit.circuit_id);
+				selectedIds = next;
+			}
 			showNotification(`"${circuit.name}" deleted.`, 'success');
 		} catch {
 			showNotification('Failed to delete circuit.', 'error');
@@ -211,7 +296,18 @@
 			class="flex items-center justify-between px-6 py-4 shrink-0"
 			style="border-bottom: 1px solid var(--color-border);"
 		>
-			<h2 class="text-lg font-semibold" style="color: var(--color-text);">My Circuits</h2>
+			<div class="flex items-center gap-2">
+				<h2 class="text-lg font-semibold" style="color: var(--color-text);">My Circuits</h2>
+				{#if !loading}
+					<span
+						class="rounded-full bg-measured/30 shadow px-2 py-0.5 text-xs font-semibold text-measured"
+						aria-label={`${total} saved circuits`}
+					>
+						{total}
+					</span>
+
+				{/if}
+			</div>
 			<button type="button" aria-label="Close" on:click={handleClose}>
 				<Icon
 					icon="material-symbols:close"
@@ -244,34 +340,79 @@
 					<p class="text-sm" style="color: var(--color-muted);">No saved circuits yet.</p>
 				</div>
 			{:else}
+				<!-- Select-all toolbar -->
+				<div class="mb-2 flex items-center justify-between px-1">
+					<button
+						type="button"
+						class="flex items-center gap-1.5 text-sm font-medium cursor-pointer disabled:opacity-60 disabled:cursor-default"
+						style="color: var(--color-secondary-2);"
+						on:click={toggleSelectAll}
+						disabled={selectingAll || bulkDeleting}
+					>
+						{#if selectingAll}
+							<Icon icon="svg-spinners:ring-resize" width="15" height="15" />
+							Selecting…
+						{:else}
+							<Icon
+								icon={allSelected
+									? 'material-symbols:check-box'
+									: 'material-symbols:check-box-outline-blank'}
+								width="18"
+								height="18"
+							/>
+							{allSelected ? 'Deselect all' : `Select all (${total})`}
+						{/if}
+					</button>
+					{#if selectedCount > 0}
+						<span class="text-xs" style="color: var(--color-muted);">
+							{selectedCount} of {total}
+						</span>
+					{/if}
+				</div>
+
 				<ul class="flex flex-col gap-2">
 					{#each circuits as circuit (circuit.circuit_id)}
 						<li>
 							<div
 								class="w-full text-left px-4 py-3 rounded-sm shadow-sm shadow-measured/40 hover:shadow-measured transition-shadow duration-200 flex items-center justify-between gap-3 cursor-pointer"
+								class:ring-2={selectedIds.has(circuit.circuit_id)}
+								class:ring-measured={selectedIds.has(circuit.circuit_id)}
 								style="background-color: var(--color-surface);"
 								role="button"
 								tabindex="0"
-								on:click={() => openCircuit(circuit)}
-								on:keydown={(e) => e.key === 'Enter' && openCircuit(circuit)}
+								on:click={() => onRowClick(circuit)}
+								on:keydown={(e) => e.key === 'Enter' && onRowClick(circuit)}
 								on:contextmenu={(e) => handleContextMenu(circuit, e)}
 							>
-								<div class="flex flex-col gap-1 min-w-0">
-									<div class="flex items-center gap-2 min-w-0">
-										<span class="text-sm font-semibold truncate" style="color: var(--color-text);">
-											{circuit.name}
-										</span>
-										{#if circuit.circuit_id === $currentCircuitId}
+								<div class="flex items-center gap-3 min-w-0">
+									<input
+										type="checkbox"
+										class="h-4 w-4 shrink-0 cursor-pointer accent-measured"
+										checked={selectedIds.has(circuit.circuit_id)}
+										on:click|stopPropagation
+										on:change={() => toggleSelect(circuit.circuit_id)}
+										aria-label={`Select ${circuit.name}`}
+									/>
+									<div class="flex flex-col gap-1 min-w-0">
+										<div class="flex items-center gap-2 min-w-0">
 											<span
-												class="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"
+												class="text-sm font-semibold truncate"
+												style="color: var(--color-text);"
 											>
-												Active
+												{circuit.name}
 											</span>
-										{/if}
+											{#if circuit.circuit_id === $currentCircuitId}
+												<span
+													class="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"
+												>
+													Active
+												</span>
+											{/if}
+										</div>
+										<span class="text-xs" style="color: var(--color-muted);">
+											{formatDate(circuit.updated_at)}
+										</span>
 									</div>
-									<span class="text-xs" style="color: var(--color-muted);">
-										{formatDate(circuit.updated_at)}
-									</span>
 								</div>
 
 								{#if deletingId === circuit.circuit_id}
@@ -305,6 +446,44 @@
 				{/if}
 			{/if}
 		</div>
+
+		<!-- Bulk-select action bar -->
+		{#if selectedCount > 0}
+			<div
+				class="flex shrink-0 items-center justify-between gap-2 px-4 py-3"
+				style="border-top: 1px solid var(--color-border);"
+				transition:fly={{ y: 40, duration: 200 }}
+			>
+				<span class="text-sm font-medium" style="color: var(--color-text);">
+					{selectedCount} selected
+				</span>
+				<div class="flex items-center gap-2">
+					<button
+						type="button"
+						class="rounded-sm px-3 py-1.5 text-sm font-medium cursor-pointer"
+						style="color: var(--color-muted);"
+						on:click={clearSelection}
+						disabled={bulkDeleting}
+					>
+						Clear
+					</button>
+					<button
+						type="button"
+						class="flex items-center gap-1.5 rounded-sm bg-red-500 px-3 py-1.5 text-sm font-semibold text-white shadow active:bg-red-600 disabled:opacity-60 disabled:cursor-default cursor-pointer"
+						on:click={() => (confirmDeleteOpen = true)}
+						disabled={bulkDeleting}
+					>
+						{#if bulkDeleting}
+							<Icon icon="svg-spinners:ring-resize" width="16" height="16" />
+							Deleting…
+						{:else}
+							<Icon icon="material-symbols:delete-outline" width="16" height="16" />
+							Delete {selectedCount}
+						{/if}
+					</button>
+				</div>
+			</div>
+		{/if}
 	</aside>
 </div>
 
@@ -334,11 +513,7 @@
 			<Icon icon="bx:rename" width="16" height="16" />
 			Rename
 		</button>
-		<button
-			class="ctx-menu-item"
-			role="menuitem"
-			on:click={() => handleCopy(contextMenuCircuit!)}
-		>
+		<button class="ctx-menu-item" role="menuitem" on:click={() => handleCopy(contextMenuCircuit!)}>
 			<Icon icon="solar:copy-bold" width="16" height="16" />
 			Copy Circuit
 		</button>
@@ -368,4 +543,14 @@
 	confirmLabel="Rename"
 	onConfirm={confirmRename}
 	onCancel={() => (renameTarget = null)}
+/>
+
+<ConfirmDialog
+	open={confirmDeleteOpen}
+	title="Delete circuits"
+	message={`Delete ${selectedCount} selected circuit${selectedCount === 1 ? '' : 's'}? This can't be undone.`}
+	confirmLabel="Delete"
+	danger
+	onConfirm={deleteSelected}
+	onCancel={() => (confirmDeleteOpen = false)}
 />
