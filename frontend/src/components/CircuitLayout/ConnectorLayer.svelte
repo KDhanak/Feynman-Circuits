@@ -10,11 +10,18 @@
 	let connectors: Connector[] = [];
 	let rafId: number | null = null;
 
+	// Connector <div>s are absolutely positioned inside boardEl, which is itself
+	// the horizontally-scrolling track. getBoundingClientRect gives *visual*
+	// coordinates, so we add the scroll offset to convert them into boardEl's
+	// content coordinate space — otherwise the lines drift by scrollLeft when the
+	// track is scrolled. (boardEl doesn't scroll vertically, so scrollTop is 0.)
 	function getCenter(el: Element, boardRect: DOMRect) {
 		const r = (el as HTMLElement).getBoundingClientRect();
+		const scrollLeft = boardEl?.scrollLeft ?? 0;
+		const scrollTop = boardEl?.scrollTop ?? 0;
 		return {
-			x: r.left - boardRect.left + r.width / 2,
-			y: r.top - boardRect.top + r.height / 2
+			x: r.left - boardRect.left + scrollLeft + r.width / 2,
+			y: r.top - boardRect.top + scrollTop + r.height / 2
 		};
 	}
 

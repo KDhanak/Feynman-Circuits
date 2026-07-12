@@ -23,6 +23,9 @@
 
 	let circuits: CircuitSummary[] = [];
 	let loading = true;
+	let loadingMore = false;
+	let page = 1;
+	let hasMore = false;
 	let deletingId = '';
 
 	let contextMenuVisible = false;
@@ -32,11 +35,29 @@
 
 	async function fetchCircuits() {
 		try {
-			circuits = await listCircuits();
+			const { results, next } = await listCircuits(1);
+			circuits = results;
+			page = 1;
+			hasMore = next !== null;
 		} catch {
 			showNotification('Failed to load circuits.', 'error');
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadMore() {
+		if (loadingMore || !hasMore) return;
+		loadingMore = true;
+		try {
+			const { results, next } = await listCircuits(page + 1);
+			circuits = [...circuits, ...results];
+			page += 1;
+			hasMore = next !== null;
+		} catch {
+			showNotification('Failed to load more circuits.', 'error');
+		} finally {
+			loadingMore = false;
 		}
 	}
 
@@ -256,6 +277,23 @@
 						</li>
 					{/each}
 				</ul>
+
+				{#if hasMore}
+					<button
+						type="button"
+						class="mt-3 w-full py-2 rounded-sm text-sm font-medium border transition-colors disabled:opacity-60 disabled:cursor-default flex items-center justify-center gap-2 cursor-pointer"
+						style="border-color: var(--color-border); color: var(--color-text);"
+						on:click={loadMore}
+						disabled={loadingMore}
+					>
+						{#if loadingMore}
+							<Icon icon="svg-spinners:ring-resize" width="16" height="16" />
+							Loading…
+						{:else}
+							Load more
+						{/if}
+					</button>
+				{/if}
 			{/if}
 		</div>
 	</aside>

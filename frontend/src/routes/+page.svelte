@@ -36,11 +36,11 @@
 	style="background: radial-gradient(at center, var(--color-background) 50%, var(--color-surface) 90%)"
 >
 	<!-- Header -->
-	<header class="relative w-full flex items-center justify-between px-4 sm:px-7 py-2 shrink-0">
+	<header class="relative max-w-420 mx-auto w-[96%] flex items-center justify-between py-2 shrink-0">
 		<a href="/" class="shrink-0">
 			<img
 				src="/feynman_circuits_logo_dark.svg"
-				alt="Feynman Circuits Logo"
+				alt="Feynman Circuits Logo" 
 				class="logo-light h-16 sm:h-20 w-auto cursor-pointer"
 			/>
 			<img
@@ -101,13 +101,13 @@
 
 	<!-- Circuit board — fills all remaining vertical space -->
 	<div
-		class="shadow-sm shadow-ternary-1 bg-ternary-3/20 w-[96%] min-h-[55vh] sm:flex-1 sm:min-h-0 overflow-hidden"
+		class="shadow-sm max-w-420 mx-auto shadow-ternary-1 bg-ternary-3/20 w-[96%] min-h-[55vh] sm:flex-1 sm:min-h-0 overflow-hidden"
 	>
 		<CircuitLayout />
 	</div>
 	<!-- Results row — fixed height on desktop, never shifts layout -->
 	<div
-		class="w-[96%] mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5"
+		class="w-[96%] max-w-420 mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5"
 	>
 		<div
 			class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-none sm:max-w-sm overflow-y-auto"

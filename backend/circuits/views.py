@@ -2,15 +2,26 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 
 from accounts.authentication import CookieJWTAuthentication
 from .models import Circuit
 from .serializers import CircuitListSerializer, CircuitDetailSerializer
 
 
+class CircuitPagination(PageNumberPagination):
+    """Paginate the circuits list so the payload stays bounded as users
+    accumulate circuits. Clients read `results`/`next`; `?page_size=` lets a
+    caller request a smaller page (capped at max_page_size)."""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class CircuitViewSet(ModelViewSet):
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
+    pagination_class = CircuitPagination
 
     def get_queryset(self):
         return Circuit.objects.filter(user=self.request.user)

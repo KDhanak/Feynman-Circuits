@@ -19,9 +19,16 @@ export async function getNextUntitledName(): Promise<string> {
     return response.data.name;
 }
 
-export async function listCircuits(): Promise<CircuitSummary[]> {
-    const response = await api.get('/circuits/api/circuits/');
-    return response.data;
+export interface PaginatedCircuits {
+    results: CircuitSummary[];
+    next: string | null;
+    count: number;
+}
+
+export async function listCircuits(page = 1): Promise<PaginatedCircuits> {
+    const response = await api.get('/circuits/api/circuits/', { params: { page } });
+    const { results, next, count } = response.data;
+    return { results, next, count };
 }
 
 export async function loadCircuit(circuit_id: string): Promise<CircuitIR> {

@@ -28,7 +28,14 @@
 	import BoardContextMenu from './BoardContextMenu.svelte';
 	import GateContextMenu from './GateContextMenu.svelte';
 	import GateToken from './GateToken.svelte';
-	import { MAX_COLUMNS, MAX_QUBITS } from '$lib/utils/constants';
+	import {
+		COLUMN_WIDTH,
+		MAX_COLUMNS,
+		MAX_QUBITS,
+		MIN_COLUMN_WIDTH,
+		COLUMN_BUFFER,
+		MIN_VISIBLE_COLUMNS
+	} from '$lib/utils/constants';
 	import {
 		selectedGateIds,
 		isDragSelecting,
@@ -44,7 +51,6 @@
 	import { isMobile } from '$lib/stores/isMobile';
 
 	let columnWidth: number;
-	let gateOffset: number;
 	let scrollContainer: HTMLDivElement | null = null;
 	let hoveredWire: number | null = null;
 	let contextMenuVisible = false;
@@ -55,7 +61,44 @@
 	let gateMenuY = 0;
 	let gateMenuGate: UnitaryOperation | null = null;
 	let totalWidth: number;
-	$: ({ columnWidth, gateOffset, totalWidth } = $circuitLayout);
+	$: ({ columnWidth, totalWidth } = $circuitLayout);
+
+	let centerEl: HTMLDivElement | null = null;
+	let centerWidth = 0;
+
+	// How many columns the circuit currently occupies (highest used column + 1).
+	$: usedColumns = $circuitIR.operations.reduce((max, op) => Math.max(max, op.column + 1), 0);
+
+	// Number of dropzone columns to render. We show the used columns plus a small
+	// buffer to drop into, but never fewer than fill the panel (so the board never
+	// looks stunted) nor more than the hard cap. Deriving this from the circuit —
+	// rather than always rendering MAX_COLUMNS — is what lets a small circuit fit
+	// without a forced horizontal scrollbar.
+	$: visibleColumns = (() => {
+		const needed = Math.max(usedColumns + COLUMN_BUFFER, MIN_VISIBLE_COLUMNS);
+		if ($isMobile || centerWidth <= 0) return Math.min(needed, MAX_COLUMNS);
+		// Enough columns so that, at their ideal width, they fill the panel.
+		const fillPanel = Math.ceil(centerWidth / COLUMN_WIDTH);
+		return Math.min(Math.max(needed, fillPanel), MAX_COLUMNS);
+	})();
+
+	// Fit the column width to the centre panel on desktop; mobile keeps the fixed
+	// width and scrolls. Once visibleColumns × MIN_COLUMN_WIDTH exceeds the panel
+	// the width clamps at the floor and the track scrolls — only then. Guarded so
+	// the store write settles instead of looping.
+	$: {
+		const columnWidth =
+			$isMobile || centerWidth <= 0
+				? COLUMN_WIDTH
+				: Math.max(
+						MIN_COLUMN_WIDTH,
+						Math.min(COLUMN_WIDTH, Math.floor((centerWidth - 2) / visibleColumns))
+					);
+		const totalWidth = visibleColumns * columnWidth;
+		if (columnWidth !== $circuitLayout.columnWidth || totalWidth !== $circuitLayout.totalWidth) {
+			circuitLayout.set({ columnWidth, totalWidth });
+		}
+	}
 
 	let boardEl: HTMLDivElement | null = null;
 	let connectorLayer: ConnectorLayer | undefined;
@@ -205,7 +248,7 @@
 		if (!row) return null;
 		const qubit = Number(row.dataset.qubit);
 		if (Number.isNaN(qubit)) return null;
-		const x = clientX - row.getBoundingClientRect().left - gateOffset;
+		const x = clientX - row.getBoundingClientRect().left;
 		if (x < 0) return null;
 		const col = Math.floor(x / columnWidth);
 		if (col < 0 || col >= MAX_COLUMNS) return null;
@@ -304,7 +347,7 @@
 			!target.classList.contains('qubit-label') &&
 			(target.classList.contains('wire-container') ||
 				target.classList.contains('dropzone') ||
-				target.classList.contains('wire-bloch-anchor') ||
+				target.classList.contains('wire-bloch') ||
 				target === boardEl)
 		) {
 			clearSelection();
@@ -341,199 +384,199 @@
 	{/if}
 	<div class="rounded-sm overflow-hidden h-full">
 		<div
-			class={`space-y-1 p-2 overflow-y-auto h-full ${$isMobile ? 'overflow-x-auto' : 'overflow-x-hidden'}`}
+			class="h-full overflow-y-auto"
 			bind:this={scrollContainer}
 			on:scroll={() => connectorLayer?.recomputeConnectorsSync()}
 		>
-			<!-- Connectors -->
-			<ConnectorLayer bind:this={connectorLayer} {boardEl} />
-
-			<!-- Real wires -->
-			{#each wires as wire (wire.id)}
+			<div class="flex items-start p-2">
+				<!-- LEFT: qubit circle + label (fixed, does not scroll) -->
+				<div class="flex shrink-0 flex-col gap-1 pr-1">
+					{#each wires as wire (wire.id)}
+						<div
+							role="none"
+							class={`flex ${$isMobile ? 'h-12' : 'h-14'} items-center`}
+							on:mouseenter={() => (hoveredWire = wire.qubit)}
+							on:mouseleave={() => (hoveredWire = null)}
+						>
+							<!-- Qubit circle with hover-reveal delete button -->
+							<div class="relative mr-2 z-10 shrink-0">
+								<div
+									class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 text-sm shadow-sm ${
+										$simulationResult?.measuredQubits?.includes(wire.qubit)
+											? 'bg-orange-300 border-orange-700 text-orange-800'
+											: 'bg-ternary-2 border-white text-white'
+									} ${
+										wire.qubit >= 1
+											? 'cursor-pointer border-dashed active:border-solid active:border-amber-700'
+											: 'cursor-default'
+									}`}
+									role="button"
+									tabindex="0"
+									on:dblclick={() => removeQubitWire(wire.qubit)}
+								>
+									|0⟩
+								</div>
+								{#if wire.qubit >= 1 && !hasGatesOnWire(wire.qubit)}
+									<button
+										class="absolute -top-1 -right-1 w-4 h-4 rounded-full border border-ternary-3 cursor-pointer bg-ternary-2 text-white text-[10px] leading-none transition-opacity flex items-center justify-center"
+										class:opacity-0={hoveredWire !== wire.qubit}
+										class:opacity-100={hoveredWire === wire.qubit}
+										on:click={() => removeQubitWire(wire.qubit)}
+										aria-label="Remove qubit {wire.qubit}">×</button
+									>
+								{/if}
+							</div>
+							<input
+								type="text"
+								value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
+								on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
+								placeholder="Label"
+								class={`qubit-label z-10 w-13 h-6 px-1.5 cursor-text text-[11px] border text-center rounded-sm shadow-sm focus:outline-none focus:ring-1 select-auto ${
+									$simulationResult?.measuredQubits?.includes(wire.qubit)
+										? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
+										: 'border-ternary-3 text-black bg-purple-100 focus:ring-purple-600 focus:border-purple-600'
+								}`}
+							/>
+						</div>
+					{/each}
+					{#if showGhostWire}
+						<div class={`flex ${$isMobile ? 'h-12' : 'h-14'} items-center opacity-60`} transition:slide={{ duration: 300 }}>
+							<div class="z-10 mr-2 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-base text-white shadow-lg opacity-50">
+								|0⟩
+							</div>
+							<input type="text" value="Qubit {$circuitIR.registers.q}" disabled class="z-10 w-13 h-6 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50" />
+						</div>
+					{/if}
+				</div>
+				<!-- CENTER: scrollable gate track -->
 				<div
-					role="row"
-					tabindex="-1"
-					class={`relative flex ${$isMobile ? 'h-12' : 'h-14'} items-center`}
-					style={$isMobile ? `min-width: ${totalWidth}px` : ''}
-					data-wire-row
-					data-qubit={wire.qubit}
-					on:mouseenter={() => (hoveredWire = wire.qubit)}
-					on:mouseleave={() => (hoveredWire = null)}
+					class="relative flex flex-1 flex-col gap-1 overflow-x-auto"
+					bind:this={centerEl}
+					bind:clientWidth={centerWidth}
+					on:scroll={() => connectorLayer?.recomputeConnectorsSync()}
 				>
-					<!-- Wire line -->
-					<div
-						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform"
-						style="background-color: var(--color-muted);"
-					>
-						{#each Array(MAX_COLUMNS) as _, colIndex}
+					<!-- Connectors -->
+					<ConnectorLayer bind:this={connectorLayer} boardEl={centerEl} />
+					{#each wires as wire (wire.id)}
+						<div
+							role="row"
+							tabindex="-1"
+							class={`relative flex ${$isMobile ? 'h-12' : 'h-14'} items-center`}
+							style={`min-width: ${totalWidth}px`}
+							data-wire-row
+							data-qubit={wire.qubit}
+						>
+							<!-- Wire line -->
 							<div
-								class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
-								class:dropzone-armed={$isMobile && $armedGate}
-								style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
-							></div>
-						{/each}
-						{#if !$isMobile}
-							<div class="wire-bloch-anchor">
+								class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform"
+								style="background-color: var(--color-muted);"
+							>
+								{#each Array(visibleColumns) as _, colIndex}
+									<div
+										class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
+										class:dropzone-armed={$isMobile && $armedGate}
+										style="left: {colIndex * columnWidth}px; width: {columnWidth}px"
+									></div>
+								{/each}
+							</div>
+							<!-- Gates -->
+							{#each $circuitIR.operations as op (op.id)}
+								<GateToken {op} qubit={wire.qubit} {columnWidth} on:gatecontextmenu={handleGateContextMenu} />
+							{/each}
+							<!-- Pending anti-control boxes (uncommitted) -->
+							{#each Array.from($pendingAntiControls.entries()) as [col, qubits]}
+								{#each qubits as antiControlQubit}
+									{#if antiControlQubit === wire.qubit}
+										<div
+											data-col={col}
+											data-qubit={antiControlQubit}
+											data-type="ANTI_CONTROL"
+											role="button"
+											aria-label="Pending anti-control (place a gate in this column to attach)"
+											tabindex="0"
+											on:keydown={(e) =>
+												e.key === 'Delete' &&
+												pendingAntiControls.update((map) => {
+													const next = new Map(map);
+													const qubits = next.get(col) ?? [];
+													next.set(
+														col,
+														qubits.filter((q) => q !== antiControlQubit)
+													);
+													if (next.get(col)?.length === 0) next.delete(col);
+													return next;
+												})}
+											class="gate z-10 select-none rounded-sm h-9 w-9 text-sm border bg-orange-200 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
+											style="left: {(col + 0.5) * columnWidth}px;"
+										>
+											<div class="w-3 h-3 rounded-full border border-orange-600"></div>
+										</div>
+									{/if}
+								{/each}
+							{/each}
+							<!-- Pending control boxes (uncommitted) -->
+							{#each Array.from($pendingControls.entries()) as [col, qubits]}
+								{#each qubits as controlQubit}
+									{#if controlQubit === wire.qubit}
+										<div
+											data-col={col}
+											data-qubit={controlQubit}
+											data-type="CONTROL"
+											role="button"
+											aria-label="Pending control (place a gate in this column to attach)"
+											tabindex="0"
+											on:keydown={(e) =>
+												e.key === 'Delete' &&
+												pendingControls.update((map) => {
+													const next = new Map(map);
+													const qubits = next.get(col) ?? [];
+													next.set(
+														col,
+														qubits.filter((q) => q !== controlQubit)
+													);
+													if (next.get(col)?.length === 0) next.delete(col);
+													return next;
+												})}
+											class="gate z-10 select-none rounded-sm h-9 w-9 text-sm border bg-yellow-300 border-yellow-500 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
+											style="left: {(col + 0.5) * columnWidth}px;"
+										>
+											<div class="w-3 h-3 rounded-full bg-yellow-600"></div>
+										</div>
+									{/if}
+								{/each}
+							{/each}
+						</div>
+					{/each}
+					{#if showGhostWire}
+						<div
+							class="ghost-wire relative flex h-14 items-center"
+							style={`min-width: ${totalWidth}px`}
+							data-wire-row
+							data-qubit={$circuitIR.registers.q}
+							transition:slide={{ duration: 300 }}
+						>
+							<div class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30" style="background-color: var(--color-muted);">
+								{#each Array(visibleColumns) as _, colIndex}
+									<div class="dropzone h-12 top-1/2 -translate-y-1/2 transform" class:dropzone-armed={$isMobile && $armedGate} style="left: {colIndex * columnWidth}px; width: {columnWidth}px"></div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+				<!-- RIGHT: Bloch sphere (fixed, does not scroll) -->
+				{#if !$isMobile}
+					<div class="flex shrink-0 flex-col gap-1 pl-1">
+						{#each wires as wire (wire.id)}
+							<div class="flex h-14 items-center justify-center">
 								<WireBloch qubit={wire.qubit} />
 							</div>
+						{/each}
+						{#if showGhostWire}
+							<div class="flex h-14 items-center" transition:slide={{ duration: 300 }}></div>
 						{/if}
 					</div>
-
-					<!-- Qubit circle with hover-reveal delete button -->
-					<div class="relative mr-2 z-10 shrink-0">
-						<div
-							class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 text-sm shadow-sm ${
-								$simulationResult?.measuredQubits?.includes(wire.qubit)
-									? 'bg-orange-300 border-orange-700 text-orange-800'
-									: 'bg-ternary-2 border-white text-white'
-							} ${
-								wire.qubit >= 1
-									? 'cursor-pointer border-dashed active:border-solid active:border-amber-700'
-									: 'cursor-default'
-							}`}
-							role="button"
-							tabindex="0"
-							on:dblclick={() => removeQubitWire(wire.qubit)}
-						>
-							|0⟩
-						</div>
-						{#if wire.qubit >= 1 && !hasGatesOnWire(wire.qubit)}
-							<button
-								class="absolute -top-1 -right-1 w-4 h-4 rounded-full border border-ternary-3 cursor-pointer bg-ternary-2 text-white text-[10px] leading-none transition-opacity flex items-center justify-center"
-								class:opacity-0={hoveredWire !== wire.qubit}
-								class:opacity-100={hoveredWire === wire.qubit}
-								on:click={() => removeQubitWire(wire.qubit)}
-								aria-label="Remove qubit {wire.qubit}">×</button
-							>
-						{/if}
-					</div>
-
-					<input
-						type="text"
-						value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
-						on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
-						placeholder="Label"
-						class={`qubit-label z-10 w-13 h-6 px-1.5 cursor-text text-[11px] border text-center rounded-sm shadow-sm focus:outline-none focus:ring-1 select-auto ${
-							$simulationResult?.measuredQubits?.includes(wire.qubit)
-								? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
-								: 'border-ternary-3 text-black bg-purple-100 focus:ring-purple-600 focus:border-purple-600'
-						}`}
-					/>
-
-					<!-- Gates -->
-					{#each $circuitIR.operations as op (op.id)}
-						<GateToken
-							{op}
-							qubit={wire.qubit}
-							{gateOffset}
-							{columnWidth}
-							on:gatecontextmenu={handleGateContextMenu}
-						/>
-					{/each}
-
-					<!-- Pending control gate boxes (uncommitted controls)
-				-->
-					{#each Array.from($pendingAntiControls.entries()) as [col, qubits]}
-						{#each qubits as antiControlQubit}
-							{#if antiControlQubit === wire.qubit}
-								<div
-									data-col={col}
-									data-qubit={antiControlQubit}
-									data-type="ANTI_CONTROL"
-									role="button"
-									aria-label="Pending anti-control (place a gate in this column to attach)"
-									tabindex="0"
-									on:keydown={(e) =>
-										e.key === 'Delete' &&
-										pendingAntiControls.update((map) => {
-											const next = new Map(map);
-											const qubits = next.get(col) ?? [];
-											next.set(
-												col,
-												qubits.filter((q) => q !== antiControlQubit)
-											);
-											if (next.get(col)?.length === 0) next.delete(col);
-											return next;
-										})}
-									class="gate z-10 select-none rounded-sm h-9 w-9 text-sm border bg-orange-200 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
-									style="left: {gateOffset + (col + 0.5) * columnWidth}px;"
-								>
-									<div class="w-3 h-3 rounded-full border border-orange-600"></div>
-								</div>
-							{/if}
-						{/each}
-					{/each}
-
-					<!-- Pending anti-control gate boxes (uncommitted anti-controls) -->
-					{#each Array.from($pendingControls.entries()) as [col, qubits]}
-						{#each qubits as controlQubit}
-							{#if controlQubit === wire.qubit}
-								<div
-									data-col={col}
-									data-qubit={controlQubit}
-									data-type="CONTROL"
-									role="button"
-									aria-label="Pending control (place a gate in this column to attach)"
-									tabindex="0"
-									on:keydown={(e) =>
-										e.key === 'Delete' &&
-										pendingControls.update((map) => {
-											const next = new Map(map);
-											const qubits = next.get(col) ?? [];
-											next.set(
-												col,
-												qubits.filter((q) => q !== controlQubit)
-											);
-											if (next.get(col)?.length === 0) next.delete(col);
-											return next;
-										})}
-									class="gate z-10 select-none rounded-sm h-9 w-9 text-sm border bg-yellow-300 border-yellow-500 shadow transition-colors duration-100 opacity-75 flex items-center justify-center"
-									style="left: {gateOffset + (col + 0.5) * columnWidth}px;"
-								>
-									<div class="w-3 h-3 rounded-full bg-yellow-600"></div>
-								</div>
-							{/if}
-						{/each}
-					{/each}
-				</div>
-			{/each}
-
-			<!-- Ghost wire -->
-			{#if showGhostWire}
-				<div
-					class="ghost-wire relative flex h-14 items-center"
-					style={$isMobile ? `min-width: ${totalWidth}px` : ''}
-					data-wire-row
-					data-qubit={$circuitIR.registers.q}
-					transition:slide={{ duration: 300 }}
-				>
-					<div
-						class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30"
-						style="background-color: var(--color-muted);"
-					>
-						{#each Array(MAX_COLUMNS) as _, colIndex}
-							<div
-								class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
-								class:dropzone-armed={$isMobile && $armedGate}
-								style="left: {gateOffset + colIndex * columnWidth}px; width: {columnWidth}px"
-							></div>
-						{/each}
-					</div>
-
-					<div
-						class="z-10 mr-2 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-base text-white shadow-lg opacity-50"
-					>
-						|0⟩
-					</div>
-
-					<input
-						type="text"
-						value="Qubit {$circuitIR.registers.q}"
-						disabled
-						class="z-10 w-13 h-6 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
-					/>
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</div>
 	</div>
 
@@ -618,14 +661,6 @@
 
 	.notification {
 		animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-	}
-
-	.wire-bloch-anchor {
-		position: absolute;
-		right: 0.5rem;
-		top: 50%;
-		transform: translateY(-50%);
-		z-index: 20;
 	}
 
 	.selection-box {
