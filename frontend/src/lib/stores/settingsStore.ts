@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export const AUTO_SAVE_INTERVAL_OPTIONS = [
+	{ label: '5 seconds', value: 5_000 },
 	{ label: '10 seconds', value: 10_000 },
 	{ label: '30 seconds', value: 30_000 },
 	{ label: '1 minute', value: 60_000 }
