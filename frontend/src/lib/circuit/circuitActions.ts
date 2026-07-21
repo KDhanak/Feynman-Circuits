@@ -1,4 +1,4 @@
-import { importCircuit, exportToOpenQasm, importFromOpenQasm } from './IE';
+import { importCircuit, exportToOpenQasm, importFromOpenQasm, exportToQiskit, importFromQiskit } from './IE';
 import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 import type { CircuitIR, CircuitOperation } from '../IR/schema';
 import {
@@ -181,4 +181,27 @@ export function importOpenQasm(qasmText: string): void {
         showNotification('Circuit imported but simulation failed', 'error');
     }
     showNotification('Circuit imported from OpenQasm successfully!', 'success');
+}
+
+export function downloadCircuitAsQiskit(name: string, ir: CircuitIR): void {
+    const content = exportToQiskit(ir, { includeComments: true });
+    downloadFile(`${name}.py`, content, 'text/plain');
+    showNotification('Circuit exported as Qiskit Python!', 'success');
+}
+
+export function importQiskit(pythonText: string): void {
+    const result = importFromQiskit(pythonText);
+    if (!result.ok) {
+        showNotification(result.error, 'error');
+        return;
+    }
+
+    const ir = result.data;
+    circuitIR.set(ir);
+    try {
+        triggerSimulation(ir);
+    } catch {
+        showNotification('Circuit imported but simulation failed', 'error');
+    }
+    showNotification('Circuit imported from Qiskit successfully!', 'success');
 }

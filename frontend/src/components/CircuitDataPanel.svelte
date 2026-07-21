@@ -8,6 +8,7 @@
 	import {
 		buildCanonicalString,
 		buildQASMString,
+		buildQiskitString,
 		type DataViewMode,
 		type OpenQasmVersion
 	} from '$lib/circuit/circuitDataModal';
@@ -15,8 +16,10 @@
 		copyToClipboard,
 		downloadCircuit,
 		downloadCircuitAsOpenQasm,
+		downloadCircuitAsQiskit,
 		importJson,
-		importOpenQasm
+		importOpenQasm,
+		importQiskit
 	} from '$lib/circuit/circuitActions';
 	import { resolvedTheme } from '$lib/stores/themeStore';
 
@@ -140,9 +143,15 @@
 	// circuit, active tab, or QASM version changes. Manual edits are a scratch
 	// buffer applied to the circuit only via Import; they're replaced the next
 	// time the circuit itself changes (e.g. dragging a gate).
-	$: derived = activeView === 'qasm'
-		? buildQASMString($circuitIR, qasmVersion)
-		: buildCanonicalString($circuitIR);
+	$: derived =
+		activeView === 'qasm'
+			? buildQASMString($circuitIR, qasmVersion)
+			: activeView === 'qiskit'
+				? buildQiskitString($circuitIR)
+				: buildCanonicalString($circuitIR);
+
+	const editorLanguage = (view: DataViewMode) =>
+		view === 'qasm' ? 'openqasm' : view === 'qiskit' ? 'python' : 'json';
 
 	// Push derived content into the editor. `editor` is a dependency so the first
 	// sync fires once the instance mounts.
@@ -155,7 +164,7 @@
 
 	onMount(() => {
 		const savedView = localStorage.getItem('circuitDataView') as DataViewMode | null;
-		if (savedView === 'cir' || savedView === 'qasm') activeView = savedView;
+		if (savedView === 'cir' || savedView === 'qasm' || savedView === 'qiskit') activeView = savedView;
 		initializeEditor();
 	});
 
@@ -172,7 +181,7 @@
 
 		editor = monaco.editor.create(container, {
 			value: derived,
-			language: activeView === 'qasm' ? 'openqasm' : 'json',
+			language: editorLanguage(activeView),
 			theme: editorTheme(isDarkMode),
 			readOnly: false,
 			automaticLayout: true,
@@ -188,7 +197,7 @@
 
 	function syncEditor(text: string, ed: typeof editor) {
 		if (!ed || !monaco) return;
-		const newLanguage = activeView === 'qasm' ? 'openqasm' : 'json';
+		const newLanguage = editorLanguage(activeView);
 		const model = ed.getModel();
 		if (model && model.getLanguageId() !== newLanguage) {
 			monaco.editor.setModelLanguage(model, newLanguage);
@@ -213,6 +222,8 @@
 	function handleDownload() {
 		if (activeView === 'qasm') {
 			downloadCircuitAsOpenQasm($currentCircuitName, $circuitIR, qasmVersion);
+		} else if (activeView === 'qiskit') {
+			downloadCircuitAsQiskit($currentCircuitName, $circuitIR);
 		} else {
 			downloadCircuit($currentCircuitName, $circuitIR);
 		}
@@ -222,6 +233,8 @@
 		const text = editor?.getValue() ?? '';
 		if (activeView === 'qasm') {
 			importOpenQasm(text);
+		} else if (activeView === 'qiskit') {
+			importQiskit(text);
 		} else {
 			importJson(text);
 		}
@@ -296,6 +309,16 @@
 					</div>
 				{/if}
 			</div>
+			<button
+				type="button"
+				on:click={() => selectView('qiskit')}
+				class:!bg-ternary-2={activeView === 'qiskit'}
+				class:!text-white={activeView === 'qiskit'}
+				class:!border-ternary-2={activeView === 'qiskit'}
+				class="rounded-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
+			>
+				Qiskit
+			</button>
 		</div>
 
 		<div class="flex items-center gap-2">

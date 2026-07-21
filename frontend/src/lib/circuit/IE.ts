@@ -1,6 +1,7 @@
 import type { CircuitIR } from "../IR/schema";
 import { validateCanonicalIR } from "../IR/validate";
 import { circuitToOpenQasm, openQasmToCircuit, type OpenQasmExportOptions } from "./openQasmConverter";
+import { circuitToQiskit, qiskitToCircuit, type QiskitExportOptions } from "./qiskitConverter";
 
 export type ImportResult =
     | { ok: true; data: CircuitIR }
@@ -22,6 +23,18 @@ export function importFromOpenQasm(qasmCode: string): ImportResult {
     const circuit = openQasmToCircuit(qasmCode);
     if (!circuit) {
         return { ok: false, error: "Failed to parse OpenQasm code" };
+    }
+    return { ok: true, data: circuit };
+}
+
+export function exportToQiskit(ir: CircuitIR, options?: QiskitExportOptions): string {
+    return circuitToQiskit(ir, options);
+}
+
+export function importFromQiskit(pythonCode: string): ImportResult {
+    const circuit = qiskitToCircuit(pythonCode);
+    if (!circuit) {
+        return { ok: false, error: "Failed to parse Qiskit code" };
     }
     return { ok: true, data: circuit };
 }
