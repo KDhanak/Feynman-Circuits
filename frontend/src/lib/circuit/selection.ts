@@ -43,8 +43,13 @@ export function deleteSelectedGates() {
 
 export function handleBoardMouseDown(e: MouseEvent) {
 	const target = e.target as HTMLElement;
+	// Only start a selection on empty board space — never when the press begins on
+	// a gate, a wire, or a qubit label. Using closest('.gate') (rather than a
+	// classList check) also covers gates whose event target is an inner element —
+	// the X-gate <svg>, the swap <span>, the control/anti-control dot — which used
+	// to slip through and spawn a phantom selection box while the gate was dragged.
 	if (
-		target.classList.contains('gate') ||
+		target.closest('.gate') ||
 		target.classList.contains('wire-container') ||
 		target.classList.contains('qubit-label')
 	)
@@ -59,6 +64,13 @@ export function handleBoardMouseDown(e: MouseEvent) {
 		const gateId = gate.getAttribute('data-gate-id');
 		if (gateId) _gateRectCache.set(gateId, (gate as HTMLElement).getBoundingClientRect());
 	});
+
+	// Track the drag on the window, not the board: the box then keeps following the
+	// pointer even when it leaves the board (e.g. dragging down into the results
+	// panel). The board-scoped listener stopped firing there, freezing the box
+	// until the pointer returned — the "laggy vertical catch-up".
+	window.addEventListener('mousemove', handleBoardMouseMove);
+	window.addEventListener('mouseup', handleBoardMouseUp);
 }
 
 export function handleBoardMouseMove(e: MouseEvent) {
@@ -76,7 +88,7 @@ export function handleBoardMouseUp(e: MouseEvent) {
 	const current = get(dragCurrent);
 
 	if (!selecting || !start || !current) {
-		isDragSelecting.set(false);
+		_resetDrag();
 		return;
 	}
 
@@ -112,16 +124,18 @@ export function handleBoardMouseUp(e: MouseEvent) {
 }
 
 export function cancelDrag() {
-	if (_dragRafId !== null) {
-		cancelAnimationFrame(_dragRafId);
-		_dragRafId = null;
-	}
 	_resetDrag();
 }
 
 function _resetDrag() {
+	if (_dragRafId !== null) {
+		cancelAnimationFrame(_dragRafId);
+		_dragRafId = null;
+	}
 	isDragSelecting.set(false);
 	dragStart.set(null);
 	dragCurrent.set(null);
 	_gateRectCache.clear();
+	window.removeEventListener('mousemove', handleBoardMouseMove);
+	window.removeEventListener('mouseup', handleBoardMouseUp);
 }

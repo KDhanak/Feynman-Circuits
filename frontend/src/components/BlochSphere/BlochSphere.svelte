@@ -86,7 +86,6 @@
 		flex-direction: column;
 		align-items: center;
 		background: transparent;
-		min-width: 100px;
 	}
 	.sphere {
 		fill: var(--color-surface);

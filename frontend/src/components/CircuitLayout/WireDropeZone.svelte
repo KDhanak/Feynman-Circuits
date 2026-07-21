@@ -37,10 +37,7 @@
 		dragStart,
 		dragCurrent,
 		handleBoardMouseDown,
-		handleBoardMouseMove,
-		handleBoardMouseUp,
 		deleteSelectedGates,
-		cancelDrag,
 		clearSelection
 	} from '$lib/circuit/selection';
 	import { isMobile } from '$lib/stores/isMobile';
@@ -346,9 +343,6 @@
 	bind:this={boardEl}
 	on:contextmenu={handleContextMenu}
 	on:mousedown={(e) => !$isMobile && handleBoardMouseDown(e)}
-	on:mousemove={(e) => !$isMobile && handleBoardMouseMove(e)}
-	on:mouseup={(e) => !$isMobile && handleBoardMouseUp(e)}
-	on:mouseleave={() => !$isMobile && cancelDrag()}
 	on:drop={handleBoardDrop}
 	on:dragover={handleBoardDragOver}
 	on:click={(e) => {
@@ -361,7 +355,6 @@
 			!target.classList.contains('qubit-label') &&
 			(target.classList.contains('wire-container') ||
 				target.classList.contains('dropzone') ||
-				target.classList.contains('wire-bloch') ||
 				target === boardEl)
 		) {
 			clearSelection();
@@ -371,6 +364,17 @@
 		if (e.key === 'Escape') closeContextMenu();
 	}}
 >
+	<!-- Reset circuit button, pinned to the board's top-right corner (icon only) -->
+	<button
+		type="button"
+		class="absolute cursor-pointer top-2 right-2 z-200 flex items-center justify-center rounded-sm p-1.5 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 active:text-red-700"
+		on:click|stopPropagation={resetAndClose}
+		aria-label="Reset circuit"
+		title="Reset circuit"
+	>
+		<Icon icon="material-symbols:restart-alt" width="20" height="20" />
+	</button>
+
 	<!-- Mobile: delete-selected button, pinned to the board's top-left corner -->
 	{#if $isMobile && $selectedGateIds.size > 0}
 		<button
@@ -402,37 +406,33 @@
 			bind:this={scrollContainer}
 			on:scroll={() => connectorLayer?.recomputeConnectorsSync()}
 		>
-			<div class="flex items-start p-2">
+			<div class="flex items-start p-2 pt-10">
 				<!-- LEFT: qubit circle + label (fixed, does not scroll) -->
 				<div class="flex shrink-0 flex-col gap-1 pr-1">
 					{#each wires as wire (wire.id)}
+						{@const measured = $simulationResult?.measuredQubits?.includes(wire.qubit)}
 						<div
 							role="none"
 							class={`flex ${$isMobile ? 'h-12' : 'h-14'} items-center`}
 							on:mouseenter={() => (hoveredWire = wire.qubit)}
 							on:mouseleave={() => (hoveredWire = null)}
 						>
-							<!-- Qubit circle with hover-reveal delete button -->
+							<!-- Ket badge (translucent) with hover-reveal delete -->
 							<div class="relative mr-2 z-10 shrink-0">
 								<div
-									class={`flex h-10 w-10 select-none items-center justify-center rounded-full border-2 text-sm shadow-sm ${
-										$simulationResult?.measuredQubits?.includes(wire.qubit)
-											? 'bg-orange-300 border-orange-700 text-orange-800'
-											: 'bg-ternary-2 border-white text-white'
-									} ${
-										wire.qubit >= 1
-											? 'cursor-pointer border-dashed active:border-solid active:border-amber-700'
-											: 'cursor-default'
-									}`}
+									class={`flex h-7 select-none items-center justify-center rounded-sm px-2 text-[13px] font-bold leading-none focus:outline-none ${
+										measured ? 'bg-measured/30 text-measured' : 'bg-ternary-3/30 text-ternary-1'
+									} ${wire.qubit >= 1 ? 'cursor-pointer' : 'cursor-default'}`}
 									role="button"
 									tabindex="0"
+									title={wire.qubit >= 1 ? 'Double-click to remove qubit' : ''}
 									on:dblclick={() => removeQubitWire(wire.qubit)}
 								>
 									|0⟩
 								</div>
 								{#if wire.qubit >= 1 && !hasGatesOnWire(wire.qubit)}
 									<button
-										class="absolute -top-1 -right-1 w-4 h-4 rounded-full border border-ternary-3 cursor-pointer bg-ternary-2 text-white text-[10px] leading-none transition-opacity flex items-center justify-center"
+										class="absolute -top-1 -right-1 size-4 rounded-full border border-ternary-3 cursor-pointer bg-ternary-2 text-white text-[10px] leading-none transition-opacity flex items-center justify-center"
 										class:opacity-0={hoveredWire !== wire.qubit}
 										class:opacity-100={hoveredWire === wire.qubit}
 										on:click={() => removeQubitWire(wire.qubit)}
@@ -446,7 +446,7 @@
 								on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 								placeholder="Label"
 								class={`qubit-label z-10 w-13 h-6 px-1.5 cursor-text text-[11px] border text-center rounded-sm shadow-sm focus:outline-none focus:ring-1 select-auto ${
-									$simulationResult?.measuredQubits?.includes(wire.qubit)
+									measured
 										? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
 										: 'border-ternary-3 text-black bg-purple-100 focus:ring-purple-600 focus:border-purple-600'
 								}`}
@@ -455,9 +455,7 @@
 					{/each}
 					{#if showGhostWire}
 						<div class={`flex ${$isMobile ? 'h-12' : 'h-14'} items-center opacity-60`} transition:slide={{ duration: 300 }}>
-							<div class="z-10 mr-2 flex h-11 w-11 select-none items-center justify-center rounded-full border-2 border-dashed border-ternary-3 bg-ternary-2 text-base text-white shadow-lg opacity-50">
-								|0⟩
-							</div>
+							<div class="z-10 mr-2 flex h-7 shrink-0 select-none items-center justify-center rounded-sm bg-ternary-2/25 px-2 text-[13px] font-medium leading-none text-ternary-3 opacity-50">|0⟩</div>
 							<input type="text" value="Qubit {$circuitIR.registers.q}" disabled class="z-10 w-13 h-6 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50" />
 						</div>
 					{/if}
@@ -579,9 +577,9 @@
 				</div>
 				<!-- RIGHT: Bloch sphere (fixed, does not scroll) -->
 				{#if !$isMobile}
-					<div class="flex shrink-0 flex-col gap-1 pl-1">
+					<div class="flex flex-col">
 						{#each wires as wire (wire.id)}
-							<div class="flex h-14 items-center justify-center">
+							<div class="flex h-14 items-center justify-start">
 								<WireBloch qubit={wire.qubit} />
 							</div>
 						{/each}
@@ -653,10 +651,6 @@
 		background-color: rgba(168, 85, 247, 0.3);
 	}
 
-	.qubit-label:hover {
-		transform: scale(1.05);
-		transition: transform 400ms ease-in-out;
-	}
 
 	@keyframes slideDown {
 		from {

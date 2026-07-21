@@ -8,6 +8,8 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 - Drag-and-drop gate placement on a multi-qubit wire grid
 - Touch support for mobile devices
 - Double-click to place gates from the palette
+- Box-select multiple gates by dragging over them (Ctrl/Cmd to add), then `Delete` to remove
+- Copy or reset the whole circuit from the board's right-click menu (or the reset button)
 - Import and export circuits as JSON or OpenQASM 2.0 / 3.0
 
 **Gates**
@@ -128,7 +130,3 @@ The circuit is stored as an intermediate representation (IR) — a list of opera
 4. Applies the matrix to the current state vector
 5. For MEASURE operations, collapses the target qubit using Born's rule and records the classical outcome
 6. Returns probabilities, the formatted quantum state, and Bloch vectors for all qubits
-
-## License
-
-MIT

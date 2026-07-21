@@ -108,7 +108,7 @@
 	</div>
 	<!-- Results row — fixed height on desktop, never shifts layout -->
 	<div
-		class="w-[96%] max-w-420 mx-auto mt-4 mb-6 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5"
+		class="w-[96%] max-w-420 mx-auto mt-4 mb-2 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5"
 	>
 		<div
 			class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-none sm:max-w-sm overflow-y-auto"
@@ -135,18 +135,19 @@
 			</Tooltip>
 		{/if}
 	</div>
-</main>
 
-<!-- Floating feedback button -->
-<button
-	type="button"
-	on:click={() => (feedbackOpen = true)}
-	class="fixed flex items-center cursor-pointer justify-center bottom-5 left-1/2 -translate-x-1/2 z-100 gap-2 border rounded-sm bg-surface px-4 py-2 text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100"
-	aria-label="Open feedback form"
->
-	<Icon icon="ph:chat-circle-text-bold" width="17" height="17" />
-	Feedback
-</button>
+	<!-- Feedback link — subtle, at the very bottom centre -->
+	<button
+		type="button"
+		on:click={() => (feedbackOpen = true)}
+		class="mb-1.5 flex shrink-0 items-center gap-1 text-xs cursor-pointer transition-colors"
+		style="color: var(--color-muted);"
+		aria-label="Open feedback form"
+	>
+		<Icon icon="ph:chat-circle-text-bold" width="13" height="13" />
+		<span class="underline underline-offset-2">Feedback</span>
+	</button>
+</main>
 
 {#if feedbackOpen}
 	<FeedbackModal onClose={() => (feedbackOpen = false)} />
