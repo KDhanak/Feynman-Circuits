@@ -122,4 +122,29 @@ describe('simulateMultipleQubits — golden snapshots', () => {
 
         expect(snapshot(result, 2)).toMatchSnapshot();
     });
+
+    test('phase gate P(π): H·P(π)·H on |0> equals Z (flips to |1>)', () => {
+        const result = simulateMultipleQubits(
+            circuit(1, [
+                op({ gate: 'h', targets: [0] }),
+                op({ gate: 'p', targets: [0], params: [Math.PI], column: 1 }),
+                op({ gate: 'h', targets: [0], column: 2 }),
+            ])
+        );
+
+        expect(snapshot(result, 1)).toMatchSnapshot();
+    });
+
+    test('controlled-P(π) (QFT building block): flips target when control is set', () => {
+        const result = simulateMultipleQubits(
+            circuit(2, [
+                op({ gate: 'x', targets: [0] }),                                    // control = |1>
+                op({ gate: 'h', targets: [1], column: 1 }),                         // target -> |+>
+                op({ gate: 'p', targets: [1], controls: [0], params: [Math.PI], column: 2 }), // |+> -> |->
+                op({ gate: 'h', targets: [1], column: 3 }),                         // |-> -> |1>
+            ])
+        );
+
+        expect(snapshot(result, 2)).toMatchSnapshot();
+    });
 });

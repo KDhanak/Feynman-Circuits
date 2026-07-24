@@ -273,7 +273,7 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	}
 
 	// Controlled parametric gates OpenQASM 2.0: crx(1.57) q[0], q[1];
-	const cParamGateMatch = line.match(/^c(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	const cParamGateMatch = line.match(/^c(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
 	if (cParamGateMatch) {
 		const gate = cParamGateMatch[1].toLowerCase();
 		if (!isGateId(gate)) return null;
@@ -293,7 +293,7 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	}
 
 	// Controlled parametric gates OpenQASM 3.0: ctrl @ rx(1.57) q[0], q[1];
-	const ctrlParamMatch = line.match(/^ctrl\s*@\s*(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	const ctrlParamMatch = line.match(/^ctrl\s*@\s*(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
 	if (ctrlParamMatch) {
 		const gate = ctrlParamMatch[1].toLowerCase();
 		if (!isGateId(gate)) return null;
@@ -313,7 +313,7 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	}
 
 	// Double-controlled parametric gates OpenQASM 3.0: ctrl @ ctrl @ rx(1.57) q[0], q[1], q[2];
-	const ctrlCtrlParamMatch = line.match(/^ctrl\s*@\s*ctrl\s*@\s*(rx|ry|rz)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	const ctrlCtrlParamMatch = line.match(/^ctrl\s*@\s*ctrl\s*@\s*(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
 	if (ctrlCtrlParamMatch) {
 		const gate = ctrlCtrlParamMatch[1].toLowerCase();
 		if (!isGateId(gate)) return null;

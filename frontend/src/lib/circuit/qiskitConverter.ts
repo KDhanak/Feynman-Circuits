@@ -19,6 +19,7 @@ const CONTROLLED_METHOD: Partial<Record<CanonicalUnitaryGate, Record<number, str
 	z: { 1: 'cz', 2: 'ccz' },
 	h: { 1: 'ch' },
 	s: { 1: 'cs' },
+	p: { 1: 'cp' },
 	rx: { 1: 'crx' },
 	ry: { 1: 'cry' },
 	rz: { 1: 'crz' },
@@ -33,6 +34,7 @@ const GATE_CLASS: Record<CanonicalUnitaryGate, string> = {
 	h: 'HGate',
 	s: 'SGate',
 	t: 'TGate',
+	p: 'PhaseGate',
 	rx: 'RXGate',
 	ry: 'RYGate',
 	rz: 'RZGate',
@@ -359,8 +361,8 @@ function parseMethodCall(
 		return makeUnitary('swap', [idx[1]!, idx[2]!], [idx[0]!], []);
 	}
 
-	// Controlled rotations: crx(theta, c, t)
-	const crotMatch = method.match(/^c(rx|ry|rz)$/);
+	// Controlled rotations / phase: crx(theta, c, t), cp(theta, c, t)
+	const crotMatch = method.match(/^c(rx|ry|rz|p)$/);
 	if (crotMatch && args.length === 3) {
 		const angle = parsePythonAngle(args[0]);
 		const control = idxOf(args[1]);

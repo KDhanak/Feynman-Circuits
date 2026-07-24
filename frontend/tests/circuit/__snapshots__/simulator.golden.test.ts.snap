@@ -28,11 +28,35 @@ exports[`simulateMultipleQubits — golden snapshots > controlled rotation (RY w
 }
 `;
 
+exports[`simulateMultipleQubits — golden snapshots > controlled-P(π) (QFT building block): flips target when control is set 1`] = `
+{
+  "formattedState": "(1.00)|11⟩",
+  "probabilities": {
+    "11": [
+      1,
+      0,
+    ],
+  },
+}
+`;
+
 exports[`simulateMultipleQubits — golden snapshots > multi-control Toffoli (CCX) 1`] = `
 {
   "formattedState": "(1.00)|111⟩",
   "probabilities": {
     "111": [
+      1,
+      0,
+    ],
+  },
+}
+`;
+
+exports[`simulateMultipleQubits — golden snapshots > phase gate P(π): H·P(π)·H on |0> equals Z (flips to |1>) 1`] = `
+{
+  "formattedState": "(1.00)|1⟩",
+  "probabilities": {
+    "1": [
       1,
       0,
     ],

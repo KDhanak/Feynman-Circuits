@@ -14,6 +14,7 @@
 		deleteSelectedGates
 	} from '$lib/circuit/selection';
 	import { isMobile } from '$lib/stores/isMobile';
+	import { PARAMETRIC_GATE_IDS } from '$lib/quantum/gates';
 
 	export let op: CircuitOperation;
 	export let qubit: number;
@@ -23,7 +24,8 @@
 		gatecontextmenu: { gate: UnitaryOperation; x: number; y: number };
 	}>();
 
-	const editableGates = ['rx', 'ry', 'rz', 'swap'];
+	// Editable = anything with an angle (parametric) plus swap (target picker).
+	const editableGates = [...PARAMETRIC_GATE_IDS, 'swap'];
 
 	function onContextMenu(e: MouseEvent, gate: UnitaryOperation) {
 		if (!editableGates.includes(gate.gate)) return;

@@ -80,6 +80,17 @@ export function createRYGate(theta: number): QuantumGate {
     };
 }
 
+// Phase gate P(θ) = diag(1, e^{iθ}). Generalizes Z = P(π), S = P(π/2), T = P(π/4).
+export function createPGate(theta: number): QuantumGate {
+    return {
+        type: "p",
+        matrix: [
+            [createComplex(1, 0), createComplex(0, 0)],
+            [createComplex(0, 0), createComplex(Math.cos(theta), Math.sin(theta))], // e^(i*theta)
+        ],
+    };
+}
+
 export function createRZGate(theta: number): QuantumGate {
     const halfTheta = theta / 2;
     return {
@@ -127,6 +138,8 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
         tooltip: { quick: 'S Gate (Phase)', detail: 'Adds a 90° phase shift to |1⟩. Equivalent to √Z.' } },
     t: { id: 't', label: 'T', category: 'phase', arity: 1, numParams: 0, qasmName: 't', matrix: () => T_GATE.matrix,
         tooltip: { quick: 'T Gate', detail: 'Adds a 45° phase shift to |1⟩. Used heavily in fault-tolerant quantum computing.' } },
+    p: { id: 'p', label: 'P', category: 'phase', arity: 1, numParams: 1, qasmName: 'p', matrix: (p) => createPGate(p[0] ?? 0).matrix,
+        tooltip: { quick: 'Phase P(θ)', detail: 'Adds an arbitrary phase e^{iθ} to |1⟩. Generalizes Z, S, and T. Controlled-P is the building block of the Quantum Fourier Transform. Double-click to set the angle.' } },
     rx: { id: 'rx', label: 'RX', category: 'rotation', arity: 1, numParams: 1, qasmName: 'rx', matrix: (p) => createRXGate(p[0] ?? 0).matrix,
         tooltip: { quick: 'X-Rotation', detail: 'Rotates the qubit around the X-axis by a chosen angle θ. Double-click to set the angle.' } },
     ry: { id: 'ry', label: 'RY', category: 'rotation', arity: 1, numParams: 1, qasmName: 'ry', matrix: (p) => createRYGate(p[0] ?? 0).matrix,

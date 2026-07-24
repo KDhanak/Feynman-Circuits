@@ -4,7 +4,7 @@ import { circuitIR, simulationResult } from '../IR/stores';
 import { isDragging, armedGate } from '../stores/uiStores';
 import { insertOperation, updateOperation, removeOperation, setNumQubitsIR } from '../IR/operations';
 import { simulateMultipleQubits } from './simulator';
-import { UNITARY_GATE_IDS } from '../quantum/gates';
+import { UNITARY_GATE_IDS, isGateId, isParametricGate } from '../quantum/gates';
 
 // UI-only: tracks controls placed in a column before any unitary op exists there
 export const pendingControls = writable<Map<number, number[]>>(new Map());
@@ -79,10 +79,10 @@ function consumePendingControls(col: number, controls: number[], antiControls: n
     }
 }
 
-// Shared RX/RY/RZ drop handler — inserts the rotation gate with a default angle,
-// then requests the inline editor so the user can adjust it.
+// Shared parametric-gate drop handler (RX/RY/RZ/P …) — inserts the gate with a
+// default angle, then requests the inline editor so the user can adjust it.
 function dropParametricGate(
-    gate: 'rx' | 'ry' | 'rz',
+    gate: UnitaryOperation['gate'],
     col: number,
     qubit: number,
     ir: CircuitIR,
@@ -314,9 +314,11 @@ function _dropPaletteGate(
     antiPending: Map<number, number[]>
 ) {
     const upperType = gateType.toUpperCase();
+    const lowerType = gateType.toLowerCase();
 
-    if (upperType === 'RX' || upperType === 'RY' || upperType === 'RZ') {
-        dropParametricGate(upperType.toLowerCase() as 'rx' | 'ry' | 'rz', col, qubit, ir, pending, antiPending);
+    // Any parametric gate (RX/RY/RZ/P …) drops with a default angle + inline editor.
+    if (isGateId(lowerType) && isParametricGate(lowerType)) {
+        dropParametricGate(lowerType, col, qubit, ir, pending, antiPending);
         return;
     }
 

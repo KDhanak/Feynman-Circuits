@@ -5,6 +5,7 @@
   { "id": "h",    "qasmName": "h",    "numParams": 0, "arity": 1 },
   { "id": "s",    "qasmName": "s",    "numParams": 0, "arity": 1 },
   { "id": "t",    "qasmName": "t",    "numParams": 0, "arity": 1 },
+  { "id": "p",    "qasmName": "p",    "numParams": 1, "arity": 1 },
   { "id": "rx",   "qasmName": "rx",   "numParams": 1, "arity": 1 },
   { "id": "ry",   "qasmName": "ry",   "numParams": 1, "arity": 1 },
   { "id": "rz",   "qasmName": "rz",   "numParams": 1, "arity": 1 },
