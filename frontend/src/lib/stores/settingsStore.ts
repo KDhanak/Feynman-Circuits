@@ -10,6 +10,12 @@ export type ResultView = 'list' | 'histogram';
 //   'q0-left'  — textbook convention, q0 is the left-most bit
 export type BitOrder = 'q0-right' | 'q0-left';
 
+// Where the code (CircuitDataPanel) sits on wide screens (≥1024px):
+//   'bottom' — in the results row beneath the circuit board (default)
+//   'left'   — a tall full-height panel on the left, better for reading code
+// Ignored below 1024px, where it always falls back to the bottom slot.
+export type CodePanelPosition = 'bottom' | 'left';
+
 export type Settings = {
 	// Editing
 	autoSaveEnabled: boolean;
@@ -19,6 +25,9 @@ export type Settings = {
 	probabilityDecimals: number;
 	showBlochSphere: boolean;
 	bitOrder: BitOrder;
+	codePanelPosition: CodePanelPosition;
+	// Desired width (px) of the left-docked code panel; CSS clamps it responsively.
+	codePanelWidthPx: number;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -27,7 +36,9 @@ export const DEFAULT_SETTINGS: Settings = {
 	defaultResultView: 'list',
 	probabilityDecimals: 2,
 	showBlochSphere: true,
-	bitOrder: 'q0-right'
+	bitOrder: 'q0-right',
+	codePanelPosition: 'bottom',
+	codePanelWidthPx: 480
 };
 
 export const AUTO_SAVE_INTERVAL_OPTIONS = [

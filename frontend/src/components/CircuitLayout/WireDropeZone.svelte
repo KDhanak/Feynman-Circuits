@@ -20,7 +20,6 @@
 	import Icon from '@iconify/svelte';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import ConnectorLayer from './ConnectorLayer.svelte';
-	import BoardContextMenu from './BoardContextMenu.svelte';
 	import GateContextMenu from './GateContextMenu.svelte';
 	import GateToken from './GateToken.svelte';
 	import {
@@ -45,9 +44,6 @@
 	let columnWidth: number;
 	let scrollContainer: HTMLDivElement | null = null;
 	let hoveredWire: number | null = null;
-	let contextMenuVisible = false;
-	let contextMenuX = 0;
-	let contextMenuY = 0;
 	let gateMenuVisible = false;
 	let gateMenuX = 0;
 	let gateMenuY = 0;
@@ -216,8 +212,7 @@
 
 	// The last qubit can be dropped only when there's more than one and it carries
 	// no gates (mirrors removeQubitWire's own guards, but drives the button state).
-	$: canRemoveLastQubit =
-		$circuitIR.registers.q > 1 && !hasGatesOnWire($circuitIR.registers.q - 1);
+	$: canRemoveLastQubit = $circuitIR.registers.q > 1 && !hasGatesOnWire($circuitIR.registers.q - 1);
 
 	function removeQubitWire(qubitIndex: number) {
 		const ir = $circuitIR;
@@ -258,25 +253,12 @@
 		triggerSimulation($circuitIR);
 	}
 
-	function handleContextMenu(e: MouseEvent) {
-		e.preventDefault();
-		contextMenuX = e.clientX;
-		contextMenuY = e.clientY;
-		contextMenuVisible = true;
-		closeGateMenu();
-	}
-
-	function closeContextMenu() {
-		contextMenuVisible = false;
-	}
-
 	function closeGateMenu() {
 		gateMenuVisible = false;
 		gateMenuGate = null;
 	}
 
 	function handleGateContextMenu(e: CustomEvent<{ gate: UnitaryOperation; x: number; y: number }>) {
-		contextMenuVisible = false;
 		gateMenuGate = e.detail.gate;
 		gateMenuX = e.detail.x;
 		gateMenuY = e.detail.y;
@@ -298,7 +280,6 @@
 		gateMenuGate = op as UnitaryOperation;
 		gateMenuX = rect ? rect.left : 0;
 		gateMenuY = rect ? rect.bottom + 6 : 0;
-		contextMenuVisible = false;
 		gateMenuVisible = true;
 	}
 
@@ -343,20 +324,20 @@
 		return true;
 	}
 
-	function resetAndClose() {
-		closeContextMenu();
+	function resetCircuitBoard() {
 		// Import resetCircuit from simulator
 		import('$lib/circuit/simulator').then(({ resetCircuit }) => {
 			resetCircuit();
 		});
 	}
 
+	function copyCircuit() {
+		copyToClipboard(buildCanonicalString($circuitIR));
+	}
+
 	onMount(() => {
 		const handleClickOutside = (e: MouseEvent) => {
 			const target = e.target as HTMLElement;
-			if (contextMenuVisible && !target.closest('.board-ctx-menu')) {
-				closeContextMenu();
-			}
 			if (gateMenuVisible && !target.closest('.gate-ctx-menu')) {
 				closeGateMenu();
 			}
@@ -395,12 +376,10 @@
 	role="none"
 	class="w-full h-full relative mx-auto z-50 select-none"
 	bind:this={boardEl}
-	on:contextmenu={handleContextMenu}
 	on:mousedown={(e) => !$isMobile && handleBoardMouseDown(e)}
 	on:drop={handleBoardDrop}
 	on:dragover={handleBoardDragOver}
 	on:click={(e) => {
-		closeContextMenu();
 		if (handleBoardTap(e)) return;
 		const target = e.target as HTMLElement;
 		// Clear selection when clicking on empty space (not gates or labels)
@@ -415,13 +394,15 @@
 		}
 	}}
 	on:keydown={(e) => {
-		if (e.key === 'Escape') closeContextMenu();
+		if (e.key === 'Escape') closeGateMenu();
 	}}
 >
 	<!-- Add/remove qubit buttons, pinned to the board's top-left corner (icons only).
 	     Hidden on mobile while the delete-selected button occupies the same spot. -->
 	{#if !($isMobile && $selectedGateIds.size > 0)}
-		<div class="absolute top-2 pl-0.5 left-1.5 z-200 flex items-center backdrop-blur-lg rounded-sm shadow-sm">
+		<div
+			class="absolute top-2 pl-0.5 left-1.5 z-200 flex items-center backdrop-blur-lg rounded-sm shadow-sm"
+		>
 			<button
 				type="button"
 				class="flex cursor-pointer items-center justify-center rounded-sm p-1 text-ternary-2 transition-colors hover:bg-ternary-2/10 hover:text-ternary-1 active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ternary-2"
@@ -449,23 +430,40 @@
 				on:click|stopPropagation={removeLastQubitWire}
 				disabled={!canRemoveLastQubit}
 				aria-label="Remove last qubit"
-				title={canRemoveLastQubit ? 'Remove last qubit' : 'Last qubit is in use or is the only qubit'}
+				title={canRemoveLastQubit
+					? 'Remove last qubit'
+					: 'Last qubit is in use or is the only qubit'}
 			>
 				<Icon icon="mdi:minus" width="20" height="20" />
 			</button>
 		</div>
 	{/if}
 
-	<!-- Reset circuit button, pinned to the board's top-right corner (icon only) -->
-	<button
-		type="button"
-		class="absolute cursor-pointer top-2 right-2 z-200 flex items-center justify-center rounded-sm p-1.5 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 active:text-red-700"
-		on:click|stopPropagation={resetAndClose}
-		aria-label="Reset circuit"
-		title="Reset circuit"
-	>
-		<Icon icon="material-symbols:restart-alt" width="20" height="20" />
-	</button>
+	<!-- Copy + Reset buttons, pinned to the board's top-right corner (icon only) -->
+	<div class="absolute top-2 right-2 z-200 flex items-center gap-1" style="color: var(--color-text);">
+		<button
+			type="button"
+			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500"
+			on:click|stopPropagation={copyCircuit}
+			aria-label="Copy circuit"
+			title="Copy circuit"
+		>
+			<Icon
+				icon="solar:copy-bold"
+				width="18"
+				height="18"
+			/>
+		</button>
+		<button
+			type="button"
+			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 active:text-red-700"
+			on:click|stopPropagation={resetCircuitBoard}
+			aria-label="Reset circuit"
+			title="Reset circuit"
+		>
+			<Icon icon="material-symbols:restart-alt" width="20" height="20" />
+		</button>
+	</div>
 
 	<!-- Mobile: delete-selected button, pinned to the board's top-left corner -->
 	{#if $isMobile && $selectedGateIds.size > 0}
@@ -540,15 +538,27 @@
 								class={`qubit-label z-10 w-13 h-7 px-1.5 cursor-text text-[11px] border border-ternary-0 focus:scale-105 focus:shadow-sm focus:shadow-ternary-1 text-center rounded-sm focus:outline-none select-auto ${
 									measured
 										? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
-										: 'text-black bg-purple-100'
+										: 'text-black input-field'
 								}`}
 							/>
 						</div>
 					{/each}
 					{#if showGhostWire}
-						<div class={`flex ${$isMobile ? 'h-12' : 'h-14'} items-center opacity-60`} transition:slide={{ duration: 300 }}>
-							<div class="z-10 mr-2 flex h-7 shrink-0 select-none items-center justify-center rounded-sm bg-ternary-2/25 px-2 text-[13px] font-medium leading-none text-ternary-3 opacity-50">|0⟩</div>
-							<input type="text" value="Qubit {$circuitIR.registers.q}" disabled class="z-10 w-13 h-7 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50" />
+						<div
+							class={`flex ${$isMobile ? 'h-12' : 'h-14'} items-center opacity-60`}
+							transition:slide={{ duration: 300 }}
+						>
+							<div
+								class="z-10 mr-2 flex h-7 shrink-0 select-none items-center justify-center rounded-sm bg-ternary-2/25 px-2 text-[13px] font-medium leading-none text-ternary-3 opacity-50"
+							>
+								|0⟩
+							</div>
+							<input
+								type="text"
+								value="Qubit {$circuitIR.registers.q}"
+								disabled
+								class="z-10 w-13 h-7 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
+							/>
 						</div>
 					{/if}
 				</div>
@@ -585,7 +595,12 @@
 							</div>
 							<!-- Gates -->
 							{#each $circuitIR.operations as op (op.id)}
-								<GateToken {op} qubit={wire.qubit} {columnWidth} on:gatecontextmenu={handleGateContextMenu} />
+								<GateToken
+									{op}
+									qubit={wire.qubit}
+									{columnWidth}
+									on:gatecontextmenu={handleGateContextMenu}
+								/>
 							{/each}
 							<!-- Pending anti-control boxes (uncommitted) -->
 							{#each Array.from($pendingAntiControls.entries()) as [col, qubits]}
@@ -659,9 +674,16 @@
 							data-qubit={$circuitIR.registers.q}
 							transition:slide={{ duration: 300 }}
 						>
-							<div class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30" style="background-color: var(--color-muted);">
+							<div
+								class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30"
+								style="background-color: var(--color-muted);"
+							>
 								{#each Array(visibleColumns) as _, colIndex}
-									<div class="dropzone h-12 top-1/2 -translate-y-1/2 transform" class:dropzone-armed={$isMobile && $armedGate} style="left: {colIndex * columnWidth}px; width: {columnWidth}px"></div>
+									<div
+										class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
+										class:dropzone-armed={$isMobile && $armedGate}
+										style="left: {colIndex * columnWidth}px; width: {columnWidth}px"
+									></div>
 								{/each}
 							</div>
 						</div>
@@ -683,17 +705,6 @@
 			</div>
 		</div>
 	</div>
-
-	<!-- Board Context Menu -->
-	{#if contextMenuVisible}
-		<BoardContextMenu
-			x={contextMenuX}
-			y={contextMenuY}
-			on:close={closeContextMenu}
-			on:copy={() => copyToClipboard(buildCanonicalString($circuitIR))}
-			on:reset={resetAndClose}
-		/>
-	{/if}
 
 	<!-- Gate Edit Context Menu -->
 	{#if gateMenuVisible && gateMenuGate}
@@ -742,7 +753,6 @@
 	.dropzone-armed:active {
 		background-color: rgba(168, 85, 247, 0.3);
 	}
-
 
 	@keyframes slideDown {
 		from {

@@ -22,6 +22,7 @@
 		importQiskit
 	} from '$lib/circuit/circuitActions';
 	import { resolvedTheme } from '$lib/stores/themeStore';
+	import { settings, updateSettings } from '$lib/stores/settingsStore';
 
 	let monaco: typeof import('monaco-editor');
 
@@ -127,9 +128,28 @@
 	let qasmVersion: OpenQasmVersion = '3.0';
 	let showVersionMenu = false;
 
+	// When the panel itself is narrow (≤440px — e.g. docked to a slim left
+	// column, or on a small viewport) the side-by-side view buttons don't fit
+	// next to the action icons, so they collapse into a hamburger dropdown.
+	// Measured on the panel's own width (not the viewport) via ResizeObserver.
+	const NARROW_THRESHOLD = 440;
+	let isNarrow = false;
+	let showViewMenu = false;
+	let viewMenuContainer: HTMLDivElement;
+	let panelEl: HTMLDivElement;
+
+	$: currentViewLabel =
+		activeView === 'qasm'
+			? `OpenQASM ${qasmVersion}`
+			: activeView === 'qiskit'
+				? 'Qiskit'
+				: 'Canonical IR';
+
 	let container: HTMLDivElement;
 	let editor: any = null;
 	let monacoPromise: Promise<any> | null = null;
+	// Monaco is a heavy async import; show a spinner over the editor until it mounts.
+	let editorReady = false;
 
 	// Follow the app theme so the editor restyles live when it's toggled (the
 	// panel is always mounted, so we can't rely on a one-time detection).
@@ -168,6 +188,25 @@
 		initializeEditor();
 	});
 
+	onMount(() => {
+		if (!panelEl || typeof ResizeObserver === 'undefined') return;
+		const ro = new ResizeObserver((entries) => {
+			const width = entries[0]?.contentRect.width ?? panelEl.clientWidth;
+			const narrow = width <= NARROW_THRESHOLD;
+			if (narrow === isNarrow) return;
+			isNarrow = narrow;
+			if (!narrow) showViewMenu = false;
+		});
+		ro.observe(panelEl);
+		return () => ro.disconnect();
+	});
+
+	function handleWindowClick(e: MouseEvent) {
+		if (showViewMenu && viewMenuContainer && !viewMenuContainer.contains(e.target as Node)) {
+			showViewMenu = false;
+		}
+	}
+
 	onDestroy(() => {
 		editor?.dispose();
 		editor = null;
@@ -193,6 +232,8 @@
 			wordWrap: 'off',
 			tabSize: 2
 		});
+
+		editorReady = true;
 	}
 
 	function syncEditor(text: string, ed: typeof editor) {
@@ -208,6 +249,22 @@
 	function selectView(mode: DataViewMode) {
 		activeView = mode;
 		localStorage.setItem('circuitDataView', mode);
+	}
+
+	$: dockedLeft = $settings.codePanelPosition === 'left';
+	function toggleDock() {
+		updateSettings({ codePanelPosition: dockedLeft ? 'bottom' : 'left' });
+	}
+
+	function selectViewFromMenu(mode: DataViewMode) {
+		selectView(mode);
+		showViewMenu = false;
+	}
+
+	function selectQasmFromMenu(version: OpenQasmVersion) {
+		selectView('qasm');
+		qasmVersion = version;
+		showViewMenu = false;
 	}
 
 	function selectVersion(version: OpenQasmVersion) {
@@ -241,46 +298,28 @@
 	}
 </script>
 
-<div class="flex h-full flex-col" style="color: var(--color-text);">
+<svelte:window on:click={handleWindowClick} />
+
+<div bind:this={panelEl} class="flex h-full flex-col" style="color: var(--color-text);">
 	<!-- Toolbar -->
 	<div class="mb-2 flex items-center justify-between gap-2">
-		<div class="flex items-center gap-1.5">
-			<button
-				type="button"
-				on:click={() => selectView('cir')}
-				class:!bg-ternary-2={activeView === 'cir'}
-				class:!text-white={activeView === 'cir'}
-				class:!border-ternary-2={activeView === 'cir'}
-				class="rounded-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
-			>
-				Canonical IR
-			</button>
-			<div class="relative inline-flex">
+		{#if isNarrow}
+			<!-- Collapsed view selector: hamburger dropdown for ≤1300px -->
+			<div class="relative inline-flex" bind:this={viewMenuContainer}>
 				<button
 					type="button"
-					on:click={() => selectView('qasm')}
-					class:!bg-ternary-2={activeView === 'qasm'}
-					class:!text-white={activeView === 'qasm'}
-					class:!border-ternary-2={activeView === 'qasm'}
-					class="rounded-l-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
+					on:click={() => (showViewMenu = !showViewMenu)}
+					aria-haspopup="menu"
+					aria-expanded={showViewMenu}
+					class="flex items-center gap-1.5 rounded-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer hover:bg-secondary-1 transition-colors"
 				>
-					OpenQASM {qasmVersion}
-				</button>
-				<button
-					type="button"
-					on:click={() => (showVersionMenu = !showVersionMenu)}
-					disabled={activeView !== 'qasm'}
-					class:!bg-ternary-2={activeView === 'qasm'}
-					class:!text-white={activeView === 'qasm'}
-					class:!border-l-white={activeView === 'qasm'}
-					class="rounded-r-sm border-l border-secondary-2 bg-white px-1.5 py-1 text-xs text-secondary-2 cursor-pointer hover:bg-secondary-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-				>
-					<span class="inline-block transition-transform" class:rotate-180={showVersionMenu}>▼</span>
+					<Icon icon="ph:list-bold" width="16" height="16" />
+					<span>{currentViewLabel}</span>
 				</button>
 
-				{#if activeView === 'qasm' && showVersionMenu}
+				{#if showViewMenu}
 					<div
-						class="absolute left-0 right-0 top-full z-50 mt-1 rounded-sm shadow-sm"
+						class="absolute left-0 top-full z-50 mt-1 flex min-w-full flex-col whitespace-nowrap rounded-sm shadow-sm"
 						style="background-color: var(--color-surface);"
 						role="menu"
 						tabindex="-1"
@@ -289,39 +328,141 @@
 						<button
 							type="button"
 							role="menuitem"
-							on:click={() => selectVersion('3.0')}
+							on:click={() => selectViewFromMenu('cir')}
 							class="btn-highlight-item w-full rounded-t-sm"
-							class:opacity-100={qasmVersion === '3.0'}
-							class:opacity-75={qasmVersion !== '3.0'}
+							class:opacity-100={activeView === 'cir'}
+							class:opacity-75={activeView !== 'cir'}
+						>
+							Canonical IR
+						</button>
+						<button
+							type="button"
+							role="menuitem"
+							on:click={() => selectQasmFromMenu('3.0')}
+							class="btn-highlight-item w-full"
+							class:opacity-100={activeView === 'qasm' && qasmVersion === '3.0'}
+							class:opacity-75={!(activeView === 'qasm' && qasmVersion === '3.0')}
 						>
 							OpenQASM 3.0
 						</button>
 						<button
 							type="button"
 							role="menuitem"
-							on:click={() => selectVersion('2.0')}
-							class="btn-highlight-item w-full rounded-b-sm"
-							class:opacity-100={qasmVersion === '2.0'}
-							class:opacity-75={qasmVersion !== '2.0'}
+							on:click={() => selectQasmFromMenu('2.0')}
+							class="btn-highlight-item w-full"
+							class:opacity-100={activeView === 'qasm' && qasmVersion === '2.0'}
+							class:opacity-75={!(activeView === 'qasm' && qasmVersion === '2.0')}
 						>
 							OpenQASM 2.0
+						</button>
+						<button
+							type="button"
+							role="menuitem"
+							on:click={() => selectViewFromMenu('qiskit')}
+							class="btn-highlight-item w-full rounded-b-sm"
+							class:opacity-100={activeView === 'qiskit'}
+							class:opacity-75={activeView !== 'qiskit'}
+						>
+							Qiskit
 						</button>
 					</div>
 				{/if}
 			</div>
-			<button
-				type="button"
-				on:click={() => selectView('qiskit')}
-				class:!bg-ternary-2={activeView === 'qiskit'}
-				class:!text-white={activeView === 'qiskit'}
-				class:!border-ternary-2={activeView === 'qiskit'}
-				class="rounded-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
-			>
-				Qiskit
-			</button>
-		</div>
+		{:else}
+			<div class="flex items-center gap-1.5">
+				<button
+					type="button"
+					on:click={() => selectView('cir')}
+					class:!bg-ternary-2={activeView === 'cir'}
+					class:!text-white={activeView === 'cir'}
+					class:!border-ternary-2={activeView === 'cir'}
+					class="rounded-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
+				>
+					Canonical IR
+				</button>
+				<div class="relative inline-flex">
+					<button
+						type="button"
+						on:click={() => selectView('qasm')}
+						class:!bg-ternary-2={activeView === 'qasm'}
+						class:!text-white={activeView === 'qasm'}
+						class:!border-ternary-2={activeView === 'qasm'}
+						class="rounded-l-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
+					>
+						OpenQASM {qasmVersion}
+					</button>
+					<button
+						type="button"
+						on:click={() => (showVersionMenu = !showVersionMenu)}
+						disabled={activeView !== 'qasm'}
+						class:!bg-ternary-2={activeView === 'qasm'}
+						class:!text-white={activeView === 'qasm'}
+						class:!border-l-white={activeView === 'qasm'}
+						class="rounded-r-sm border-l border-secondary-2 bg-white px-1.5 py-1 text-xs text-secondary-2 cursor-pointer hover:bg-secondary-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+					>
+						<span class="inline-block transition-transform" class:rotate-180={showVersionMenu}>▼</span>
+					</button>
+
+					{#if activeView === 'qasm' && showVersionMenu}
+						<div
+							class="absolute left-0 right-0 top-full z-50 mt-1 rounded-sm shadow-sm"
+							style="background-color: var(--color-surface);"
+							role="menu"
+							tabindex="-1"
+							transition:fade={{ duration: 150 }}
+						>
+							<button
+								type="button"
+								role="menuitem"
+								on:click={() => selectVersion('3.0')}
+								class="btn-highlight-item w-full rounded-t-sm"
+								class:opacity-100={qasmVersion === '3.0'}
+								class:opacity-75={qasmVersion !== '3.0'}
+							>
+								OpenQASM 3.0
+							</button>
+							<button
+								type="button"
+								role="menuitem"
+								on:click={() => selectVersion('2.0')}
+								class="btn-highlight-item w-full rounded-b-sm"
+								class:opacity-100={qasmVersion === '2.0'}
+								class:opacity-75={qasmVersion !== '2.0'}
+							>
+								OpenQASM 2.0
+							</button>
+						</div>
+					{/if}
+				</div>
+				<button
+					type="button"
+					on:click={() => selectView('qiskit')}
+					class:!bg-ternary-2={activeView === 'qiskit'}
+					class:!text-white={activeView === 'qiskit'}
+					class:!border-ternary-2={activeView === 'qiskit'}
+					class="rounded-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
+				>
+					Qiskit
+				</button>
+			</div>
+		{/if}
 
 		<div class="flex items-center gap-2">
+			<!-- Dock toggle: only meaningful on wide screens where the left panel fits -->
+			<button
+				type="button"
+				on:click={toggleDock}
+				class="hidden lg:inline-flex"
+				aria-label={dockedLeft ? 'Move code panel to bottom' : 'Move code panel to left'}
+				title={dockedLeft ? 'Dock to bottom' : 'Dock to left'}
+			>
+				<Icon
+					icon={dockedLeft ? 'mdi:dock-bottom' : 'mdi:dock-left'}
+					width="20"
+					height="20"
+					class="active:text-green-400 cursor-pointer"
+				/>
+			</button>
 			<button type="button" on:click={handleCopy} aria-label="Copy" title="Copy">
 				<Icon icon="solar:copy-bold" width="20" height="20" class="active:text-green-400 cursor-pointer" />
 			</button>
@@ -336,10 +477,21 @@
 
 	<!-- Editor -->
 	<div
-		bind:this={container}
-		class="min-h-0 flex-1"
+		class="relative min-h-0 flex-1"
 		style="border: 1px solid var(--color-branding); border-radius: 0.3rem; overflow: hidden;"
-	></div>
+	>
+		<div bind:this={container} class="absolute inset-0"></div>
+		{#if !editorReady}
+			<div
+				class="absolute inset-0 flex flex-col items-center justify-center gap-2"
+				style="background: var(--color-background);"
+				out:fade={{ duration: 200 }}
+			>
+				<Icon icon="svg-spinners:ring-resize" width="30" height="30" style="color: var(--color-measured);" />
+				<span class="text-xs" style="color: var(--color-muted);">Loading editor…</span>
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style>

@@ -5,7 +5,7 @@
 	import { onMount } from 'svelte';
 	import { loadSession } from '$lib/auth/session';
 	import { resolvedTheme, toggleTheme } from '$lib/stores/themeStore';
-	import { settings } from '$lib/stores/settingsStore';
+	import { settings, updateSettings } from '$lib/stores/settingsStore';
 	import { isMobile } from '$lib/stores/isMobile';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
@@ -21,6 +21,82 @@
 
 	let feedbackOpen = false;
 
+	// The Bloch sphere is optional; when it's hidden the results row reflows so
+	// SimulationResult expands into the space it would have occupied.
+	$: showBloch = $settings.showBlochSphere && !$isMobile;
+
+	// The code panel can be docked to a tall left column, but only where there's
+	// horizontal room for it (≥1024px). Below that it stays in the bottom slot.
+	let isWideScreen = false;
+	onMount(() => {
+		const mq = window.matchMedia('(min-width: 1024px)');
+		isWideScreen = mq.matches;
+		const handler = (e: MediaQueryListEvent) => (isWideScreen = e.matches);
+		mq.addEventListener('change', handler);
+		return () => mq.removeEventListener('change', handler);
+	});
+	$: leftMode = $settings.codePanelPosition === 'left' && isWideScreen;
+
+	// Results-grid column template. In left-dock mode the code panel is elsewhere,
+	// so the grid only lays out Sim (+ Bloch) inside the narrower right column.
+	$: resultsGridCols = leftMode
+		? showBloch
+			? 'lg:grid-cols-2'
+			: 'lg:grid-cols-1'
+		: showBloch
+			? 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)_auto]'
+			: 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]';
+	// In the bottom layout with no Bloch, Sim spans the full width; not needed
+	// in left-dock mode (Sim already fills its column there).
+	$: simSpan = !leftMode && !showBloch ? 'sm:col-span-2 lg:col-span-1' : '';
+
+	// In bottom mode the board/results centre themselves at 96% like the palette.
+	// In left mode they fill the right column so their right edge lines up with
+	// the palette above (the column itself is already 96%-aligned).
+	$: contentWidth = leftMode ? 'w-full' : 'w-[96%] max-w-420 mx-auto';
+
+	// ── Draggable divider for the left-docked code panel ─────────────────
+	// `codePanelWidth` is the desired px width; the applied style clamps it to
+	// [280px, 65%] so the right column always keeps room. Persisted on drag end.
+	let splitRowEl: HTMLDivElement | undefined;
+	let dragging = false;
+	let codePanelWidth = get(settings).codePanelWidthPx;
+	const MIN_LEFT = 280;
+
+	function clampWidth(px: number): number {
+		if (!splitRowEl) return Math.max(MIN_LEFT, px);
+		const max = splitRowEl.clientWidth * 0.65;
+		return Math.max(MIN_LEFT, Math.min(px, max));
+	}
+
+	function startDrag(e: PointerEvent) {
+		dragging = true;
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		e.preventDefault();
+	}
+	function onDrag(e: PointerEvent) {
+		if (!dragging || !splitRowEl) return;
+		codePanelWidth = clampWidth(e.clientX - splitRowEl.getBoundingClientRect().left);
+	}
+	function endDrag(e: PointerEvent) {
+		if (!dragging) return;
+		dragging = false;
+		try {
+			(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+		} catch {
+			/* pointer may already be released */
+		}
+		updateSettings({ codePanelWidthPx: Math.round(codePanelWidth) });
+	}
+	function onHandleKey(e: KeyboardEvent) {
+		const STEP = 16;
+		if (e.key === 'ArrowLeft') codePanelWidth = clampWidth(codePanelWidth - STEP);
+		else if (e.key === 'ArrowRight') codePanelWidth = clampWidth(codePanelWidth + STEP);
+		else return;
+		e.preventDefault();
+		updateSettings({ codePanelWidthPx: Math.round(codePanelWidth) });
+	}
+
 	// Only initialize on first load — stores survive HMR so skip re-init
 	if (!get(currentCircuitId)) {
 		currentCircuitId.set(crypto.randomUUID());
@@ -33,7 +109,7 @@
 </script>
 
 <main
-	class="flex pb-20 sm:pb-0 min-h-screen sm:h-screen sm:overflow-hidden flex-col overflow-hidden items-center"
+	class="flex pb-20 sm:pb-0 min-h-screen lg:h-screen lg:overflow-hidden flex-col overflow-hidden items-center"
 	style="background: radial-gradient(at center, var(--color-background) 50%, var(--color-surface) 90%)"
 >
 	<!-- Header -->
@@ -97,43 +173,102 @@
 		</div>
 	</header>
 
-	<!-- Gate Palette -->
+	<!-- Gate Palette — always full-width across the top, in both dock modes -->
 	<GatePalette />
 
-	<!-- Circuit board — fills all remaining vertical space -->
-	<div
-		class="shadow-sm max-w-420 mx-auto shadow-ternary-1 bg-ternary-3/20 w-[96%] min-h-[55vh] sm:flex-1 sm:min-h-0 overflow-hidden"
-	>
-		<CircuitLayout />
-	</div>
-	<!-- Results row — fixed height on desktop, never shifts layout -->
-	<div
-		class="w-[96%] max-w-420 mx-auto mt-2.5 mb-1 flex flex-col sm:flex-row justify-between items-stretch gap-2.5 shrink-0 sm:h-82.5"
-	>
+	{#snippet mainContent()}
+		<!-- Circuit board — fills all remaining vertical space -->
 		<div
-			class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-none sm:max-w-sm overflow-y-auto"
+			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 min-h-[55vh] lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
 		>
-			<SimulationResult />
+			<CircuitLayout />
 		</div>
-		{#if !$isMobile}
+		<!--
+			Results row layout:
+			  • < 640px (mobile): single column — only SimulationResult shows.
+			  • 640–1024px: SimulationResult + BlochSphere share the top row, with
+			    CircuitDataPanel full-width beneath them (dense-flow 2-col grid).
+			  • ≥ 1024px, code docked bottom: all three side-by-side.
+			  • ≥ 1024px, code docked left: the code panel lives in the left
+			    column, so this grid only holds Sim (+ Bloch).
+			Row height fixed at 20.625rem so nothing shifts.
+		-->
+		<div
+			class="{contentWidth} mt-2.5 mb-1 grid grid-cols-1 sm:grid-cols-2 sm:grid-flow-row-dense sm:auto-rows-[20.625rem] gap-2.5 shrink-0 {resultsGridCols}"
+		>
 			<div
-				class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
+				class="shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-y-auto min-w-0 min-h-0 {simSpan}"
+			>
+				<SimulationResult />
+			</div>
+			{#if !$isMobile && !leftMode}
+				<div
+					class="sm:col-span-2 lg:col-span-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden min-w-0 min-h-0"
+				>
+					<CircuitDataPanel />
+				</div>
+			{/if}
+			{#if showBloch}
+				<Tooltip
+					quick="Bloch Sphere"
+					detail="A 3D representation of a single qubit's state. The north pole is |0⟩, south pole is |1⟩, and the equator is superposition."
+				>
+					<div
+						class="w-full h-full shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
+					>
+						<OverallBlochSphere />
+					</div>
+				</Tooltip>
+			{/if}
+		</div>
+	{/snippet}
+
+	<!--
+		Left-dock layout. The wrappers use `display: contents` in bottom mode so
+		they're layout-transparent (mainContent behaves as a direct child of
+		<main>, exactly like before). In left mode they become a flex row: a tall
+		code aside + a right column holding mainContent. Because mainContent stays
+		in the same DOM position (inside the right wrapper) in both modes, toggling
+		the dock only remounts the code panel — the circuit board is untouched.
+	-->
+	<div
+		bind:this={splitRowEl}
+		class={leftMode
+			? `w-[96%] max-w-420 mx-auto flex-1 min-h-0 flex flex-row items-stretch ${dragging ? 'select-none' : ''}`
+			: 'contents'}
+	>
+		{#if leftMode}
+			<aside
+				class="shrink-0 flex flex-col min-h-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
+				style="width: clamp({MIN_LEFT}px, {codePanelWidth}px, 65%)"
 			>
 				<CircuitDataPanel />
+			</aside>
+			<!-- Drag handle: resize the code panel; persists on release -->
+			<div
+				role="slider"
+				aria-label="Resize code panel"
+				aria-valuemin={MIN_LEFT}
+				aria-valuemax={1200}
+				aria-valuenow={Math.round(codePanelWidth)}
+				tabindex="0"
+				class="group mx-1 flex w-2 shrink-0 cursor-col-resize items-center justify-center self-stretch"
+				on:pointerdown={startDrag}
+				on:pointermove={onDrag}
+				on:pointerup={endDrag}
+				on:pointercancel={endDrag}
+				on:keydown={onHandleKey}
+			>
+				<span
+					class="h-10 w-1 rounded-full bg-secondary-2/40 transition-colors group-hover:bg-secondary-2 {dragging
+						? 'bg-secondary-2'
+						: ''}"
+				></span>
 			</div>
 		{/if}
-		{#if $settings.showBlochSphere && !$isMobile}
-			<Tooltip
-				quick="Bloch Sphere"
-				detail="A 3D representation of a single qubit's state. The north pole is |0⟩, south pole is |1⟩, and the equator is superposition."
-			>
-				<div
-					class="w-full sm:shrink-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
-				>
-					<OverallBlochSphere />
-				</div>
-			</Tooltip>
-		{/if}
+		<div class={leftMode ? 'flex-1 min-w-0 min-h-0 flex flex-col items-center' : 'contents'}>
+			{@render mainContent()}
+		</div>
 	</div>
 
 	<!-- Feedback link — subtle, at the very bottom centre -->

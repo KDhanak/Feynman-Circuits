@@ -50,41 +50,51 @@
 		triggerSimulation($circuitIR);
 		dispatch('close');
 	}
+
+	// Enter inside any field commits the edit, mirroring the Apply button.
+	function onFieldKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			apply();
+		}
+	}
 </script>
 
 <div
-	class="ctx-menu gate-ctx-menu z-200 w-52"
-	style="left: {x}px; top: {y}px;"
+	class="ctx-menu gate-ctx-menu z-200 w-52 bg-background border border-ternary-2"
+	style="left: {x}px; top: {y}px; color: var(--color-text);"
 	role="menu"
 	tabindex="0"
 	on:click|stopPropagation={() => {}}
 	on:keydown={(e) => { if (e.key === 'Escape') dispatch('close'); }}
 >
-	<div class="px-4 py-2 text-xs font-semibold text-gray-500 border-b border-gray-100 uppercase tracking-wide">
+	<div class="px-4 py-2 text-xs font-semibold border-b border-gray-100 uppercase tracking-wide">
 		Edit {gate.gate.toUpperCase()} Gate
 	</div>
 
 	{#if gate.gate === 'swap'}
 		<div class="px-4 py-3 space-y-2">
 			<div>
-				<label class="block text-xs text-gray-500 mb-1" for="swap-t0">Target 1</label>
+				<label class="block text-xs mb-1" for="swap-t0">Target 1</label>
 				<input
 					id="swap-t0"
 					type="number"
 					min="0"
 					max={$circuitIR.registers.q - 1}
 					bind:value={target0}
+					on:keydown={onFieldKeydown}
 					class="input-field py-1.5 text-sm"
 				/>
 			</div>
 			<div>
-				<label class="block text-xs text-gray-500 mb-1" for="swap-t1">Target 2</label>
+				<label class="block text-xs mb-1" for="swap-t1">Target 2</label>
 				<input
 					id="swap-t1"
 					type="number"
 					min="0"
 					max={$circuitIR.registers.q - 1}
 					bind:value={target1}
+					on:keydown={onFieldKeydown}
 					class="input-field py-1.5 text-sm"
 				/>
 			</div>
@@ -94,13 +104,14 @@
 		</div>
 	{:else}
 		<div class="px-4 py-3">
-			<label class="block text-xs text-gray-500 mb-1" for="gate-angle">
+			<label class="block text-xs mb-1" for="gate-angle">
 				Angle (e.g. pi/2, pi/4, 3pi/4)
 			</label>
 			<input
 				id="gate-angle"
 				type="text"
 				bind:value={angle}
+				on:keydown={onFieldKeydown}
 				class="input-field py-1.5 text-sm"
 			/>
 			{#if error}
