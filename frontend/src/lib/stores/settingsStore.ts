@@ -3,6 +3,13 @@ import { browser } from '$app/environment';
 
 export type ResultView = 'list' | 'histogram';
 
+// How basis-state labels are printed in the results panel. The engine always
+// runs little-endian internally (q0 = LSB); this only reverses the label string
+// before rendering — it never affects the simulation or the wire layout.
+//   'q0-right' — Qiskit/OpenQASM convention, q0 is the right-most bit (default)
+//   'q0-left'  — textbook convention, q0 is the left-most bit
+export type BitOrder = 'q0-right' | 'q0-left';
+
 export type Settings = {
 	// Editing
 	autoSaveEnabled: boolean;
@@ -11,6 +18,7 @@ export type Settings = {
 	defaultResultView: ResultView;
 	probabilityDecimals: number;
 	showBlochSphere: boolean;
+	bitOrder: BitOrder;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -18,7 +26,8 @@ export const DEFAULT_SETTINGS: Settings = {
 	autoSaveIntervalMs: 10_000,
 	defaultResultView: 'list',
 	probabilityDecimals: 2,
-	showBlochSphere: true
+	showBlochSphere: true,
+	bitOrder: 'q0-right'
 };
 
 export const AUTO_SAVE_INTERVAL_OPTIONS = [

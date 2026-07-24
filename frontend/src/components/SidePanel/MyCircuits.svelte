@@ -294,7 +294,7 @@
 
 <div
 	class="fixed inset-0 z-100"
-	style="background-color: rgba(0,0,0,0.3); backdrop-filter: blur(4px);"
+	style="background-color: rgba(0,0,0,0.3); backdrop-filter: blur(1px);"
 	role="button"
 	tabindex="0"
 	aria-label="Close circuits panel"
@@ -390,9 +390,9 @@
 					{#each circuits as circuit (circuit.circuit_id)}
 						<li>
 							<div
-								class="w-full text-left px-4 py-3 rounded-sm shadow-sm shadow-measured/40 hover:shadow-measured transition-shadow duration-200 flex items-center justify-between gap-3 cursor-pointer"
+								class="circuit-row w-full text-left px-4 py-3 rounded-sm shadow-sm shadow-measured/40 hover:shadow-measured transition-shadow duration-200 flex items-center justify-between gap-3 cursor-pointer"
 								class:ring-2={selectedIds.has(circuit.circuit_id)}
-								class:ring-measured={selectedIds.has(circuit.circuit_id)}
+								class:ring-secondary-2={selectedIds.has(circuit.circuit_id)}
 								style="background-color: var(--color-surface);"
 								role="button"
 								tabindex="0"
@@ -404,6 +404,7 @@
 									<input
 										type="checkbox"
 										class="select-checkbox shrink-0 cursor-pointer"
+										class:reveal={selecting}
 										checked={selectedIds.has(circuit.circuit_id)}
 										on:click|stopPropagation
 										on:change={() => toggleSelect(circuit.circuit_id)}
@@ -584,7 +585,20 @@
 		background-color: transparent;
 		display: inline-grid;
 		place-content: center;
-		transition: border-color 0.15s ease, background-color 0.15s ease;
+		transition: border-color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+	}
+
+	/* The checkbox is hidden until you hover the row. Once any circuit is
+	   selected, `.reveal` keeps every checkbox visible so you can pick more.
+	   Hidden checkboxes also ignore clicks so the row opens the circuit. */
+	.select-checkbox:not(.reveal) {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.circuit-row:hover .select-checkbox,
+	.circuit-row:focus-within .select-checkbox {
+		opacity: 1;
+		pointer-events: auto;
 	}
 	.select-checkbox::before {
 		content: '';
@@ -596,8 +610,8 @@
 		clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
 	}
 	.select-checkbox:checked {
-		background-color: var(--color-measured);
-		border-color: var(--color-measured);
+		background-color: var(--color-secondary-2);
+		border-color: var(--color-secondary-2);
 	}
 	.select-checkbox:checked::before {
 		transform: scale(1);

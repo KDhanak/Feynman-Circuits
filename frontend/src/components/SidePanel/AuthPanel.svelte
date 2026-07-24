@@ -169,7 +169,7 @@
 {#if isOpen}
 	<div
 		class="fixed inset-0 z-100"
-		style="background-color: (var(--color-background) / 0.5); backdrop-filter: blur(4px);"
+		style="background-color: (var(--color-background) / 0.5); backdrop-filter: blur(1px);"
 		role="button"
 		tabindex="0"
 		aria-label="Close authentication drawer"

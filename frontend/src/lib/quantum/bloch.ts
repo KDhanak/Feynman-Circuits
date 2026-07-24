@@ -13,8 +13,9 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 function bitPosition(numQubits: number, qubit: number): number {
-    // Qubit 0 is treated as the left-most bit in your formatted bitstrings.
-    return numQubits - 1 - qubit;
+    // Little-endian (Qiskit/OpenQASM) convention: qubit q maps to statevector
+    // bit position q, so q0 is the right-most bit of the formatted bitstrings.
+    return qubit;
 }
 
 export function computeBlochVectorForQubit(

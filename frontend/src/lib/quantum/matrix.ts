@@ -56,7 +56,8 @@ export function tensorProduct(state1: QuantumState, state2: QuantumState): Quant
 
 /**
  * Extends a single-qubit gate matrix to a multi-qubit gate matrix.
- * This function takes a single-qubit gate matrix and extends it to act on a specified qubit
+ * This function takes a single-qubit gate matrix and extends it to act on a specified qubit.
+ * Little-endian convention: qubit q occupies statevector bit position q (q0 = LSB).
  */
 export function extendGateMatrix(singleGateMatrix: Complex[][], qubit: number, numQubits: number): Complex[][] {
     const dim = 1 << numQubits;
@@ -68,9 +69,9 @@ export function extendGateMatrix(singleGateMatrix: Complex[][], qubit: number, n
 
     for (let i = 0; i < dim; i++) {
         for (let j = 0; j < dim; j++) {
-            const iQubitBit = (i >> (numQubits - 1 - qubit)) & 1;
-            const jQubitBit = (j >> (numQubits - 1 - qubit)) & 1;
-            const otherBitsMatch = (i ^ (iQubitBit << (numQubits - 1 - qubit))) === (j ^ (jQubitBit << (numQubits - 1 - qubit)));
+            const iQubitBit = (i >> qubit) & 1;
+            const jQubitBit = (j >> qubit) & 1;
+            const otherBitsMatch = (i ^ (iQubitBit << qubit)) === (j ^ (jQubitBit << qubit));
             if (otherBitsMatch) {
                 result[i][j] = singleGateMatrix[iQubitBit][jQubitBit];
             }
@@ -85,11 +86,11 @@ export function computeControlledUMatrix(controlQubit: number, targetQubit: numb
     const one = createComplex(1, 0);
 
     const matrix: Complex[][] = Array(dim).fill(null).map(() => Array(dim).fill(zero));
-    const bitPos = numQubits - 1 - targetQubit;
+    const bitPos = targetQubit;
     const bitMask = 1 << bitPos;
 
     for (let src = 0; src < dim; src++) {
-        const ctrlBit = (src >> (numQubits - 1 - controlQubit)) & 1;
+        const ctrlBit = (src >> controlQubit) & 1;
 
         if (ctrlBit === 0) {
             matrix[src][src] = one; // Identity for control bit 0
@@ -127,7 +128,7 @@ export function computeMultiControlledUMatrix(controlQubits: number[], targetQub
 
     for (let src = 0; src < dim; src++) {
         // Check if all control qubits are active (set to 1)
-        const allControlsActive = controlQubits.every(ctrl => (src >> (numQubits - 1 - ctrl)) & 1)
+        const allControlsActive = controlQubits.every(ctrl => (src >> ctrl) & 1)
 
         if (!allControlsActive) {
             matrix[src][src] = one; // Identity for inactive controls
@@ -135,8 +136,8 @@ export function computeMultiControlledUMatrix(controlQubits: number[], targetQub
         }
 
         //All controls are active, apply U to target qubit
-        const targetBit = (src >> (numQubits - 1 - targetQubit)) & 1;
-        const targetMask = 1 << (numQubits - 1 - targetQubit);
+        const targetBit = (src >> targetQubit) & 1;
+        const targetMask = 1 << targetQubit;
 
         for (let rowBit = 0; rowBit < 2; rowBit++) {
             const amp = U[rowBit][targetBit];
@@ -172,9 +173,9 @@ export function computeMultiControlledUMatrixWithAntiControls(
 
     for (let src = 0; src < dim; src++) {
         // Check if all control qubits are 1
-        const allControlsActive = controlQubits.every(ctrl => (src >> (numQubits - 1 - ctrl)) & 1);
+        const allControlsActive = controlQubits.every(ctrl => (src >> ctrl) & 1);
         // Check if all anti-control qubits are 0
-        const allAntiControlsInactive = antiControlQubits.every(antiCtrl => !((src >> (numQubits - 1 - antiCtrl)) & 1));
+        const allAntiControlsInactive = antiControlQubits.every(antiCtrl => !((src >> antiCtrl) & 1));
 
         if (!allControlsActive || !allAntiControlsInactive) {
             matrix[src][src] = one; // Identity when conditions not met
@@ -182,8 +183,8 @@ export function computeMultiControlledUMatrixWithAntiControls(
         }
 
         // Both controls and anti-controls satisfy conditions, apply U to target qubit
-        const targetBit = (src >> (numQubits - 1 - targetQubit)) & 1;
-        const targetMask = 1 << (numQubits - 1 - targetQubit);
+        const targetBit = (src >> targetQubit) & 1;
+        const targetMask = 1 << targetQubit;
 
         for (let rowBit = 0; rowBit < 2; rowBit++) {
             const amp = U[rowBit][targetBit];

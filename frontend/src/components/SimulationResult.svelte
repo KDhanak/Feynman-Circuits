@@ -69,7 +69,9 @@
 		};
 	}
 
-	function coloredStateHtml(stateText: string, measuredQubits: number[], measuredColor: string): string {
+	// `stateText` must already be in display order (pass it through displayBasis /
+	// displayFormattedState first). `order` maps each character position to its qubit.
+	function coloredStateHtml(stateText: string, measuredQubits: number[], measuredColor: string, order: number[]): string {
 		let bitsStr = stateText;
 		const pipeIndex = stateText.indexOf('|');
 		if (pipeIndex !== -1) {
@@ -79,7 +81,7 @@
 
 		const coloredBits = Array.from(bitsStr)
 			.map((bit, i) => {
-				if (measuredQubits.includes(i)) {
+				if (measuredQubits.includes(order[i] ?? i)) {
 					return `<span style="color:${measuredColor};font-weight:600;">${bit}</span>`;
 				}
 				return bit;
@@ -92,6 +94,30 @@
 	$: probabilitiesArray = toEntriesArray($simulationResult?.probabilities);
 	$: columns = chunkArray(probabilitiesArray, 4);
 	$: shouldShowPopupButton = $circuitIR.registers.q >= 4;
+
+	// ── Bit-order display (tasks 0.10–0.12) ──────────────────────────────
+	// The engine always produces little-endian labels (q0 = right-most bit).
+	// This layer optionally reverses the label string for display, and builds
+	// a legend + a display-char-index → qubit-index map used for highlighting
+	// measured qubits. Nothing here touches the simulation or the wire layout.
+	$: numQubits = $circuitIR.registers.q;
+	$: bitOrder = $settings.bitOrder;
+	// qubitOrder[i] = which qubit the i-th character of the *displayed* label is.
+	$: qubitOrder =
+		bitOrder === 'q0-left'
+			? Array.from({ length: numQubits }, (_, i) => i) // q0 q1 … q(n-1)
+			: Array.from({ length: numQubits }, (_, i) => numQubits - 1 - i); // q(n-1) … q0
+	$: legendLabels = qubitOrder.map((q) => `q${q}`);
+
+	function displayBasis(basis: string): string {
+		return bitOrder === 'q0-left' ? Array.from(basis).reverse().join('') : basis;
+	}
+
+	// Reverse the bits inside every |…⟩ token of a Dirac-notation string.
+	function displayFormattedState(str: string): string {
+		if (bitOrder !== 'q0-left') return str;
+		return str.replace(/\|([01]+)⟩/g, (_, bits: string) => `|${Array.from(bits).reverse().join('')}⟩`);
+	}
 
 	$: showHistogram = $settings.defaultResultView === 'histogram';
 	$: isMeasured = ($simulationResult.measuredQubits ?? []).length > 0;
@@ -153,7 +179,7 @@
 			.map((item) => {
 				const isZero = item.prob === 0;
 				const measuredQubits = $simulationResult.measuredQubits || [];
-				const coloredBits = coloredStateHtml(item.state, measuredQubits, colors.measured).substring(1).slice(0, -1);
+				const coloredBits = coloredStateHtml(displayBasis(item.state), measuredQubits, colors.measured, qubitOrder).substring(1).slice(0, -1);
 				return `
 			<div class="row">
 				<span class="prob ${isZero ? 'zero' : 'nonzero'}">|${coloredBits}⟩</span>
@@ -219,8 +245,8 @@
 		<h3>Live Simulation Results <span class="live-dot"></span></h3>
 		<p class="quantum-state"><strong>Quantum State:</strong> <span class="state">${
 			$simulationResult.formattedState && $simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0
-				? coloredStateHtml($simulationResult.formattedState, $simulationResult.measuredQubits, colors.measured)
-				: $simulationResult.formattedState ?? 'Calculating...'
+				? coloredStateHtml(displayFormattedState($simulationResult.formattedState), $simulationResult.measuredQubits, colors.measured, qubitOrder)
+				: $simulationResult.formattedState ? displayFormattedState($simulationResult.formattedState) : 'Calculating...'
 		}</span></p>
 
 		${measuredQubitsHtml}
@@ -228,7 +254,7 @@
 
 		<div class="probabilities-container">
 			<div class="header-row">
-				<span class="header">States</span>
+				<span class="header">|${legendLabels.join(' ')}⟩</span>
 				<span class="header">Probabilities</span>
 			</div>
 
@@ -262,6 +288,10 @@
 		popupWindow.close();
 		popupWindow = null;
 	}
+
+	// Refresh an open results popup when the bit-order preference changes (the
+	// popup isn't rebuilt by circuit/sim changes for a pure display-setting flip).
+	$: if (bitOrder && popupWindow && !popupWindow.closed) schedulePopupUpdate();
 
 	onMount(() => {
 		const unsubCircuit = circuitIR.subscribe(() => {
@@ -336,13 +366,16 @@
 						fill="var(--color-muted)"
 						font-family="ui-monospace,monospace"
 						transform="rotate(-45 {cx} {CHART_TOP + CHART_H + 7})"
-					>|{item.state}⟩</text>
+					>|{displayBasis(item.state)}⟩</text>
 				{/each}
 			</svg>
 		</div>
-		<div class="flex items-center justify-center gap-1.5">
-			<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Probability Histogram', 'Each bar shows the probability of measuring that bit string. Taller bars are more likely outcomes. Only the top 8 states are shown — click "View All States" for the full list.', 'left')} aria-label="More info">i</button>
-			<p class="text-xs text-center" style="color: var(--color-muted);">Showing 8 top states.</p>
+		<div class="flex flex-col items-center gap-1">
+			<p class="bit-legend" title="Each character in a state label is this qubit.">|{legendLabels.join(' ')}⟩</p>
+			<div class="flex items-center justify-center gap-1.5">
+				<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Probability Histogram', 'Each bar shows the probability of measuring that bit string. Taller bars are more likely outcomes. Only the top 8 states are shown — click "View All States" for the full list.', 'left')} aria-label="More info">i</button>
+				<p class="text-xs text-center" style="color: var(--color-muted);">Showing 8 top states.</p>
+			</div>
 		</div>
 	{:else if shouldShowPopupButton}
 		{@const nonZero = probabilitiesArray.filter(p => p.prob > 0)}
@@ -361,8 +394,8 @@
 
 			<!-- Quantum state -->
 			{#if $simulationResult.formattedState}
-				<p class="text-sm font-mono truncate" style="color: var(--color-muted);" title={$simulationResult.formattedState}>
-					{$simulationResult.formattedState}
+				<p class="text-sm font-mono truncate" style="color: var(--color-muted);" title={displayFormattedState($simulationResult.formattedState)}>
+					{displayFormattedState($simulationResult.formattedState)}
 				</p>
 			{/if}
 
@@ -391,13 +424,16 @@
 			<!-- Top 3 states -->
 			{#if top3.length > 0}
 				<div>
-					<div class="flex items-center gap-1.5 mb-1">
-						<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Top States', 'The three most probable measurement outcomes. For the full probability distribution across all states, click "View All States" below.')} aria-label="More info">i</button>
-						<p class="text-sm font-medium" style="color: var(--color-muted);">Top states</p>
+					<div class="flex items-center justify-between gap-1.5 mb-1">
+						<div class="flex items-center gap-1.5">
+							<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Top States', 'The three most probable measurement outcomes. For the full probability distribution across all states, click "View All States" below.')} aria-label="More info">i</button>
+							<p class="text-sm font-medium" style="color: var(--color-muted);">Top states</p>
+						</div>
+						<span class="bit-legend" title="Each character in a state label is this qubit.">|{legendLabels.join(' ')}⟩</span>
 					</div>
 					{#each top3 as item}
 						<div class="flex justify-between items-center py-1 border-b text-sm font-mono" style="border-color: var(--color-ternary-2);">
-							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">|{item.state}⟩</span>
+							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">|{displayBasis(item.state)}⟩</span>
 							<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">{(item.prob * 100).toFixed($settings.probabilityDecimals)}%</span>
 						</div>
 					{/each}
@@ -422,13 +458,13 @@
 				Quantum State:
 				<span class="text-sm font-normal">
 					{#if $simulationResult.formattedState}
-						{@const stateText = $simulationResult.formattedState}
+						{@const stateText = displayFormattedState($simulationResult.formattedState)}
 						{@const pipeIndex = stateText.indexOf('|')}
 						{@const closingIndex = stateText.indexOf('⟩')}
 						{@const bitsStr = stateText.substring(pipeIndex + 1, closingIndex)}
 						{stateText.substring(0, pipeIndex + 1)}
 						{#each Array.from(bitsStr) as bit, i (i)}
-							<span style={$simulationResult.measuredQubits?.includes(i) ? 'color: var(--color-measured); font-weight: 600;' : ''}>
+							<span style={$simulationResult.measuredQubits?.includes(qubitOrder[i] ?? i) ? 'color: var(--color-measured); font-weight: 600;' : ''}>
 								{bit}
 							</span>
 						{/each}
@@ -462,9 +498,12 @@
 			</div>
 		{/if}
 
-		<div class="flex items-center gap-1.5 mt-5">
-			<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Probabilities', 'The chance of measuring each possible bit string. All values sum to 100%. States with 0% are theoretically possible but will never occur in practice.', 'left')} aria-label="More info">i</button>
-			<p class="text-md font-medium">Probabilities:</p>
+		<div class="flex items-center justify-between gap-1.5 mt-5">
+			<div class="flex items-center gap-1.5">
+				<button type="button" class="info-btn" on:click={(e) => showTooltip(e, 'Probabilities', 'The chance of measuring each possible bit string. All values sum to 100%. States with 0% are theoretically possible but will never occur in practice.', 'left')} aria-label="More info">i</button>
+				<p class="text-md font-medium">Probabilities:</p>
+			</div>
+			<span class="bit-legend" title="Each character in a state label is this qubit — the top wire is q0.">|{legendLabels.join(' ')}⟩</span>
 		</div>
 
 		{#if columns.length > 0}
@@ -474,7 +513,7 @@
 						{#each column as item}
 							<div class="prob-row">
 								<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;"
-									>|{item.state}⟩</span
+									>|{displayBasis(item.state)}⟩</span
 								>
 								<span style="color: {item.prob > 0 ? 'var(--color-probability)' : 'var(--color-muted)'}; font-weight: 600;">
 									{(item.prob * 100).toFixed($settings.probabilityDecimals)}%
@@ -530,6 +569,15 @@
 	@keyframes bar-grow {
 		from { transform: scaleY(0); opacity: 0; }
 		to   { transform: scaleY(1); opacity: 1; }
+	}
+
+	.bit-legend {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;
+		font-size: 0.8rem;
+		letter-spacing: 0.05em;
+		color: var(--color-muted);
+		opacity: 0.85;
+		cursor: help;
 	}
 
 	.prob-columns {

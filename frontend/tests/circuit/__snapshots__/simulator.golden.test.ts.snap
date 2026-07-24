@@ -2,9 +2,9 @@
 
 exports[`simulateMultipleQubits — golden snapshots > anti-control gate (X fires only when control is |0>) 1`] = `
 {
-  "formattedState": "(1.00)|01⟩",
+  "formattedState": "(1.00)|10⟩",
   "probabilities": {
-    "01": [
+    "10": [
       1,
       0,
     ],
@@ -14,9 +14,9 @@ exports[`simulateMultipleQubits — golden snapshots > anti-control gate (X fire
 
 exports[`simulateMultipleQubits — golden snapshots > controlled rotation (RY with control) 1`] = `
 {
-  "formattedState": "(0.71)|10⟩ + (0.71)|11⟩",
+  "formattedState": "(0.71)|01⟩ + (0.71)|11⟩",
   "probabilities": {
-    "10": [
+    "01": [
       0.5,
       0,
     ],
@@ -188,9 +188,9 @@ exports[`simulateMultipleQubits — golden snapshots > single-qubit gates on |0>
 
 exports[`simulateMultipleQubits — golden snapshots > swap entangled-looking pair 1`] = `
 {
-  "formattedState": "(1.00)|01⟩",
+  "formattedState": "(1.00)|10⟩",
   "probabilities": {
-    "01": [
+    "10": [
       1,
       0,
     ],

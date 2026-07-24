@@ -37,7 +37,7 @@
 	style="background: radial-gradient(at center, var(--color-background) 50%, var(--color-surface) 90%)"
 >
 	<!-- Header -->
-	<header class="relative max-w-420 mx-auto w-[96%] flex items-center justify-between py-2 shrink-0">
+	<header class="relative max-w-420 mx-auto w-[96%] flex items-center justify-between shrink-0">
 		<a href="/" class="shrink-0">
 			<img
 				src="/feynman_circuits_logo_dark.svg"
@@ -52,8 +52,8 @@
 		</a>
 
 		<div class="hidden sm:flex flex-row">
-			<h1 class="mb-4 text-xl font-semibold text-secondary-2">FEYNMAN</h1>
-			<span class="mb-4 text-xl font-semibold" style="color: var(--color-text);">CIRCUITS</span>
+			<h1 class="mb-2 text-xl font-semibold text-secondary-2">FEYNMAN</h1>
+			<span class="mb-2 text-xl font-semibold" style="color: var(--color-text);">CIRCUITS</span>
 		</div>
 
 		<div class="flex items-center gap-2">
@@ -108,7 +108,7 @@
 	</div>
 	<!-- Results row — fixed height on desktop, never shifts layout -->
 	<div
-		class="w-[96%] max-w-420 mx-auto mt-4 mb-2 flex flex-col sm:flex-row justify-between items-stretch gap-4 shrink-0 sm:h-82.5"
+		class="w-[96%] max-w-420 mx-auto mt-2.5 mb-1 flex flex-col sm:flex-row justify-between items-stretch gap-2.5 shrink-0 sm:h-82.5"
 	>
 		<div
 			class="flex-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 max-w-none sm:max-w-sm overflow-y-auto"
@@ -144,8 +144,8 @@
 		style="color: var(--color-muted);"
 		aria-label="Open feedback form"
 	>
-		<Icon icon="ph:chat-circle-text-bold" width="13" height="13" />
-		<span class="underline underline-offset-2">Feedback</span>
+		<Icon icon="ph:chat-circle-text-bold" class="text-green-600" width="13" height="13" />
+		<span class="underline underline-offset-2 font-bold text-green-600">Feedback</span>
 	</button>
 </main>
 

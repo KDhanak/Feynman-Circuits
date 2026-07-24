@@ -6,7 +6,8 @@
 		resetSettings,
 		AUTO_SAVE_INTERVAL_OPTIONS,
 		PROBABILITY_DECIMAL_OPTIONS,
-		type ResultView
+		type ResultView,
+		type BitOrder
 	} from '$lib/stores/settingsStore';
 	import Icon from '@iconify/svelte';
 
@@ -19,6 +20,11 @@
 	const resultViewOptions: { value: ResultView; label: string; icon: string }[] = [
 		{ value: 'list', label: 'List', icon: 'ph:list-bold' },
 		{ value: 'histogram', label: 'Histogram', icon: 'ph:chart-bar-bold' }
+	];
+
+	const bitOrderOptions: { value: BitOrder; label: string; hint: string }[] = [
+		{ value: 'q0-left', label: 'q0 leftmost', hint: 'Textbook' },
+		{ value: 'q0-right', label: 'q0 rightmost', hint: 'Qiskit / IBM' }
 	];
 </script>
 
@@ -132,6 +138,30 @@
 					<option value={d}>{d} decimal{d === 1 ? '' : 's'}</option>
 				{/each}
 			</select>
+		</div>
+
+		<div class="mt-4">
+			<div class="mb-1 text-sm font-medium" style="color: var(--color-text);">Bit order</div>
+			<p class="mb-2 text-xs" style="color: var(--color-muted);">
+				How basis-state labels are read. The simulation is unaffected — only the label string is flipped.
+			</p>
+			<div class="grid grid-cols-2 gap-2">
+				{#each bitOrderOptions as opt}
+					<button
+						type="button"
+						on:click={() => updateSettings({ bitOrder: opt.value })}
+						class="flex flex-col items-center justify-center gap-0.5 rounded-sm border py-2 text-sm font-medium cursor-pointer transition-colors"
+						style="border-color: {$settings.bitOrder === opt.value
+							? 'var(--color-ternary-1)'
+							: 'var(--color-border)'}; color: var(--color-text); background-color: {$settings.bitOrder === opt.value
+							? 'color-mix(in srgb, var(--color-ternary-1) 12%, transparent)'
+							: 'transparent'};"
+					>
+						<span class="font-mono">{opt.label}</span>
+						<span class="text-xs" style="color: var(--color-muted);">{opt.hint}</span>
+					</button>
+				{/each}
+			</div>
 		</div>
 
 		<label class="mt-4 flex items-center justify-between gap-4 cursor-pointer">

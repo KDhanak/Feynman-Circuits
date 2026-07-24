@@ -21,7 +21,9 @@ export function collapseQubit(
 	numQubits: number
 ): { newState: QuantumState; outcome: number } {
 	const dim = 1 << numQubits;
-	const pos = numQubits - 1 - qubit;
+	// Little-endian (Qiskit/OpenQASM) convention: qubit q maps directly to
+	// statevector bit position q (q0 = least-significant bit / rightmost label).
+	const pos = qubit;
 
 	let prob0 = 0;
 	const blockSize = 1 << pos;
@@ -123,8 +125,8 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 				if (op.gate === 'swap') {
 					if (op.targets.length !== 2) continue;
 					const [q1, q2] = op.targets;
-					const p1 = numQubits - 1 - q1;
-					const p2 = numQubits - 1 - q2;
+					const p1 = q1;
+					const p2 = q2;
 					const swapped = [...state];
 					for (let i = 0; i < dim; i++) {
 						const b1 = (i >> p1) & 1;
