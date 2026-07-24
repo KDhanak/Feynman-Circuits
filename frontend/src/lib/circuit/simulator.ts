@@ -5,7 +5,7 @@ import { simulationResult } from "../IR/stores";
 import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale, type Complex } from "../quantum/complex";
 import { type QuantumState, createState } from "../quantum/vector";
 import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix, computeMultiControlledUMatrixWithAntiControls } from "../quantum/matrix";
-import { GATE_MAP, createRXGate, createRYGate, createRZGate } from "../quantum/gates";
+import { GATE_REGISTRY } from "../quantum/gates";
 import { get } from "svelte/store";
 import { computeBlochVectorsFromState } from '../quantum/bloch';
 import { markAsReset } from './autoSave';
@@ -56,24 +56,12 @@ export function collapseQubit(
  * Returns null for an unknown gate so the caller can skip it.
  */
 function getGateMatrix(op: UnitaryOperation, numQubits: number): Complex[][] | null {
-	let baseMatrix: Complex[][];
-
-	switch (op.gate) {
-		case 'rx':
-			baseMatrix = createRXGate(op.params[0] ?? 0).matrix;
-			break;
-		case 'ry':
-			baseMatrix = createRYGate(op.params[0] ?? 0).matrix;
-			break;
-		case 'rz':
-			baseMatrix = createRZGate(op.params[0] ?? 0).matrix;
-			break;
-		default: {
-			const gateDef = GATE_MAP[op.gate];
-			if (!gateDef) return null;
-			baseMatrix = gateDef.matrix;
-		}
-	}
+	// Single source of truth: the registry's matrix factory handles both static
+	// gates and parametric rotations. `swap` (and any unknown gate) has no matrix
+	// factory and returns null — the caller special-cases swap on the state.
+	const build = GATE_REGISTRY[op.gate]?.matrix;
+	if (!build) return null;
+	const baseMatrix = build(op.params);
 
 	if (op.controls.length === 0 && op.antiControls.length === 0) {
 		return extendGateMatrix(baseMatrix, op.targets[0], numQubits);

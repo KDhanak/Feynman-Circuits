@@ -91,24 +91,6 @@ export function createRZGate(theta: number): QuantumGate {
     };
 }
 
-export const RX_GATE: QuantumGate = createRXGate(0);
-export const RY_GATE: QuantumGate = createRYGate(0);
-export const RZ_GATE: QuantumGate = createRZGate(0);
-
-// swap has no single 2×2 matrix (the simulator special-cases it), so it is
-// intentionally absent here — hence Partial. Consumers must null-check lookups.
-export const GATE_MAP: Partial<Record<CanonicalUnitaryGate, QuantumGate>> = {
-    "x": X_GATE,
-    "y": Y_GATE,
-    "z": Z_GATE,
-    "h": H_GATE,
-    "s": S_GATE,
-    "t": T_GATE,
-    "rx": RX_GATE,
-    "ry": RY_GATE,
-    "rz": RZ_GATE,
-}
-
 // ─────────────────────────────────────────────────────────────
 // Gate registry — single source of truth for gate identity.
 //
@@ -128,20 +110,42 @@ export interface GateSpec {
     qasmName: string;                           // base OpenQASM name
     controlledQasm?: Record<number, string>;    // special controlled spellings, e.g. { 1: 'cx', 2: 'ccx' }
     matrix?: (params: number[]) => Complex[][]; // omitted for swap (simulator special-cases it)
+    // Palette tooltip copy — `quick` is the bold title, `detail` the description.
+    tooltip: { quick: string; detail: string };
 }
 
 export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
-    x: { id: 'x', label: 'X', category: 'pauli', arity: 1, numParams: 0, qasmName: 'x', controlledQasm: { 1: 'cx', 2: 'ccx' }, matrix: () => X_GATE.matrix },
-    y: { id: 'y', label: 'Y', category: 'pauli', arity: 1, numParams: 0, qasmName: 'y', matrix: () => Y_GATE.matrix },
-    z: { id: 'z', label: 'Z', category: 'pauli', arity: 1, numParams: 0, qasmName: 'z', controlledQasm: { 1: 'cz' }, matrix: () => Z_GATE.matrix },
-    h: { id: 'h', label: 'H', category: 'hadamard', arity: 1, numParams: 0, qasmName: 'h', matrix: () => H_GATE.matrix },
-    s: { id: 's', label: 'S', category: 'phase', arity: 1, numParams: 0, qasmName: 's', matrix: () => S_GATE.matrix },
-    t: { id: 't', label: 'T', category: 'phase', arity: 1, numParams: 0, qasmName: 't', matrix: () => T_GATE.matrix },
-    rx: { id: 'rx', label: 'RX', category: 'rotation', arity: 1, numParams: 1, qasmName: 'rx', matrix: (p) => createRXGate(p[0] ?? 0).matrix },
-    ry: { id: 'ry', label: 'RY', category: 'rotation', arity: 1, numParams: 1, qasmName: 'ry', matrix: (p) => createRYGate(p[0] ?? 0).matrix },
-    rz: { id: 'rz', label: 'RZ', category: 'rotation', arity: 1, numParams: 1, qasmName: 'rz', matrix: (p) => createRZGate(p[0] ?? 0).matrix },
-    swap: { id: 'swap', label: 'SWAP', category: 'multi', arity: 2, numParams: 0, qasmName: 'swap' },
+    x: { id: 'x', label: 'X', category: 'pauli', arity: 1, numParams: 0, qasmName: 'x', controlledQasm: { 1: 'cx', 2: 'ccx' }, matrix: () => X_GATE.matrix,
+        tooltip: { quick: 'Pauli-X (NOT)', detail: 'Flips |0⟩ to |1⟩ and vice versa. The quantum equivalent of a classical NOT gate.' } },
+    y: { id: 'y', label: 'Y', category: 'pauli', arity: 1, numParams: 0, qasmName: 'y', matrix: () => Y_GATE.matrix,
+        tooltip: { quick: 'Pauli-Y', detail: 'Flips the qubit and adds a phase of i. Rotates 180° around the Y-axis of the Bloch sphere.' } },
+    z: { id: 'z', label: 'Z', category: 'pauli', arity: 1, numParams: 0, qasmName: 'z', controlledQasm: { 1: 'cz' }, matrix: () => Z_GATE.matrix,
+        tooltip: { quick: 'Pauli-Z', detail: 'Leaves |0⟩ unchanged, flips the phase of |1⟩. Rotates 180° around the Z-axis.' } },
+    h: { id: 'h', label: 'H', category: 'hadamard', arity: 1, numParams: 0, qasmName: 'h', matrix: () => H_GATE.matrix,
+        tooltip: { quick: 'Hadamard', detail: 'Puts a qubit into equal superposition — a measurement gives |0⟩ or |1⟩ with 50/50 probability.' } },
+    s: { id: 's', label: 'S', category: 'phase', arity: 1, numParams: 0, qasmName: 's', matrix: () => S_GATE.matrix,
+        tooltip: { quick: 'S Gate (Phase)', detail: 'Adds a 90° phase shift to |1⟩. Equivalent to √Z.' } },
+    t: { id: 't', label: 'T', category: 'phase', arity: 1, numParams: 0, qasmName: 't', matrix: () => T_GATE.matrix,
+        tooltip: { quick: 'T Gate', detail: 'Adds a 45° phase shift to |1⟩. Used heavily in fault-tolerant quantum computing.' } },
+    rx: { id: 'rx', label: 'RX', category: 'rotation', arity: 1, numParams: 1, qasmName: 'rx', matrix: (p) => createRXGate(p[0] ?? 0).matrix,
+        tooltip: { quick: 'X-Rotation', detail: 'Rotates the qubit around the X-axis by a chosen angle θ. Double-click to set the angle.' } },
+    ry: { id: 'ry', label: 'RY', category: 'rotation', arity: 1, numParams: 1, qasmName: 'ry', matrix: (p) => createRYGate(p[0] ?? 0).matrix,
+        tooltip: { quick: 'Y-Rotation', detail: 'Rotates the qubit around the Y-axis by a chosen angle θ. Double-click to set the angle.' } },
+    rz: { id: 'rz', label: 'RZ', category: 'rotation', arity: 1, numParams: 1, qasmName: 'rz', matrix: (p) => createRZGate(p[0] ?? 0).matrix,
+        tooltip: { quick: 'Z-Rotation', detail: 'Rotates the qubit around the Z-axis by a chosen angle θ. Double-click to set the angle.' } },
+    swap: { id: 'swap', label: 'SWAP', category: 'multi', arity: 2, numParams: 0, qasmName: 'swap',
+        tooltip: { quick: 'SWAP', detail: 'Exchanges the states of two qubits. Drop both ends on the same column.' } },
 };
+
+// Palette display category derived from the registry — keeps GatePalette from
+// re-listing gates. Parametric gates get their own group; 2-target gates (swap)
+// are 'two-qubit'; everything else is a plain single-qubit tile.
+export type PaletteCategory = 'single' | 'parametric' | 'multi' | 'two-qubit';
+export function paletteCategory(spec: GateSpec): PaletteCategory {
+    if (spec.numParams > 0) return 'parametric';
+    if (spec.arity >= 2) return 'two-qubit';
+    return 'single';
+}
 
 // Derived lookups — use these instead of re-listing gate ids anywhere else.
 export const UNITARY_GATE_IDS = Object.keys(GATE_REGISTRY) as CanonicalUnitaryGate[];

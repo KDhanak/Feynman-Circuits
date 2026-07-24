@@ -15,106 +15,50 @@
 	import { applyBellPairPreset, compactCircuit } from '$lib/circuit/circuitActions';
 	import Tooltip from './Tooltip.svelte';
 	import {isMobile} from '$lib/stores/isMobile';
+	import { GATE_REGISTRY, UNITARY_GATE_IDS, paletteCategory } from '$lib/quantum/gates';
 
-	const gates: { type: string; name: string; category: string; quick: string; detail: string }[] = [
-		{
-			type: 'X',
-			name: 'X',
-			category: 'single',
-			quick: 'Pauli-X (NOT)',
-			detail: 'Flips |0⟩ to |1⟩ and vice versa. The quantum equivalent of a classical NOT gate.'
-		},
-		{
-			type: 'Y',
-			name: 'Y',
-			category: 'single',
-			quick: 'Pauli-Y',
-			detail:
-				'Flips the qubit and adds a phase of i. Rotates 180° around the Y-axis of the Bloch sphere.'
-		},
-		{
-			type: 'Z',
-			name: 'Z',
-			category: 'single',
-			quick: 'Pauli-Z',
-			detail: 'Leaves |0⟩ unchanged, flips the phase of |1⟩. Rotates 180° around the Z-axis.'
-		},
-		{
-			type: 'H',
-			name: 'H',
-			category: 'single',
-			quick: 'Hadamard',
-			detail:
-				'Puts a qubit into equal superposition — a measurement gives |0⟩ or |1⟩ with 50/50 probability.'
-		},
-		{
-			type: 'S',
-			name: 'S',
-			category: 'single',
-			quick: 'S Gate (Phase)',
-			detail: 'Adds a 90° phase shift to |1⟩. Equivalent to √Z.'
-		},
-		{
-			type: 'T',
-			name: 'T',
-			category: 'single',
-			quick: 'T Gate',
-			detail: 'Adds a 45° phase shift to |1⟩. Used heavily in fault-tolerant quantum computing.'
-		},
-		{
-			type: 'RX',
-			name: 'RX',
-			category: 'parametric',
-			quick: 'X-Rotation',
-			detail:
-				'Rotates the qubit around the X-axis by a chosen angle θ. Double-click to set the angle.'
-		},
-		{
-			type: 'RY',
-			name: 'RY',
-			category: 'parametric',
-			quick: 'Y-Rotation',
-			detail:
-				'Rotates the qubit around the Y-axis by a chosen angle θ. Double-click to set the angle.'
-		},
-		{
-			type: 'RZ',
-			name: 'RZ',
-			category: 'parametric',
-			quick: 'Z-Rotation',
-			detail:
-				'Rotates the qubit around the Z-axis by a chosen angle θ. Double-click to set the angle.'
-		},
-		{
-			type: 'CONTROL',
-			name: 'CONTROL',
-			category: 'multi',
-			quick: 'Control',
-			detail:
-				'Makes the next gate conditional — it only fires if this qubit is |1⟩. Drop it on the same column as a gate.'
-		},
-		{
-			type: 'ANTI_CONTROL',
-			name: 'ANTI_CONTROL',
-			category: 'multi',
-			quick: 'Anti-Control',
-			detail: 'Like Control, but fires when the qubit is |0⟩ instead of |1⟩.'
-		},
-		{
-			type: 'SWAP',
-			name: 'SWAP',
-			category: 'two-qubit',
-			quick: 'SWAP',
-			detail: 'Exchanges the states of two qubits. Drop both ends on the same column.'
-		},
-		{
-			type: 'MEASURE',
-			name: 'MEASURE',
-			category: 'single',
-			quick: 'Measure',
-			detail:
-				"Collapses the qubit to a definite |0⟩ or |1⟩ using Born's rule. The outcome is random, weighted by probability. (In reality, its pseudo-random for a web simulator)"
-		}
+	type PaletteTile = { type: string; name: string; category: string; quick: string; detail: string };
+
+	// Editor primitives — not gates, so they don't live in the registry.
+	const CONTROL_TILE: PaletteTile = {
+		type: 'CONTROL', name: 'CONTROL', category: 'multi',
+		quick: 'Control',
+		detail: 'Makes the next gate conditional — it only fires if this qubit is |1⟩. Drop it on the same column as a gate.'
+	};
+	const ANTI_CONTROL_TILE: PaletteTile = {
+		type: 'ANTI_CONTROL', name: 'ANTI_CONTROL', category: 'multi',
+		quick: 'Anti-Control',
+		detail: 'Like Control, but fires when the qubit is |0⟩ instead of |1⟩.'
+	};
+	const MEASURE_TILE: PaletteTile = {
+		type: 'MEASURE', name: 'MEASURE', category: 'single',
+		quick: 'Measure',
+		detail: "Collapses the qubit to a definite |0⟩ or |1⟩ using Born's rule. The outcome is random, weighted by probability. (In reality, its pseudo-random for a web simulator)"
+	};
+
+	// Gate tiles are derived from the registry so a new gate shows up here
+	// automatically. Palette drag/drop uses uppercase type strings.
+	const toTile = (id: (typeof UNITARY_GATE_IDS)[number]): PaletteTile => {
+		const spec = GATE_REGISTRY[id];
+		return {
+			type: id.toUpperCase(),
+			name: spec.label,
+			category: paletteCategory(spec),
+			quick: spec.tooltip.quick,
+			detail: spec.tooltip.detail
+		};
+	};
+	const singleAndParametric = UNITARY_GATE_IDS.filter((id) => GATE_REGISTRY[id].arity === 1).map(toTile);
+	const twoQubit = UNITARY_GATE_IDS.filter((id) => GATE_REGISTRY[id].arity >= 2).map(toTile);
+
+	// Order preserved from the original hand-written list: single/parametric gates,
+	// then the control primitives, then two-qubit gates, then measure.
+	const gates: PaletteTile[] = [
+		...singleAndParametric,
+		CONTROL_TILE,
+		ANTI_CONTROL_TILE,
+		...twoQubit,
+		MEASURE_TILE
 	];
 
 	let dragEnterCount = 0;
