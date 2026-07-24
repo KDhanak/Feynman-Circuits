@@ -165,6 +165,60 @@
 		});
 	}
 
+	function addQubitWire() {
+		const ir = $circuitIR;
+		if (ir.registers.q >= MAX_QUBITS) return;
+		const newIndex = ir.registers.q;
+		circuitIR.set({
+			...ir,
+			registers: { ...ir.registers, q: ir.registers.q + 1 },
+			qubitLabels: [...ir.qubitLabels, `Qubit ${newIndex}`]
+		});
+		triggerSimulation($circuitIR);
+	}
+
+	function removeLastQubitWire() {
+		removeQubitWire($circuitIR.registers.q - 1);
+	}
+
+	// Set the qubit count from the text box. Growing always appends (labels
+	// preserved); shrinking peels trailing wires off the end but stops at the
+	// first one carrying gates, so an in-use wire is never silently dropped.
+	function setQubitCount(target: number) {
+		const clamped = Math.max(1, Math.min(MAX_QUBITS, Math.floor(target)));
+		const ir = $circuitIR;
+		if (clamped > ir.registers.q) {
+			const start = ir.registers.q;
+			const added = Array.from({ length: clamped - start }, (_, i) => `Qubit ${start + i}`);
+			circuitIR.set({
+				...ir,
+				registers: { ...ir.registers, q: clamped },
+				qubitLabels: [...ir.qubitLabels, ...added]
+			});
+			triggerSimulation($circuitIR);
+		} else if (clamped < ir.registers.q) {
+			while ($circuitIR.registers.q > clamped) {
+				const last = $circuitIR.registers.q - 1;
+				if (hasGatesOnWire(last)) break;
+				removeQubitWire(last);
+			}
+		}
+	}
+
+	// Parse the text box on commit (change / Enter), then snap the field back to
+	// the real count — covers invalid input and values clamped by setQubitCount.
+	function commitQubitCount(e: Event) {
+		const el = e.currentTarget as HTMLInputElement;
+		const n = parseInt(el.value, 10);
+		if (!Number.isNaN(n)) setQubitCount(n);
+		el.value = String($circuitIR.registers.q);
+	}
+
+	// The last qubit can be dropped only when there's more than one and it carries
+	// no gates (mirrors removeQubitWire's own guards, but drives the button state).
+	$: canRemoveLastQubit =
+		$circuitIR.registers.q > 1 && !hasGatesOnWire($circuitIR.registers.q - 1);
+
 	function removeQubitWire(qubitIndex: number) {
 		const ir = $circuitIR;
 		if (ir.registers.q <= 1) return;
@@ -364,6 +418,44 @@
 		if (e.key === 'Escape') closeContextMenu();
 	}}
 >
+	<!-- Add/remove qubit buttons, pinned to the board's top-left corner (icons only).
+	     Hidden on mobile while the delete-selected button occupies the same spot. -->
+	{#if !($isMobile && $selectedGateIds.size > 0)}
+		<div class="absolute top-2 pl-0.5 left-1.5 z-200 flex items-center backdrop-blur-lg rounded-sm shadow-sm">
+			<button
+				type="button"
+				class="flex cursor-pointer items-center justify-center rounded-sm p-1 text-ternary-2 transition-colors hover:bg-ternary-2/10 hover:text-ternary-1 active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ternary-2"
+				on:click|stopPropagation={addQubitWire}
+				disabled={$circuitIR.registers.q >= MAX_QUBITS}
+				aria-label="Add qubit"
+				title="Add qubit"
+			>
+				<Icon icon="mdi:plus" width="20" height="20" />
+			</button>
+			<input
+				type="text"
+				inputmode="numeric"
+				value={$circuitIR.registers.q}
+				on:change={commitQubitCount}
+				on:keydown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+				on:click|stopPropagation
+				aria-label="Number of qubits"
+				title="Number of qubits"
+				class="z-10 w-10 h-7 px-1 cursor-text text-[11px] focus:scale-105 text-ternary-1 focus:shadow-sm focus:shadow-ternary-1 text-center rounded-sm focus:outline-none select-auto"
+			/>
+			<button
+				type="button"
+				class="flex cursor-pointer items-center justify-center rounded-sm p-1 text-ternary-2 transition-colors hover:bg-ternary-2/10 hover:text-ternary-1 active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ternary-2"
+				on:click|stopPropagation={removeLastQubitWire}
+				disabled={!canRemoveLastQubit}
+				aria-label="Remove last qubit"
+				title={canRemoveLastQubit ? 'Remove last qubit' : 'Last qubit is in use or is the only qubit'}
+			>
+				<Icon icon="mdi:minus" width="20" height="20" />
+			</button>
+		</div>
+	{/if}
+
 	<!-- Reset circuit button, pinned to the board's top-right corner (icon only) -->
 	<button
 		type="button"
@@ -407,7 +499,7 @@
 			on:scroll={() => connectorLayer?.recomputeConnectorsSync()}
 		>
 			<div class="flex items-start p-2 pt-10">
-				<!-- LEFT: qubit circle + label (fixed, does not scroll) -->
+				<!-- LEFT: qubit box + label (fixed, does not scroll) -->
 				<div class="flex shrink-0 flex-col gap-1 pr-1">
 					{#each wires as wire (wire.id)}
 						{@const measured = $simulationResult?.measuredQubits?.includes(wire.qubit)}
@@ -418,11 +510,11 @@
 							on:mouseleave={() => (hoveredWire = null)}
 						>
 							<!-- Ket badge (translucent) with hover-reveal delete -->
-							<div class="relative mr-2 z-10 shrink-0">
+							<div class="relative mr-2 z-10 shrink-0 rounded-sm">
 								<div
-									class={`flex h-7 select-none items-center justify-center rounded-sm px-2 text-[13px] font-bold leading-none focus:outline-none ${
+									class={`flex h-7 select-none items-center justify-center px-2 rounded-sm text-[13px] font-bold leading-none focus:outline-none ${
 										measured ? 'bg-measured/30 text-measured' : 'bg-ternary-3/30 text-ternary-1'
-									} ${wire.qubit >= 1 ? 'cursor-pointer' : 'cursor-default'}`}
+									} ${wire.qubit >= 1 ? 'cursor-pointer shadow-sm shadow-ternary-1 active:shadow-none' : 'cursor-default'}`}
 									role="button"
 									tabindex="0"
 									title={wire.qubit >= 1 ? 'Double-click to remove qubit' : ''}
@@ -445,10 +537,10 @@
 								value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 								on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 								placeholder="Label"
-								class={`qubit-label z-10 w-13 h-6 px-1.5 cursor-text text-[11px] border text-center rounded-sm shadow-sm focus:outline-none focus:ring-1 select-auto ${
+								class={`qubit-label z-10 w-13 h-7 px-1.5 cursor-text text-[11px] border border-ternary-0 focus:scale-105 focus:shadow-sm focus:shadow-ternary-1 text-center rounded-sm focus:outline-none select-auto ${
 									measured
 										? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
-										: 'border-ternary-3 text-black bg-purple-100 focus:ring-purple-600 focus:border-purple-600'
+										: 'text-black bg-purple-100'
 								}`}
 							/>
 						</div>
@@ -456,7 +548,7 @@
 					{#if showGhostWire}
 						<div class={`flex ${$isMobile ? 'h-12' : 'h-14'} items-center opacity-60`} transition:slide={{ duration: 300 }}>
 							<div class="z-10 mr-2 flex h-7 shrink-0 select-none items-center justify-center rounded-sm bg-ternary-2/25 px-2 text-[13px] font-medium leading-none text-ternary-3 opacity-50">|0⟩</div>
-							<input type="text" value="Qubit {$circuitIR.registers.q}" disabled class="z-10 w-13 h-6 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50" />
+							<input type="text" value="Qubit {$circuitIR.registers.q}" disabled class="z-10 w-13 h-7 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50" />
 						</div>
 					{/if}
 				</div>

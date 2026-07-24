@@ -338,7 +338,7 @@
 	<div
 		bind:this={container}
 		class="min-h-0 flex-1"
-		style="border: 1px solid var(--color-border); border-radius: 0.125rem; overflow: hidden;"
+		style="border: 1px solid var(--color-branding); border-radius: 0.3rem; overflow: hidden;"
 	></div>
 </div>
 
