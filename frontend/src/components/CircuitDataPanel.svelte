@@ -470,7 +470,7 @@
 				<Icon icon="mingcute:download-fill" width="20" height="20" class="active:text-green-400 cursor-pointer" />
 			</button>
 			<button type="button" on:click={handleImport} aria-label="Import" title="Apply edits to circuit">
-				<Icon icon="mdi:file-import" width="20" height="20" class="active:text-green-400 cursor-pointer" />
+				<Icon icon="flowbite:file-import-solid" width="20" height="20" class="active:text-green-400 cursor-pointer" />
 			</button>
 		</div>
 	</div>

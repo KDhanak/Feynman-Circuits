@@ -1,7 +1,7 @@
 name: Tests
 on: [push, pull_request]
 jobs:
-  test:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -11,3 +11,19 @@ jobs:
       - run: cd frontend && npm ci
       - run: cd frontend && npm run check
       - run: cd frontend && npx vitest run
+
+  backend:
+    runs-on: ubuntu-latest
+    # DEBUG=True makes settings.py use SQLite + the console email backend (which
+    # Django's test runner swaps for an in-memory one), so no Postgres service
+    # or secrets are needed just to run the test suite.
+    env:
+      DEBUG: "True"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.txt
+      - run: python manage.py test
+        working-directory: backend

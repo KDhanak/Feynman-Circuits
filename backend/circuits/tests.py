@@ -1,3 +1,177 @@
-from django.test import TestCase
+"""API tests for the circuits app: cloud save/load, ownership isolation, the
+client-UUID upsert path (PUT), IR validation, and the next-name helper.
 
-# Create your tests here.
+Auth is via the `access_token` cookie that CookieJWTAuthentication reads, so we
+mint a token per user and drop it on the test client's cookie jar.
+"""
+
+import uuid
+
+from django.contrib.auth import get_user_model
+from rest_framework import status
+from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .models import Circuit
+
+User = get_user_model()
+
+# Minimal circuit IR the serializer's validate_ir accepts: version 1.0, a valid
+# qubit register (1–8), and one operation using a registered gate id in range.
+VALID_IR = {
+    "version": "1.0",
+    "registers": {"q": 2, "c": 0},
+    "operations": [
+        {"kind": "unitary", "gate": "h", "column": 0, "qubits": [0]},
+    ],
+}
+
+
+def make_user(email, password="Str0ngP@ssw0rd!"):
+    return User.objects.create_user(
+        email=email, password=password, first_name="Test", last_name="User"
+    )
+
+
+class CircuitAPITests(APITestCase):
+    list_url = "/circuits/api/circuits/"
+    next_name_url = "/circuits/api/circuits/next-name/"
+
+    def setUp(self):
+        self.user = make_user("owner@example.com")
+        self.other = make_user("intruder@example.com")
+        self._authenticate(self.user)
+
+    def _authenticate(self, user):
+        access = str(RefreshToken.for_user(user).access_token)
+        self.client.cookies["access_token"] = access
+
+    def _detail_url(self, pk):
+        return f"/circuits/api/circuits/{pk}/"
+
+    # --- auth ---------------------------------------------------------------
+
+    def test_list_requires_authentication(self):
+        self.client.cookies.clear()
+        resp = self.client.get(self.list_url)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # --- create / list ------------------------------------------------------
+
+    def test_create_circuit(self):
+        resp = self.client.post(
+            self.list_url,
+            {"name": "Bell", "ir": VALID_IR},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        circuit = Circuit.objects.get(name="Bell")
+        self.assertEqual(circuit.user, self.user)
+
+    def test_list_returns_only_own_circuits(self):
+        Circuit.objects.create(user=self.user, name="Mine", ir=VALID_IR)
+        Circuit.objects.create(user=self.other, name="Theirs", ir=VALID_IR)
+        resp = self.client.get(self.list_url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        names = [c["name"] for c in resp.data["results"]]
+        self.assertIn("Mine", names)
+        self.assertNotIn("Theirs", names)
+
+    def test_duplicate_name_rejected(self):
+        Circuit.objects.create(user=self.user, name="Bell", ir=VALID_IR)
+        resp = self.client.post(
+            self.list_url,
+            {"name": "Bell", "ir": VALID_IR},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- retrieve / ownership ----------------------------------------------
+
+    def test_retrieve_own_circuit_includes_ir(self):
+        circuit = Circuit.objects.create(user=self.user, name="Mine", ir=VALID_IR)
+        resp = self.client.get(self._detail_url(circuit.id))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["ir"], VALID_IR)
+
+    def test_cannot_retrieve_another_users_circuit(self):
+        circuit = Circuit.objects.create(user=self.other, name="Theirs", ir=VALID_IR)
+        resp = self.client.get(self._detail_url(circuit.id))
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    # --- update / upsert (PUT with a client-generated UUID) -----------------
+
+    def test_put_creates_circuit_with_client_uuid(self):
+        pk = uuid.uuid4()
+        resp = self.client.put(
+            self._detail_url(pk),
+            {"name": "Fresh", "ir": VALID_IR},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Circuit.objects.filter(id=pk, user=self.user).exists())
+
+    def test_put_updates_existing_circuit(self):
+        circuit = Circuit.objects.create(user=self.user, name="Old", ir=VALID_IR)
+        resp = self.client.put(
+            self._detail_url(circuit.id),
+            {"name": "Renamed", "ir": VALID_IR},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        circuit.refresh_from_db()
+        self.assertEqual(circuit.name, "Renamed")
+
+    # --- delete -------------------------------------------------------------
+
+    def test_delete_circuit(self):
+        circuit = Circuit.objects.create(user=self.user, name="Doomed", ir=VALID_IR)
+        resp = self.client.delete(self._detail_url(circuit.id))
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Circuit.objects.filter(id=circuit.id).exists())
+
+    # --- IR validation ------------------------------------------------------
+
+    def test_create_rejects_wrong_ir_version(self):
+        bad_ir = {**VALID_IR, "version": "2.0"}
+        resp = self.client.post(
+            self.list_url,
+            {"name": "BadVersion", "ir": bad_ir},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_rejects_unknown_gate(self):
+        bad_ir = {
+            **VALID_IR,
+            "operations": [{"kind": "unitary", "gate": "nope", "column": 0}],
+        }
+        resp = self.client.post(
+            self.list_url,
+            {"name": "BadGate", "ir": bad_ir},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_rejects_out_of_range_qubit_count(self):
+        bad_ir = {**VALID_IR, "registers": {"q": 99, "c": 0}}
+        resp = self.client.post(
+            self.list_url,
+            {"name": "TooManyQubits", "ir": bad_ir},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # --- next-name helper ---------------------------------------------------
+
+    def test_next_name_starts_at_untitled(self):
+        resp = self.client.get(self.next_name_url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["name"], "Untitled Circuit")
+
+    def test_next_name_increments(self):
+        Circuit.objects.create(
+            user=self.user, name="Untitled Circuit", ir=VALID_IR
+        )
+        resp = self.client.get(self.next_name_url)
+        self.assertEqual(resp.data["name"], "Untitled Circuit 2")
