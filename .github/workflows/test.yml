@@ -9,6 +9,7 @@ jobs:
         with:
           node-version: 20
       - run: cd frontend && npm ci
+      - run: cd frontend && npm run lint
       - run: cd frontend && npm run check
       - run: cd frontend && npx vitest run
 
