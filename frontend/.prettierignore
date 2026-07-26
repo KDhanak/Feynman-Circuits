@@ -4,3 +4,9 @@ pnpm-lock.yaml
 yarn.lock
 bun.lock
 bun.lockb
+
+# Build output
+.vercel
+.svelte-kit
+build
+dist
