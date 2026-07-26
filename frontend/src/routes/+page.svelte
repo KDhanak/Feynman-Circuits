@@ -3,6 +3,7 @@
 	import SimulationResult from '../components/SimulationResult.svelte';
 	import SignUp_In from '../components/SidePanel/AuthPanel.svelte';
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { loadSession } from '$lib/auth/session';
 	import { resolvedTheme, toggleTheme } from '$lib/stores/themeStore';
 	import { settings, updateSettings } from '$lib/stores/settingsStore';
@@ -114,7 +115,7 @@
 >
 	<!-- Header -->
 	<header class="relative max-w-420 mx-auto w-[96%] flex items-center justify-between shrink-0">
-		<a href="/" class="shrink-0">
+		<a href={resolve('/')} class="shrink-0">
 			<img
 				src="/feynman_circuits_logo_dark.svg"
 				alt="Feynman Circuits Logo"

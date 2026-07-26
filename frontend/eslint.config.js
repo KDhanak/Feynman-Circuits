@@ -27,7 +27,17 @@ export default ts.config(
 			'@typescript-eslint/no-unused-vars': [
 				'error',
 				{ argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }
-			]
+			],
+			// These three target Svelte 5 *runes*-mode patterns. This codebase is
+			// legacy mode (`export let` + `$:`), where they only produce false
+			// positives: `new Map/Set` used via store.update()/reassignment is
+			// correct (not a missed SvelteMap/SvelteSet), the BlochSphere `$:`
+			// geometry stays reactive to the `size` prop on purpose, and the
+			// `$: (deps, fn())` line is a deliberate dependency-tracking idiom.
+			// Re-enable if/when components migrate to runes.
+			'svelte/prefer-svelte-reactivity': 'off',
+			'svelte/no-immutable-reactive-statements': 'off',
+			'@typescript-eslint/no-unused-expressions': 'off'
 		}
 	},
 	{
