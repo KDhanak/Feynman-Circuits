@@ -40,7 +40,7 @@
 
 		<div class="mb-2 text-sm font-medium" style="color: var(--color-text);">Theme</div>
 		<div class="grid grid-cols-3 gap-2">
-			{#each themeOptions as opt}
+			{#each themeOptions as opt (opt)}
 				<button
 					type="button"
 					on:click={() => theme.set(opt.value)}
@@ -100,7 +100,7 @@
 					value={$settings.autoSaveIntervalMs}
 					on:change={(e) => updateSettings({ autoSaveIntervalMs: Number(e.currentTarget.value) })}
 				>
-					{#each AUTO_SAVE_INTERVAL_OPTIONS as opt}
+					{#each AUTO_SAVE_INTERVAL_OPTIONS as opt (opt)}
 						<option value={opt.value}>{opt.label}</option>
 					{/each}
 				</select>
@@ -123,7 +123,7 @@
 			Default results view
 		</div>
 		<div class="grid grid-cols-2 gap-2">
-			{#each resultViewOptions as opt}
+			{#each resultViewOptions as opt (opt)}
 				<button
 					type="button"
 					on:click={() => updateSettings({ defaultResultView: opt.value })}
@@ -155,7 +155,7 @@
 				value={$settings.probabilityDecimals}
 				on:change={(e) => updateSettings({ probabilityDecimals: Number(e.currentTarget.value) })}
 			>
-				{#each PROBABILITY_DECIMAL_OPTIONS as d}
+				{#each PROBABILITY_DECIMAL_OPTIONS as d (d)}
 					<option value={d}>{d} decimal{d === 1 ? '' : 's'}</option>
 				{/each}
 			</select>
@@ -168,7 +168,7 @@
 				flipped.
 			</p>
 			<div class="grid grid-cols-2 gap-2">
-				{#each bitOrderOptions as opt}
+				{#each bitOrderOptions as opt (opt)}
 					<button
 						type="button"
 						on:click={() => updateSettings({ bitOrder: opt.value })}

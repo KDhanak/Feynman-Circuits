@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { session, updateProfile, changePassword } from '$lib/auth/session';
-	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import {
 		validateRequired,
 		validatePasswordLength,
@@ -68,8 +68,8 @@
 		try {
 			await updateProfile({ first_name: firstName.trim(), last_name: lastName.trim() });
 			profileSuccessMsg = 'Profile updated!';
-		} catch (err: any) {
-			const errors = normalizeBackendErrors(err?.response?.data);
+		} catch (err) {
+			const errors = normalizeBackendErrors(extractResponseData(err));
 			profileErrors = {
 				first_name: errors.first_name,
 				last_name: errors.last_name,
@@ -111,8 +111,8 @@
 			currentPassword = '';
 			newPassword = '';
 			newPassword2 = '';
-		} catch (err: any) {
-			const errors = normalizeBackendErrors(err?.response?.data);
+		} catch (err) {
+			const errors = normalizeBackendErrors(extractResponseData(err));
 			passwordErrors = {
 				current_password: errors.current_password,
 				password: errors.password,

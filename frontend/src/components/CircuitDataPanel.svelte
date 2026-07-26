@@ -211,8 +211,8 @@
 				: 'Canonical IR';
 
 	let container: HTMLDivElement;
-	let editor: any = null;
-	let monacoPromise: Promise<any> | null = null;
+	let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
+	let monacoPromise: Promise<typeof import('monaco-editor') | null> | null = null;
 	// Monaco is a heavy async import; show a spinner over the editor until it mounts.
 	let editorReady = false;
 

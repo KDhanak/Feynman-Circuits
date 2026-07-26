@@ -268,7 +268,7 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	if (paramGateMatch) {
 		const gate = paramGateMatch[1].toLowerCase();
 		if (!isGateId(gate) || !isParametricGate(gate)) return null;
-		let angle = parseAngle(paramGateMatch[2]);
+		const angle = parseAngle(paramGateMatch[2]);
 		const target = parseInt(paramGateMatch[3], 10);
 		return {
 			id: crypto.randomUUID(),

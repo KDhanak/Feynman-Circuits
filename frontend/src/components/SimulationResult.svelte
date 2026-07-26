@@ -366,7 +366,7 @@
 				aria-label="Probability histogram"
 			>
 				<!-- Gridlines at 0%, 25%, 50%, 75%, 100% -->
-				{#each [0, 0.25, 0.5, 0.75, 1] as tick}
+				{#each [0, 0.25, 0.5, 0.75, 1] as tick (tick)}
 					{@const y = CHART_TOP + CHART_H - tick * CHART_H}
 					<line
 						x1={CHART_LEFT}
@@ -385,7 +385,7 @@
 					>
 				{/each}
 				<!-- Bars -->
-				{#each histogramStates as item, i}
+				{#each histogramStates as item, i (i)}
 					{@const barH = item.prob * CHART_H}
 					{@const x = CHART_LEFT + i * slotW + (slotW - barW) / 2}
 					{@const cx = x + barW / 2}
@@ -547,7 +547,7 @@
 							>|{legendLabels.join(' ')}⟩</span
 						>
 					</div>
-					{#each top3 as item}
+					{#each top3 as item, i (i)}
 						<div
 							class="flex justify-between items-center py-1 border-b text-sm font-mono"
 							style="border-color: var(--color-ternary-2);"
@@ -692,9 +692,9 @@
 
 		{#if columns.length > 0}
 			<div class="prob-columns" role="list">
-				{#each columns as column}
+				{#each columns as column, ci (ci)}
 					<div class="prob-column" role="listitem">
-						{#each column as item}
+						{#each column as item, ii (ii)}
 							<div class="prob-row">
 								<span
 									style="color: {item.prob > 0

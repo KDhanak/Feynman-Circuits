@@ -584,7 +584,7 @@
 								class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform"
 								style="background-color: var(--color-muted);"
 							>
-								{#each Array(visibleColumns) as _, colIndex}
+								{#each Array(visibleColumns) as _, colIndex (colIndex)}
 									<div
 										class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
 										class:dropzone-armed={$isMobile && $armedGate}
@@ -602,8 +602,8 @@
 								/>
 							{/each}
 							<!-- Pending anti-control boxes (uncommitted) -->
-							{#each Array.from($pendingAntiControls.entries()) as [col, qubits]}
-								{#each qubits as antiControlQubit}
+							{#each Array.from($pendingAntiControls.entries()) as [col, qubits] (col)}
+								{#each qubits as antiControlQubit (antiControlQubit)}
 									{#if antiControlQubit === wire.qubit}
 										<div
 											data-col={col}
@@ -633,8 +633,8 @@
 								{/each}
 							{/each}
 							<!-- Pending control boxes (uncommitted) -->
-							{#each Array.from($pendingControls.entries()) as [col, qubits]}
-								{#each qubits as controlQubit}
+							{#each Array.from($pendingControls.entries()) as [col, qubits] (col)}
+								{#each qubits as controlQubit (controlQubit)}
 									{#if controlQubit === wire.qubit}
 										<div
 											data-col={col}
@@ -677,7 +677,7 @@
 								class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30"
 								style="background-color: var(--color-muted);"
 							>
-								{#each Array(visibleColumns) as _, colIndex}
+								{#each Array(visibleColumns) as _, colIndex (colIndex)}
 									<div
 										class="dropzone h-12 top-1/2 -translate-y-1/2 transform"
 										class:dropzone-armed={$isMobile && $armedGate}

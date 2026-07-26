@@ -6,7 +6,7 @@ export const isDragSelecting = writable(false);
 export const dragStart = writable<{ x: number; y: number } | null>(null);
 export const dragCurrent = writable<{ x: number; y: number } | null>(null);
 
-let _gateRectCache = new Map<string, DOMRect>();
+const _gateRectCache = new Map<string, DOMRect>();
 let _dragRafId: number | null = null;
 
 export function handleGateSelection(gateId: string, event: MouseEvent) {

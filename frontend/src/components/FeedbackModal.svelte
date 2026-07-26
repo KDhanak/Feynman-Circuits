@@ -223,7 +223,7 @@
 							}}
 						>
 							<option value="" disabled>Select an area…</option>
-							{#each feedbackType === 'bug' ? bugAreas : featureAreas as area}
+							{#each feedbackType === 'bug' ? bugAreas : featureAreas as area (area)}
 								<option value={area}>{area}</option>
 							{/each}
 						</select>

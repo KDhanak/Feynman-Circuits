@@ -129,7 +129,7 @@
 	}}
 	class="relative mb-2.5 max-w-420 mx-auto w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm shadow-sm shadow-secondary-2 bg-secondary-3/20"
 >
-	{#each gates as gate}
+	{#each gates as gate (gate.name)}
 		<!-- Separator before multi-qubit gates -->
 		{#if (gate.category === 'multi' || gate.category === 'two-qubit') && (gate.type === 'CONTROL' || gate.type === 'RZZ' || gate.type === 'SWAP')}
 			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>

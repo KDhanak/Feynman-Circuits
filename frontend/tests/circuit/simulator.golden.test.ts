@@ -40,7 +40,7 @@ const round = (n: number, dp = 6) => Number(n.toFixed(dp));
 
 // Reduces a state vector down to {basisString: [re, im]} for amplitudes
 // above a tiny floating-point threshold, so snapshots stay readable.
-function snapshot(result: ReturnType<typeof simulateMultipleQubits>, numQubits: number) {
+function snapshot(result: ReturnType<typeof simulateMultipleQubits>, _numQubits: number) {
 	const out: Record<string, [number, number]> = {};
 	for (const [basis, prob] of Object.entries(result.probabilities)) {
 		if (prob > 1e-9) out[basis] = [round(prob), 0];

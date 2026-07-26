@@ -67,7 +67,7 @@ export function extendGateMatrix(
 	numQubits: number
 ): Complex[][] {
 	const dim = 1 << numQubits;
-	let result: Complex[][] = Array(dim)
+	const result: Complex[][] = Array(dim)
 		.fill(null)
 		.map(() => Array(dim).fill(createComplex(0, 0)));
 

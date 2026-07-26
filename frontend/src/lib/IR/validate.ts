@@ -111,7 +111,7 @@ function validateBaseOperationShape(
 	}
 
 	// Check kind
-	if (typeof op.kind !== 'string' || !VALID_KINDS.includes(op.kind as any)) {
+	if (typeof op.kind !== 'string' || !(VALID_KINDS as readonly string[]).includes(op.kind)) {
 		errors.push(`${opLabel}: missing or invalid "kind".`);
 	}
 
