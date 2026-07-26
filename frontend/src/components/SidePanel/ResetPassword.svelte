@@ -101,11 +101,7 @@
 			onInput={() => clearError('password2', 'detail')}
 		/>
 
-		<button
-			type="submit"
-			class="btn-primary w-full"
-			disabled={loading}
-		>
+		<button type="submit" class="btn-primary w-full" disabled={loading}>
 			{loading ? 'Resetting...' : 'Reset Password'}
 		</button>
 

@@ -182,7 +182,9 @@
 <div>
 	<p class="mb-4 text-sm" style="color: var(--color-text);">
 		Enter the 6-digit OTP sent to
-		<span class="font-semibold underline-offset-4 underline" style="color: var(--color-text);">{email}</span>
+		<span class="font-semibold underline-offset-4 underline" style="color: var(--color-text);"
+			>{email}</span
+		>
 	</p>
 
 	<div class="flex items-center justify-between gap-2" on:paste={handlePaste}>

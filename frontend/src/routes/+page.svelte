@@ -117,7 +117,7 @@
 		<a href="/" class="shrink-0">
 			<img
 				src="/feynman_circuits_logo_dark.svg"
-				alt="Feynman Circuits Logo" 
+				alt="Feynman Circuits Logo"
 				class="logo-light h-16 sm:h-20 w-auto cursor-pointer"
 			/>
 			<img

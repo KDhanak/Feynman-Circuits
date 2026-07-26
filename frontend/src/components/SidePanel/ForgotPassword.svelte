@@ -74,11 +74,7 @@
 			onInput={() => clearError('email', 'detail')}
 		/>
 
-		<button
-			type="submit"
-			class="btn-primary w-full"
-			disabled={loading}
-		>
+		<button type="submit" class="btn-primary w-full" disabled={loading}>
 			{loading ? 'Sending OTP...' : 'Send OTP'}
 		</button>
 

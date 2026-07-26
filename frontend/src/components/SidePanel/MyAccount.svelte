@@ -70,7 +70,11 @@
 			profileSuccessMsg = 'Profile updated!';
 		} catch (err: any) {
 			const errors = normalizeBackendErrors(err?.response?.data);
-			profileErrors = { first_name: errors.first_name, last_name: errors.last_name, detail: errors.detail };
+			profileErrors = {
+				first_name: errors.first_name,
+				last_name: errors.last_name,
+				detail: errors.detail
+			};
 			if (!profileErrors.first_name && !profileErrors.last_name && !profileErrors.detail) {
 				profileGeneralError = 'Could not update profile.';
 			}
@@ -98,7 +102,11 @@
 		passwordLoading = true;
 
 		try {
-			await changePassword({ current_password: currentPassword, password: newPassword, password2: newPassword2 });
+			await changePassword({
+				current_password: currentPassword,
+				password: newPassword,
+				password2: newPassword2
+			});
 			passwordSuccessMsg = 'Password changed successfully!';
 			currentPassword = '';
 			newPassword = '';
@@ -111,7 +119,12 @@
 				password2: errors.password2,
 				detail: errors.detail
 			};
-			if (!passwordErrors.current_password && !passwordErrors.password && !passwordErrors.password2 && !passwordErrors.detail) {
+			if (
+				!passwordErrors.current_password &&
+				!passwordErrors.password &&
+				!passwordErrors.password2 &&
+				!passwordErrors.detail
+			) {
 				passwordGeneralError = 'Could not change password.';
 			}
 		} finally {
@@ -124,7 +137,10 @@
 	<!-- Profile Info -->
 	<section>
 		<div class="mb-4">
-			<p class="text-xs font-semibold uppercase tracking-widest" style="color: var(--color-text-muted, var(--color-text));">
+			<p
+				class="text-xs font-semibold uppercase tracking-widest"
+				style="color: var(--color-text-muted, var(--color-text));"
+			>
 				Account
 			</p>
 			<p class="mt-1 text-sm" style="color: var(--color-text);">{$session.user?.email}</p>
@@ -170,7 +186,10 @@
 	<!-- Change Password -->
 
 	<section>
-		<p class="mb-4 text-xs font-semibold uppercase tracking-widest" style="color: var(--color-text-muted, var(--color-text));">
+		<p
+			class="mb-4 text-xs font-semibold uppercase tracking-widest"
+			style="color: var(--color-text-muted, var(--color-text));"
+		>
 			Change Password
 		</p>
 

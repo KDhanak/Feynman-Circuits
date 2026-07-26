@@ -144,10 +144,7 @@
 			error={signupErrors.password2}
 			onInput={() => clearError('password2')}
 		/>
-		<button
-			type="submit"
-			class="btn-primary w-full"
-		>
+		<button type="submit" class="btn-primary w-full">
 			{loading ? 'Creating...' : 'Create Account'}
 		</button>
 		{#if signupErrors.non_field_errors}

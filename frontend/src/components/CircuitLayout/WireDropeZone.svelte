@@ -440,7 +440,10 @@
 	{/if}
 
 	<!-- Copy + Reset buttons, pinned to the board's top-right corner (icon only) -->
-	<div class="absolute top-2 right-2 z-200 flex items-center gap-1" style="color: var(--color-text);">
+	<div
+		class="absolute top-2 right-2 z-200 flex items-center gap-1"
+		style="color: var(--color-text);"
+	>
 		<button
 			type="button"
 			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500"
@@ -448,11 +451,7 @@
 			aria-label="Copy circuit"
 			title="Copy circuit"
 		>
-			<Icon
-				icon="solar:copy-bold"
-				width="18"
-				height="18"
-			/>
+			<Icon icon="solar:copy-bold" width="18" height="18" />
 		</button>
 		<button
 			type="button"

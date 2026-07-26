@@ -1,15 +1,26 @@
-import type { CircuitIR, UnitaryOperation } from "../IR/schema";
-import { circuitIR } from "../IR/stores";
-import type { SimulationResult } from "../IR/schema";
-import { simulationResult } from "../IR/stores";
-import { createComplex, formatQuantumState, formatQuantumStatePolar, magnitudeSquared, scale, type Complex } from "../quantum/complex";
-import { type QuantumState, createState } from "../quantum/vector";
-import { applyMatrix, extendGateMatrix, computeMultiControlledUMatrix, computeMultiControlledUMatrixWithAntiControls } from "../quantum/matrix";
-import { GATE_REGISTRY } from "../quantum/gates";
-import { get } from "svelte/store";
+import type { CircuitIR, UnitaryOperation } from '../IR/schema';
+import { circuitIR } from '../IR/stores';
+import type { SimulationResult } from '../IR/schema';
+import { simulationResult } from '../IR/stores';
+import {
+	createComplex,
+	formatQuantumState,
+	formatQuantumStatePolar,
+	magnitudeSquared,
+	scale,
+	type Complex
+} from '../quantum/complex';
+import { type QuantumState, createState } from '../quantum/vector';
+import {
+	applyMatrix,
+	extendGateMatrix,
+	computeMultiControlledUMatrix,
+	computeMultiControlledUMatrixWithAntiControls
+} from '../quantum/matrix';
+import { GATE_REGISTRY } from '../quantum/gates';
+import { get } from 'svelte/store';
 import { computeBlochVectorsFromState } from '../quantum/bloch';
 import { markAsReset } from './autoSave';
-
 
 /**
  * Collapses ONE qubit to a random 0 or 1 (according to Born's rule).
@@ -45,7 +56,7 @@ export function collapseQubit(
 	const norm = Math.sqrt(totalProb || 1);
 
 	return {
-		newState: newState.map(amp => scale(amp, 1 / norm)),
+		newState: newState.map((amp) => scale(amp, 1 / norm)),
 		outcome
 	};
 }
@@ -68,7 +79,13 @@ function getGateMatrix(op: UnitaryOperation, numQubits: number): Complex[][] | n
 	} else if (op.antiControls.length === 0) {
 		return computeMultiControlledUMatrix(op.controls, op.targets[0], numQubits, baseMatrix);
 	} else {
-		return computeMultiControlledUMatrixWithAntiControls(op.controls, op.antiControls, op.targets[0], numQubits, baseMatrix);
+		return computeMultiControlledUMatrixWithAntiControls(
+			op.controls,
+			op.antiControls,
+			op.targets[0],
+			numQubits,
+			baseMatrix
+		);
 	}
 }
 
@@ -80,16 +97,22 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 	if (numQubits < 1) throw new Error('At least 1 qubit required');
 
 	const dim = 1 << numQubits;
-	let state: QuantumState = createState(Array(dim).fill(null).map(() => createComplex(0, 0)));
+	let state: QuantumState = createState(
+		Array(dim)
+			.fill(null)
+			.map(() => createComplex(0, 0))
+	);
 	state[0] = createComplex(1, 0);
 
 	const measuredQubits = new Set<number>();
 	const classicalBits = new Map<number, number>();
 
-	const maxColumn = ir.operations.length ? Math.max(...ir.operations.map(op => op.column)) + 1 : 0;
+	const maxColumn = ir.operations.length
+		? Math.max(...ir.operations.map((op) => op.column)) + 1
+		: 0;
 
 	for (let colIndex = 0; colIndex < maxColumn; colIndex++) {
-		const colOps = ir.operations.filter(op => op.column === colIndex);
+		const colOps = ir.operations.filter((op) => op.column === colIndex);
 
 		for (const op of colOps) {
 			if (op.kind === 'measure') {
@@ -100,10 +123,9 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 					classicalBits.set(target, result.outcome);
 				}
 				continue;
-			};
+			}
 
-			if (op.kind === 'reset' || op.kind === 'barrier')
-				continue;
+			if (op.kind === 'reset' || op.kind === 'barrier') continue;
 
 			if (op.kind === 'unitary') {
 				if (measuredQubits.has(op.targets[0])) continue; // skip gates on measured qubits
@@ -121,7 +143,9 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 						const b2 = (i >> p2) & 1;
 						if (b1 !== b2) {
 							const j = i ^ (1 << p1) ^ (1 << p2);
-							if (i < j) { [swapped[i], swapped[j]] = [swapped[j], swapped[i]]; }
+							if (i < j) {
+								[swapped[i], swapped[j]] = [swapped[j], swapped[i]];
+							}
 						}
 					}
 					state = swapped;
@@ -162,11 +186,11 @@ export function resetCircuit() {
 	const current = get(circuitIR);
 	const qubits = current.registers.q || 1;
 
-	circuitIR.update(c => ({ ...c, operations: [] }));
+	circuitIR.update((c) => ({ ...c, operations: [] }));
 	markAsReset();
 
 	const probabilities: { [state: string]: number } = {};
-	for (let i = 0; i < (1 << qubits); i++) {
+	for (let i = 0; i < 1 << qubits; i++) {
 		probabilities[i.toString(2).padStart(qubits, '0')] = i === 0 ? 1 : 0;
 	}
 

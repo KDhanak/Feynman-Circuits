@@ -40,11 +40,9 @@ if (browser) {
 	});
 
 	// Follow OS changes while in 'system' mode.
-	window
-		.matchMedia('(prefers-color-scheme: dark)')
-		.addEventListener('change', () => {
-			if (get(theme) === 'system') applyResolved(resolve('system'));
-		});
+	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+		if (get(theme) === 'system') applyResolved(resolve('system'));
+	});
 } else {
 	applyResolved(resolve(getInitial()));
 }

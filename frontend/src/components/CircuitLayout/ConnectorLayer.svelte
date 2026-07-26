@@ -77,8 +77,12 @@
 			const unitOp = op as UnitaryOperation;
 			if (unitOp.gate !== 'swap' || unitOp.targets.length !== 2) continue;
 			const [t1, t2] = unitOp.targets;
-			const el1 = boardEl.querySelector(`[data-col="${unitOp.column}"][data-qubit="${t1}"][data-type="GATE"]`);
-			const el2 = boardEl.querySelector(`[data-col="${unitOp.column}"][data-qubit="${t2}"][data-type="GATE"]`);
+			const el1 = boardEl.querySelector(
+				`[data-col="${unitOp.column}"][data-qubit="${t1}"][data-type="GATE"]`
+			);
+			const el2 = boardEl.querySelector(
+				`[data-col="${unitOp.column}"][data-qubit="${t2}"][data-type="GATE"]`
+			);
 			if (!el1 || !el2) continue;
 			const c1 = getCenter(el1, boardRect);
 			const c2 = getCenter(el2, boardRect);

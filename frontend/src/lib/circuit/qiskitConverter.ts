@@ -1,4 +1,12 @@
-import type { CircuitIR, UnitaryOperation, MeasureOperation, ResetOperation, BarrierOperation, CircuitOperation, CanonicalUnitaryGate } from '../IR/schema';
+import type {
+	CircuitIR,
+	UnitaryOperation,
+	MeasureOperation,
+	ResetOperation,
+	BarrierOperation,
+	CircuitOperation,
+	CanonicalUnitaryGate
+} from '../IR/schema';
 import { isGateId, isParametricGate } from '../quantum/gates';
 import { parseAngle } from './openQasmConverter';
 
@@ -68,7 +76,11 @@ export function circuitToQiskit(ir: CircuitIR, options: QiskitExportOptions = {}
 
 	const numQubits = ir.registers.q;
 	const numClassicalBits = ir.registers.c;
-	lines.push(numClassicalBits > 0 ? `${CIRCUIT_VAR} = QuantumCircuit(${numQubits}, ${numClassicalBits})` : `${CIRCUIT_VAR} = QuantumCircuit(${numQubits})`);
+	lines.push(
+		numClassicalBits > 0
+			? `${CIRCUIT_VAR} = QuantumCircuit(${numQubits}, ${numClassicalBits})`
+			: `${CIRCUIT_VAR} = QuantumCircuit(${numQubits})`
+	);
 	lines.push('');
 	lines.push(...body);
 
@@ -176,12 +188,16 @@ export function qiskitToCircuit(pythonCode: string): CircuitIR | null {
 		const quantumRegs: { name: string; size: number }[] = [];
 		const classicalRegs: { name: string; size: number }[] = [];
 		for (const line of lines) {
-			const qregMatch = line.match(/^(\w+)\s*=\s*QuantumRegister\(\s*(\d+)\s*(?:,\s*['"][^'"]*['"]\s*)?\)/);
+			const qregMatch = line.match(
+				/^(\w+)\s*=\s*QuantumRegister\(\s*(\d+)\s*(?:,\s*['"][^'"]*['"]\s*)?\)/
+			);
 			if (qregMatch) {
 				quantumRegs.push({ name: qregMatch[1], size: parseInt(qregMatch[2], 10) });
 				continue;
 			}
-			const cregMatch = line.match(/^(\w+)\s*=\s*ClassicalRegister\(\s*(\d+)\s*(?:,\s*['"][^'"]*['"]\s*)?\)/);
+			const cregMatch = line.match(
+				/^(\w+)\s*=\s*ClassicalRegister\(\s*(\d+)\s*(?:,\s*['"][^'"]*['"]\s*)?\)/
+			);
 			if (cregMatch) {
 				classicalRegs.push({ name: cregMatch[1], size: parseInt(cregMatch[2], 10) });
 			}
@@ -191,9 +207,15 @@ export function qiskitToCircuit(pythonCode: string): CircuitIR | null {
 		// in declaration order — so a gate on `qreg_b[0]` maps past `qreg_a`'s qubits.
 		const offsets = new Map<string, number>();
 		let qAcc = 0;
-		for (const r of quantumRegs) { offsets.set(r.name, qAcc); qAcc += r.size; }
+		for (const r of quantumRegs) {
+			offsets.set(r.name, qAcc);
+			qAcc += r.size;
+		}
 		let cAcc = 0;
-		for (const r of classicalRegs) { offsets.set(r.name, cAcc); cAcc += r.size; }
+		for (const r of classicalRegs) {
+			offsets.set(r.name, cAcc);
+			cAcc += r.size;
+		}
 
 		const quantumRegSize = new Map(quantumRegs.map((r) => [r.name, r.size]));
 		const classicalRegSize = new Map(classicalRegs.map((r) => [r.name, r.size]));
@@ -412,7 +434,8 @@ function parseAppendCall(argsStr: string, offsets: Map<string, number>): Circuit
 	if (!match) return null;
 
 	const className = match[1];
-	const gate = (Object.entries(GATE_CLASS).find(([, cls]) => cls === className)?.[0] ?? null) as CanonicalUnitaryGate | null;
+	const gate = (Object.entries(GATE_CLASS).find(([, cls]) => cls === className)?.[0] ??
+		null) as CanonicalUnitaryGate | null;
 	if (!gate) return null;
 
 	const numControls = parseInt(match[3], 10);

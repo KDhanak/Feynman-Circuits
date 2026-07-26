@@ -36,7 +36,7 @@
 		'Bloch Sphere',
 		'Saving & Circuits',
 		'Account & Authentication',
-		'Something else',
+		'Something else'
 	];
 
 	const featureAreas = [
@@ -46,7 +46,7 @@
 		'Export & Import (OpenQASM)',
 		'Account & Cloud Saving',
 		'Performance',
-		'Something else',
+		'Something else'
 	];
 
 	function selectType(type: FeedbackType) {
@@ -75,9 +75,10 @@
 			return;
 		}
 		if (!description.trim()) {
-			errorMsg = feedbackType === 'bug'
-				? 'Please describe what you were trying to do.'
-				: 'Please describe the feature you have in mind.';
+			errorMsg =
+				feedbackType === 'bug'
+					? 'Please describe what you were trying to do.'
+					: 'Please describe the feature you have in mind.';
 			return;
 		}
 
@@ -89,7 +90,7 @@
 				description: description.trim(),
 				extra: extra.trim() || undefined,
 				name: senderName.trim() || undefined,
-				email: senderEmail.trim() || undefined,
+				email: senderEmail.trim() || undefined
 			};
 			if (feedbackType === 'bug') {
 				payload.expected = bugExpected.trim() || undefined;
@@ -144,22 +145,28 @@
 					</button>
 				{/if}
 				<h2 class="text-lg font-semibold" style="color: var(--color-text);">
-					{#if step === 'type'}Share Feedback{:else if step === 'form'}{feedbackType === 'bug' ? 'Bug Report' : 'Feature Request'}{:else}Thank You!{/if}
+					{#if step === 'type'}Share Feedback{:else if step === 'form'}{feedbackType === 'bug'
+							? 'Bug Report'
+							: 'Feature Request'}{:else}Thank You!{/if}
 				</h2>
 			</div>
 			<button type="button" aria-label="Close" on:click={onClose}>
-				<Icon icon="material-symbols:close" class="cursor-pointer text-red-500" width="24" height="24" />
+				<Icon
+					icon="material-symbols:close"
+					class="cursor-pointer text-red-500"
+					width="24"
+					height="24"
+				/>
 			</button>
 		</div>
 
 		<!-- Body -->
 		<div class="px-6 py-5 max-h-[75vh] overflow-y-auto">
-
 			{#if step === 'type'}
 				<!-- Step 1: Type selection -->
 				<p class="text-sm mb-5" style="color: var(--color-muted);">
-					Found something that's not working, or have an idea that would make Feynman Circuits better?
-					I'd love to hear it.
+					Found something that's not working, or have an idea that would make Feynman Circuits
+					better? I'd love to hear it.
 				</p>
 				<div class="grid grid-cols-2 gap-3">
 					<button
@@ -182,22 +189,28 @@
 					>
 						<span class="text-3xl">✨</span>
 						<div>
-							<p class="font-semibold text-sm mb-1" style="color: var(--color-text);">Feature Request</p>
+							<p class="font-semibold text-sm mb-1" style="color: var(--color-text);">
+								Feature Request
+							</p>
 							<p class="text-xs leading-relaxed" style="color: var(--color-muted);">
 								Something you'd love Feynman Circuits to do
 							</p>
 						</div>
 					</button>
 				</div>
-
 			{:else if step === 'form'}
 				<!-- Step 2: Form -->
 				<form class="space-y-4" on:submit|preventDefault={handleSubmit}>
-
 					<!-- Area selector -->
 					<div>
-						<label for="fb-area" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
-							{feedbackType === 'bug' ? 'Which part were you using?' : 'Which area would this improve?'}
+						<label
+							for="fb-area"
+							class="mb-1 block text-sm font-medium"
+							style="color: var(--color-text);"
+						>
+							{feedbackType === 'bug'
+								? 'Which part were you using?'
+								: 'Which area would this improve?'}
 							<span class="text-red-500 ml-0.5">*</span>
 						</label>
 						<select
@@ -210,17 +223,20 @@
 							}}
 						>
 							<option value="" disabled>Select an area…</option>
-							{#each (feedbackType === 'bug' ? bugAreas : featureAreas) as area}
+							{#each feedbackType === 'bug' ? bugAreas : featureAreas as area}
 								<option value={area}>{area}</option>
 							{/each}
 						</select>
 					</div>
 
 					{#if feedbackType === 'bug'}
-
 						<!-- What were you trying to do -->
 						<div>
-							<label for="fb-description" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
+							<label
+								for="fb-description"
+								class="mb-1 block text-sm font-medium"
+								style="color: var(--color-text);"
+							>
 								What were you trying to do? <span class="text-red-500 ml-0.5">*</span>
 							</label>
 							<textarea
@@ -234,7 +250,11 @@
 
 						<!-- What did you expect -->
 						<div>
-							<label for="fb-expected" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
+							<label
+								for="fb-expected"
+								class="mb-1 block text-sm font-medium"
+								style="color: var(--color-text);"
+							>
 								What did you expect to happen?
 							</label>
 							<textarea
@@ -248,7 +268,11 @@
 
 						<!-- What actually happened -->
 						<div>
-							<label for="fb-actual" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
+							<label
+								for="fb-actual"
+								class="mb-1 block text-sm font-medium"
+								style="color: var(--color-text);"
+							>
 								What actually happened?
 							</label>
 							<textarea
@@ -259,12 +283,14 @@
 								bind:value={bugActual}
 							></textarea>
 						</div>
-
 					{:else}
-
 						<!-- Feature description -->
 						<div>
-							<label for="fb-description" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
+							<label
+								for="fb-description"
+								class="mb-1 block text-sm font-medium"
+								style="color: var(--color-text);"
+							>
 								What would you like Feynman Circuits to be able to do?
 								<span class="text-red-500 ml-0.5">*</span>
 							</label>
@@ -279,7 +305,11 @@
 
 						<!-- How would it change your workflow -->
 						<div>
-							<label for="fb-impact" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
+							<label
+								for="fb-impact"
+								class="mb-1 block text-sm font-medium"
+								style="color: var(--color-text);"
+							>
 								How would this change the way you use it?
 							</label>
 							<textarea
@@ -290,7 +320,6 @@
 								bind:value={featureImpact}
 							></textarea>
 						</div>
-
 					{/if}
 
 					<!-- Divider -->
@@ -298,8 +327,15 @@
 
 					<!-- Anything else -->
 					<div>
-						<label for="fb-extra" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
-							Anything else you'd like to add? <span class="text-xs font-normal" style="color: var(--color-muted);">(optional)</span>
+						<label
+							for="fb-extra"
+							class="mb-1 block text-sm font-medium"
+							style="color: var(--color-text);"
+						>
+							Anything else you'd like to add? <span
+								class="text-xs font-normal"
+								style="color: var(--color-muted);">(optional)</span
+							>
 						</label>
 						<textarea
 							id="fb-extra"
@@ -312,8 +348,14 @@
 
 					<!-- Name -->
 					<div>
-						<label for="fb-name" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
-							Your name <span class="text-xs font-normal" style="color: var(--color-muted);">(optional — leave blank to stay anonymous)</span>
+						<label
+							for="fb-name"
+							class="mb-1 block text-sm font-medium"
+							style="color: var(--color-text);"
+						>
+							Your name <span class="text-xs font-normal" style="color: var(--color-muted);"
+								>(optional — leave blank to stay anonymous)</span
+							>
 						</label>
 						<input
 							id="fb-name"
@@ -326,8 +368,14 @@
 
 					<!-- Email -->
 					<div>
-						<label for="fb-email" class="mb-1 block text-sm font-medium" style="color: var(--color-text);">
-							Your email <span class="text-xs font-normal" style="color: var(--color-muted);">(optional — only if you'd like a reply)</span>
+						<label
+							for="fb-email"
+							class="mb-1 block text-sm font-medium"
+							style="color: var(--color-text);"
+						>
+							Your email <span class="text-xs font-normal" style="color: var(--color-muted);"
+								>(optional — only if you'd like a reply)</span
+							>
 						</label>
 						<input
 							id="fb-email"
@@ -342,16 +390,10 @@
 						<p class="text-sm font-bold text-red-500">{errorMsg}</p>
 					{/if}
 
-					<button
-						type="submit"
-						class="btn-primary w-full"
-						disabled={loading}
-					>
+					<button type="submit" class="btn-primary w-full" disabled={loading}>
 						{loading ? 'Sending…' : 'Send feedback'}
 					</button>
-
 				</form>
-
 			{:else}
 				<!-- Step 3: Success -->
 				<div class="flex flex-col items-center text-center py-6 gap-4">
@@ -360,14 +402,13 @@
 						{senderName ? `Thank you, ${senderName}!` : 'Thank you!'}
 					</h3>
 					<p class="text-sm leading-relaxed max-w-xs" style="color: var(--color-muted);">
-						Your {feedbackType === 'bug' ? 'bug report' : 'idea'} has been sent.
-						I read every single message and use them to make Feynman Circuits better.
+						Your {feedbackType === 'bug' ? 'bug report' : 'idea'} has been sent. I read every single message
+						and use them to make Feynman Circuits better.
 						{#if senderEmail}I'll reply to <strong>{senderEmail}</strong> if I have follow-up questions.{/if}
 					</p>
 					<button type="button" class="btn-primary mt-2" on:click={onClose}>Close</button>
 				</div>
 			{/if}
-
 		</div>
 	</div>
 </div>
