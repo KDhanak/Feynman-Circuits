@@ -35,7 +35,10 @@
 			const numQubits = $circuitIR.registers.q;
 			const t0 = Number(target0);
 			const t1 = Number(target1);
-			if (t0 === t1) { error = 'Targets must be different.'; return; }
+			if (t0 === t1) {
+				error = 'Targets must be different.';
+				return;
+			}
 			if (t0 < 0 || t0 >= numQubits || t1 < 0 || t1 >= numQubits) {
 				error = `Each target must be between 0 and ${numQubits - 1}.`;
 				return;
@@ -43,7 +46,10 @@
 			updateOperation(gate.id, (op) => ({ ...(op as UnitaryOperation), targets: [t0, t1] }));
 		} else {
 			const parsed = parsePiInput(angle);
-			if (parsed === null) { error = 'Enter an angle like pi/2, pi/4, or a number in radians.'; return; }
+			if (parsed === null) {
+				error = 'Enter an angle like pi/2, pi/4, or a number in radians.';
+				return;
+			}
 			updateOperation(gate.id, (op) => ({ ...(op as UnitaryOperation), params: [parsed] }));
 		}
 
@@ -66,7 +72,9 @@
 	role="menu"
 	tabindex="0"
 	on:click|stopPropagation={() => {}}
-	on:keydown={(e) => { if (e.key === 'Escape') dispatch('close'); }}
+	on:keydown={(e) => {
+		if (e.key === 'Escape') dispatch('close');
+	}}
 >
 	<div class="px-4 py-2 text-xs font-semibold border-b border-gray-100 uppercase tracking-wide">
 		Edit {gate.gate.toUpperCase()} Gate
@@ -104,9 +112,7 @@
 		</div>
 	{:else}
 		<div class="px-4 py-3">
-			<label class="block text-xs mb-1" for="gate-angle">
-				Angle (e.g. pi/2, pi/4, 3pi/4)
-			</label>
+			<label class="block text-xs mb-1" for="gate-angle"> Angle (e.g. pi/2, pi/4, 3pi/4) </label>
 			<input
 				id="gate-angle"
 				type="text"
@@ -122,6 +128,8 @@
 
 	<div class="flex gap-2 px-4 py-2.5 border-t border-gray-100">
 		<button class="btn-primary flex-1 py-1.5 text-sm" on:click={apply}>Apply</button>
-		<button class="btn-secondary flex-1 py-1.5 text-sm" on:click={() => dispatch('close')}>Cancel</button>
+		<button class="btn-secondary flex-1 py-1.5 text-sm" on:click={() => dispatch('close')}
+			>Cancel</button
+		>
 	</div>
 </div>

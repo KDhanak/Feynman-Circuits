@@ -321,7 +321,6 @@
 					>
 						{total}
 					</span>
-
 				{/if}
 			</div>
 			<button type="button" aria-label="Close" on:click={handleClose}>
@@ -585,7 +584,10 @@
 		background-color: transparent;
 		display: inline-grid;
 		place-content: center;
-		transition: border-color 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+		transition:
+			border-color 0.15s ease,
+			background-color 0.15s ease,
+			opacity 0.15s ease;
 	}
 
 	/* The checkbox is hidden until you hover the row. Once any circuit is

@@ -14,29 +14,29 @@ const DENOMINATORS = [1, 2, 3, 4, 6, 8, 12];
  * or a plain number (treated as radians). Returns null if unparseable.
  */
 export function parsePiInput(input: string): number | null {
-    if (input == null) return null;
-    const s = input.trim().toLowerCase().replace(/\s+/g, '').replace(/π/g, 'pi');
-    if (s === '') return null;
+	if (input == null) return null;
+	const s = input.trim().toLowerCase().replace(/\s+/g, '').replace(/π/g, 'pi');
+	if (s === '') return null;
 
-    if (!s.includes('pi')) {
-        const n = parseFloat(s);
-        return isNaN(n) ? null : n;
-    }
+	if (!s.includes('pi')) {
+		const n = parseFloat(s);
+		return isNaN(n) ? null : n;
+	}
 
-    const [numPart, denPart] = s.split('/');
+	const [numPart, denPart] = s.split('/');
 
-    let coeffStr = numPart.replace('pi', '');
-    if (coeffStr === '' || coeffStr === '+') coeffStr = '1';
-    else if (coeffStr === '-') coeffStr = '-1';
-    const coeff = parseFloat(coeffStr);
-    if (isNaN(coeff)) return null;
+	let coeffStr = numPart.replace('pi', '');
+	if (coeffStr === '' || coeffStr === '+') coeffStr = '1';
+	else if (coeffStr === '-') coeffStr = '-1';
+	const coeff = parseFloat(coeffStr);
+	if (isNaN(coeff)) return null;
 
-    if (denPart === undefined) return coeff * Math.PI;
+	if (denPart === undefined) return coeff * Math.PI;
 
-    const denom = parseFloat(denPart);
-    if (isNaN(denom) || denom === 0) return null;
+	const denom = parseFloat(denPart);
+	if (isNaN(denom) || denom === 0) return null;
 
-    return (coeff * Math.PI) / denom;
+	return (coeff * Math.PI) / denom;
 }
 
 /**
@@ -45,21 +45,21 @@ export function parsePiInput(input: string): number | null {
  * falls back to a 3-decimal radian string.
  */
 export function formatRadiansAsPi(radians: number, tolerance = 1e-6): string {
-    if (Math.abs(radians) < tolerance) return '0';
+	if (Math.abs(radians) < tolerance) return '0';
 
-    const k = radians / Math.PI;
+	const k = radians / Math.PI;
 
-    for (const d of DENOMINATORS) {
-        const n = k * d;
-        const rounded = Math.round(n);
-        if (rounded !== 0 && Math.abs(n - rounded) < tolerance * d) {
-            const sign = rounded < 0 ? '-' : '';
-            const absNum = Math.abs(rounded);
-            const numStr = absNum === 1 ? '' : String(absNum);
-            const denStr = d === 1 ? '' : `/${d}`;
-            return `${sign}${numStr}π${denStr}`;
-        }
-    }
+	for (const d of DENOMINATORS) {
+		const n = k * d;
+		const rounded = Math.round(n);
+		if (rounded !== 0 && Math.abs(n - rounded) < tolerance * d) {
+			const sign = rounded < 0 ? '-' : '';
+			const absNum = Math.abs(rounded);
+			const numStr = absNum === 1 ? '' : String(absNum);
+			const denStr = d === 1 ? '' : `/${d}`;
+			return `${sign}${numStr}π${denStr}`;
+		}
+	}
 
-    return radians.toFixed(3);
+	return radians.toFixed(3);
 }

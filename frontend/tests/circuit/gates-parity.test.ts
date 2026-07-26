@@ -3,9 +3,8 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { GATE_REGISTRY } from '$lib/quantum/gates';
 
-const sharedGates: { id: string; qasmName: string; numParams: number; arity: number }[] = JSON.parse(
-	readFileSync(join(__dirname, '../../../shared/gates.json'), 'utf-8')
-);
+const sharedGates: { id: string; qasmName: string; numParams: number; arity: number }[] =
+	JSON.parse(readFileSync(join(__dirname, '../../../shared/gates.json'), 'utf-8'));
 
 describe('gates parity', () => {
 	it('shared/gates.json contains exactly the same gate IDs as GATE_REGISTRY', () => {
@@ -15,7 +14,9 @@ describe('gates parity', () => {
 		const missingFromShared = [...registryIds].filter((id) => !sharedIds.has(id));
 		const extraInShared = [...sharedIds].filter((id) => !registryIds.has(id));
 
-		expect(missingFromShared, 'Gates in GATE_REGISTRY but missing from shared/gates.json').toEqual([]);
+		expect(missingFromShared, 'Gates in GATE_REGISTRY but missing from shared/gates.json').toEqual(
+			[]
+		);
 		expect(extraInShared, 'Gates in shared/gates.json but not in GATE_REGISTRY').toEqual([]);
 	});
 

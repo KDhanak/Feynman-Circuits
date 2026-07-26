@@ -46,16 +46,81 @@
 		monacoInstance.languages.register({ id: 'openqasm' });
 		monacoInstance.languages.setMonarchTokensProvider('openqasm', {
 			keywords: [
-				'OPENQASM', 'include', 'gate', 'opaque', 'measure', 'reset', 'barrier',
-				'qreg', 'creg', 'if',
-				'qubit', 'bit', 'int', 'uint', 'float', 'angle', 'bool', 'complex',
-				'def', 'let', 'input', 'output', 'const', 'extern',
-				'for', 'while', 'break', 'continue', 'return', 'box',
-				'if', 'else', 'switch', 'case', 'default',
-				'cx', 'u', 'p', 'x', 'y', 'z', 'h', 's', 't', 'sx', 'rx', 'ry', 'rz', 'cz', 'ccx', 'swap', 'cswap'
+				'OPENQASM',
+				'include',
+				'gate',
+				'opaque',
+				'measure',
+				'reset',
+				'barrier',
+				'qreg',
+				'creg',
+				'if',
+				'qubit',
+				'bit',
+				'int',
+				'uint',
+				'float',
+				'angle',
+				'bool',
+				'complex',
+				'def',
+				'let',
+				'input',
+				'output',
+				'const',
+				'extern',
+				'for',
+				'while',
+				'break',
+				'continue',
+				'return',
+				'box',
+				'if',
+				'else',
+				'switch',
+				'case',
+				'default',
+				'cx',
+				'u',
+				'p',
+				'x',
+				'y',
+				'z',
+				'h',
+				's',
+				't',
+				'sx',
+				'rx',
+				'ry',
+				'rz',
+				'cz',
+				'ccx',
+				'swap',
+				'cswap'
 			],
 			typeKeywords: [],
-			operators: ['+', '-', '*', '/', '=', '==', '!=', '<', '>', '<=', '>=', '(', ')', '[', ']', '{', '}', ',', ';'],
+			operators: [
+				'+',
+				'-',
+				'*',
+				'/',
+				'=',
+				'==',
+				'!=',
+				'<',
+				'>',
+				'<=',
+				'>=',
+				'(',
+				')',
+				'[',
+				']',
+				'{',
+				'}',
+				',',
+				';'
+			],
 			symbols: /[+\-*/%=!<>()[\]{},;]/,
 			escapes: /\\(?:[abfnrtv"\\]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})/,
 			tokenizer: {
@@ -146,8 +211,8 @@
 				: 'Canonical IR';
 
 	let container: HTMLDivElement;
-	let editor: any = null;
-	let monacoPromise: Promise<any> | null = null;
+	let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
+	let monacoPromise: Promise<typeof import('monaco-editor') | null> | null = null;
 	// Monaco is a heavy async import; show a spinner over the editor until it mounts.
 	let editorReady = false;
 
@@ -184,7 +249,8 @@
 
 	onMount(() => {
 		const savedView = localStorage.getItem('circuitDataView') as DataViewMode | null;
-		if (savedView === 'cir' || savedView === 'qasm' || savedView === 'qiskit') activeView = savedView;
+		if (savedView === 'cir' || savedView === 'qasm' || savedView === 'qiskit')
+			activeView = savedView;
 		initializeEditor();
 	});
 
@@ -400,7 +466,9 @@
 						class:!border-l-white={activeView === 'qasm'}
 						class="rounded-r-sm border-l border-secondary-2 bg-white px-1.5 py-1 text-xs text-secondary-2 cursor-pointer hover:bg-secondary-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 					>
-						<span class="inline-block transition-transform" class:rotate-180={showVersionMenu}>▼</span>
+						<span class="inline-block transition-transform" class:rotate-180={showVersionMenu}
+							>▼</span
+						>
 					</button>
 
 					{#if activeView === 'qasm' && showVersionMenu}
@@ -464,13 +532,33 @@
 				/>
 			</button>
 			<button type="button" on:click={handleCopy} aria-label="Copy" title="Copy">
-				<Icon icon="solar:copy-bold" width="20" height="20" class="active:text-green-400 cursor-pointer" />
+				<Icon
+					icon="solar:copy-bold"
+					width="20"
+					height="20"
+					class="active:text-green-400 cursor-pointer"
+				/>
 			</button>
 			<button type="button" on:click={handleDownload} aria-label="Download" title="Download">
-				<Icon icon="mingcute:download-fill" width="20" height="20" class="active:text-green-400 cursor-pointer" />
+				<Icon
+					icon="mingcute:download-fill"
+					width="20"
+					height="20"
+					class="active:text-green-400 cursor-pointer"
+				/>
 			</button>
-			<button type="button" on:click={handleImport} aria-label="Import" title="Apply edits to circuit">
-				<Icon icon="flowbite:file-import-solid" width="20" height="20" class="active:text-green-400 cursor-pointer" />
+			<button
+				type="button"
+				on:click={handleImport}
+				aria-label="Import"
+				title="Apply edits to circuit"
+			>
+				<Icon
+					icon="flowbite:file-import-solid"
+					width="20"
+					height="20"
+					class="active:text-green-400 cursor-pointer"
+				/>
 			</button>
 		</div>
 	</div>
@@ -487,7 +575,12 @@
 				style="background: var(--color-background);"
 				out:fade={{ duration: 200 }}
 			>
-				<Icon icon="svg-spinners:ring-resize" width="30" height="30" style="color: var(--color-measured);" />
+				<Icon
+					icon="svg-spinners:ring-resize"
+					width="30"
+					height="30"
+					style="color: var(--color-measured);"
+				/>
 				<span class="text-xs" style="color: var(--color-muted);">Loading editor…</span>
 			</div>
 		{/if}

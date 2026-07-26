@@ -1,4 +1,11 @@
-import type { CircuitIR, UnitaryOperation, MeasureOperation, ResetOperation, BarrierOperation, CircuitOperation } from '../IR/schema';
+import type {
+	CircuitIR,
+	UnitaryOperation,
+	MeasureOperation,
+	ResetOperation,
+	BarrierOperation,
+	CircuitOperation
+} from '../IR/schema';
 import { isGateId, isParametricGate, controlledQasmName } from '../quantum/gates';
 
 export interface OpenQasmExportOptions {
@@ -152,7 +159,10 @@ function barrierToOpenQasm(op: BarrierOperation): string {
 // Parse OpenQasm back to CircuitIR
 export function openQasmToCircuit(qasmCode: string): CircuitIR | null {
 	try {
-		const lines = qasmCode.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
+		const lines = qasmCode
+			.split('\n')
+			.map((l) => l.trim())
+			.filter((l) => l && !l.startsWith('//'));
 
 		let numQubits = 0;
 		let numClassicalBits = 0;
@@ -258,7 +268,7 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	if (paramGateMatch) {
 		const gate = paramGateMatch[1].toLowerCase();
 		if (!isGateId(gate) || !isParametricGate(gate)) return null;
-		let angle = parseAngle(paramGateMatch[2]);
+		const angle = parseAngle(paramGateMatch[2]);
 		const target = parseInt(paramGateMatch[3], 10);
 		return {
 			id: crypto.randomUUID(),
@@ -273,7 +283,9 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	}
 
 	// Controlled parametric gates OpenQASM 2.0: crx(1.57) q[0], q[1];
-	const cParamGateMatch = line.match(/^c(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	const cParamGateMatch = line.match(
+		/^c(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i
+	);
 	if (cParamGateMatch) {
 		const gate = cParamGateMatch[1].toLowerCase();
 		if (!isGateId(gate)) return null;
@@ -293,7 +305,9 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	}
 
 	// Controlled parametric gates OpenQASM 3.0: ctrl @ rx(1.57) q[0], q[1];
-	const ctrlParamMatch = line.match(/^ctrl\s*@\s*(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	const ctrlParamMatch = line.match(
+		/^ctrl\s*@\s*(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i
+	);
 	if (ctrlParamMatch) {
 		const gate = ctrlParamMatch[1].toLowerCase();
 		if (!isGateId(gate)) return null;
@@ -313,7 +327,9 @@ function parseGateLine(line: string, column: number): CircuitOperation | null {
 	}
 
 	// Double-controlled parametric gates OpenQASM 3.0: ctrl @ ctrl @ rx(1.57) q[0], q[1], q[2];
-	const ctrlCtrlParamMatch = line.match(/^ctrl\s*@\s*ctrl\s*@\s*(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i);
+	const ctrlCtrlParamMatch = line.match(
+		/^ctrl\s*@\s*ctrl\s*@\s*(rx|ry|rz|p)\s*\(([^)]+)\)\s+q\[(\d+)\]\s*,\s*q\[(\d+)\]\s*,\s*q\[(\d+)\];?$/i
+	);
 	if (ctrlCtrlParamMatch) {
 		const gate = ctrlCtrlParamMatch[1].toLowerCase();
 		if (!isGateId(gate)) return null;

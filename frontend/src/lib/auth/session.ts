@@ -1,6 +1,6 @@
-import { writable } from "svelte/store";
-import { api } from "../api/axios";
-import { clearCircuitListCache } from "../stores/circuitListCache";
+import { writable } from 'svelte/store';
+import { api } from '../api/axios';
+import { clearCircuitListCache } from '../stores/circuitListCache';
 
 export type Me = {
 	id: number;
@@ -10,12 +10,12 @@ export type Me = {
 };
 
 type SessionState = {
-	status: "loading" | "authenticated" | "anonymous";
+	status: 'loading' | 'authenticated' | 'anonymous';
 	user: Me | null;
 };
 
 export const session = writable<SessionState>({
-	status: "loading",
+	status: 'loading',
 	user: null
 });
 
@@ -24,14 +24,14 @@ let sessionPromise: Promise<void> | null = null;
 export async function loadSession() {
 	if (sessionPromise) return sessionPromise;
 
-	session.set({ status: "loading", user: null });
+	session.set({ status: 'loading', user: null });
 
 	sessionPromise = (async () => {
 		try {
-			const res = await api.get("/accounts/api/auth/me/");
-			session.set({ status: "authenticated", user: res.data });
+			const res = await api.get('/accounts/api/auth/me/');
+			session.set({ status: 'authenticated', user: res.data });
 		} catch {
-			session.set({ status: "anonymous", user: null });
+			session.set({ status: 'anonymous', user: null });
 		} finally {
 			sessionPromise = null;
 		}
@@ -41,13 +41,13 @@ export async function loadSession() {
 }
 
 export async function signIn(email: string, password: string) {
-	session.set({ status: "loading", user: null });
+	session.set({ status: 'loading', user: null });
 
 	try {
-		await api.post("/accounts/api/auth/signin/", { email, password });
+		await api.post('/accounts/api/auth/signin/', { email, password });
 		await loadSession();
 	} catch (error) {
-		session.set({ status: "anonymous", user: null });
+		session.set({ status: 'anonymous', user: null });
 		throw error;
 	}
 }
@@ -59,41 +59,41 @@ export async function signUp(payload: {
 	first_name: string;
 	last_name: string;
 }) {
-	await api.post("/accounts/api/auth/signup/", payload);
+	await api.post('/accounts/api/auth/signup/', payload);
 }
 
 export async function signOut() {
-	session.set({ status: "loading", user: null });
+	session.set({ status: 'loading', user: null });
 
 	try {
-		await api.post("/accounts/api/auth/signout/");
+		await api.post('/accounts/api/auth/signout/');
 	} catch {
 		// ignore, session still needs clearing
 	}
 
 	clearCircuitListCache();
-	session.set({ status: "anonymous", user: null });
+	session.set({ status: 'anonymous', user: null });
 }
 
 export async function updateProfile(data: { first_name: string; last_name: string }) {
-    const res = await api.patch('/accounts/api/auth/profile/', data);
-    session.update(s => s.status === 'authenticated' ? { ...s, user: res.data } : s);
+	const res = await api.patch('/accounts/api/auth/profile/', data);
+	session.update((s) => (s.status === 'authenticated' ? { ...s, user: res.data } : s));
 }
 
 export async function changePassword(data: {
-    current_password: string;
-    password: string;
-    password2: string;
+	current_password: string;
+	password: string;
+	password2: string;
 }) {
-    await api.post('/accounts/api/auth/change-password/', data);
+	await api.post('/accounts/api/auth/change-password/', data);
 }
 
 export async function requestPasswordReset(email: string) {
-	return api.post("/accounts/api/auth/password-reset/", { email });
+	return api.post('/accounts/api/auth/password-reset/', { email });
 }
 
 export async function verifyPasswordResetOtp(email: string, otp: string) {
-	return api.post("/accounts/api/auth/password-reset/verify-otp/", { email, otp });
+	return api.post('/accounts/api/auth/password-reset/verify-otp/', { email, otp });
 }
 
 export function confirmPasswordReset(payload: {

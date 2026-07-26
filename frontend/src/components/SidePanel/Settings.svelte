@@ -31,20 +31,24 @@
 <div class="space-y-8">
 	<!-- Appearance -->
 	<section>
-		<p class="mb-3 text-xs font-semibold uppercase tracking-widest" style="color: var(--color-muted, var(--color-text));">
+		<p
+			class="mb-3 text-xs font-semibold uppercase tracking-widest"
+			style="color: var(--color-muted, var(--color-text));"
+		>
 			Appearance
 		</p>
 
 		<div class="mb-2 text-sm font-medium" style="color: var(--color-text);">Theme</div>
 		<div class="grid grid-cols-3 gap-2">
-			{#each themeOptions as opt}
+			{#each themeOptions as opt (opt)}
 				<button
 					type="button"
 					on:click={() => theme.set(opt.value)}
 					class="flex flex-col items-center justify-center gap-1 rounded-sm border py-3 text-sm font-medium cursor-pointer transition-colors"
 					style="border-color: {$theme === opt.value
 						? 'var(--color-ternary-1)'
-						: 'var(--color-border)'}; color: var(--color-text); background-color: {$theme === opt.value
+						: 'var(--color-border)'}; color: var(--color-text); background-color: {$theme ===
+					opt.value
 						? 'color-mix(in srgb, var(--color-ternary-1) 12%, transparent)'
 						: 'transparent'};"
 				>
@@ -59,7 +63,10 @@
 
 	<!-- Editing -->
 	<section>
-		<p class="mb-3 text-xs font-semibold uppercase tracking-widest" style="color: var(--color-muted, var(--color-text));">
+		<p
+			class="mb-3 text-xs font-semibold uppercase tracking-widest"
+			style="color: var(--color-muted, var(--color-text));"
+		>
 			Editing
 		</p>
 
@@ -80,7 +87,11 @@
 
 		{#if $settings.autoSaveEnabled}
 			<div class="mt-4">
-				<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="autosave-interval">
+				<label
+					class="mb-1 block text-sm font-medium"
+					style="color: var(--color-text);"
+					for="autosave-interval"
+				>
 					Save every
 				</label>
 				<select
@@ -89,7 +100,7 @@
 					value={$settings.autoSaveIntervalMs}
 					on:change={(e) => updateSettings({ autoSaveIntervalMs: Number(e.currentTarget.value) })}
 				>
-					{#each AUTO_SAVE_INTERVAL_OPTIONS as opt}
+					{#each AUTO_SAVE_INTERVAL_OPTIONS as opt (opt)}
 						<option value={opt.value}>{opt.label}</option>
 					{/each}
 				</select>
@@ -101,20 +112,26 @@
 
 	<!-- Visualization -->
 	<section>
-		<p class="mb-3 text-xs font-semibold uppercase tracking-widest" style="color: var(--color-muted, var(--color-text));">
+		<p
+			class="mb-3 text-xs font-semibold uppercase tracking-widest"
+			style="color: var(--color-muted, var(--color-text));"
+		>
 			Visualization
 		</p>
 
-		<div class="mb-2 text-sm font-medium" style="color: var(--color-text);">Default results view</div>
+		<div class="mb-2 text-sm font-medium" style="color: var(--color-text);">
+			Default results view
+		</div>
 		<div class="grid grid-cols-2 gap-2">
-			{#each resultViewOptions as opt}
+			{#each resultViewOptions as opt (opt)}
 				<button
 					type="button"
 					on:click={() => updateSettings({ defaultResultView: opt.value })}
 					class="flex items-center justify-center gap-1.5 rounded-sm border py-2 text-sm font-medium cursor-pointer transition-colors"
 					style="border-color: {$settings.defaultResultView === opt.value
 						? 'var(--color-ternary-1)'
-						: 'var(--color-border)'}; color: var(--color-text); background-color: {$settings.defaultResultView === opt.value
+						: 'var(--color-border)'}; color: var(--color-text); background-color: {$settings.defaultResultView ===
+					opt.value
 						? 'color-mix(in srgb, var(--color-ternary-1) 12%, transparent)'
 						: 'transparent'};"
 				>
@@ -125,7 +142,11 @@
 		</div>
 
 		<div class="mt-4">
-			<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for="prob-decimals">
+			<label
+				class="mb-1 block text-sm font-medium"
+				style="color: var(--color-text);"
+				for="prob-decimals"
+			>
 				Probability decimals
 			</label>
 			<select
@@ -134,7 +155,7 @@
 				value={$settings.probabilityDecimals}
 				on:change={(e) => updateSettings({ probabilityDecimals: Number(e.currentTarget.value) })}
 			>
-				{#each PROBABILITY_DECIMAL_OPTIONS as d}
+				{#each PROBABILITY_DECIMAL_OPTIONS as d (d)}
 					<option value={d}>{d} decimal{d === 1 ? '' : 's'}</option>
 				{/each}
 			</select>
@@ -143,17 +164,19 @@
 		<div class="mt-4">
 			<div class="mb-1 text-sm font-medium" style="color: var(--color-text);">Bit order</div>
 			<p class="mb-2 text-xs" style="color: var(--color-muted);">
-				How basis-state labels are read. The simulation is unaffected — only the label string is flipped.
+				How basis-state labels are read. The simulation is unaffected — only the label string is
+				flipped.
 			</p>
 			<div class="grid grid-cols-2 gap-2">
-				{#each bitOrderOptions as opt}
+				{#each bitOrderOptions as opt (opt)}
 					<button
 						type="button"
 						on:click={() => updateSettings({ bitOrder: opt.value })}
 						class="flex flex-col items-center justify-center gap-0.5 rounded-sm border py-2 text-sm font-medium cursor-pointer transition-colors"
 						style="border-color: {$settings.bitOrder === opt.value
 							? 'var(--color-ternary-1)'
-							: 'var(--color-border)'}; color: var(--color-text); background-color: {$settings.bitOrder === opt.value
+							: 'var(--color-border)'}; color: var(--color-text); background-color: {$settings.bitOrder ===
+						opt.value
 							? 'color-mix(in srgb, var(--color-ternary-1) 12%, transparent)'
 							: 'transparent'};"
 					>
@@ -166,7 +189,9 @@
 
 		<label class="mt-4 flex items-center justify-between gap-4 cursor-pointer">
 			<span>
-				<span class="block text-sm font-medium" style="color: var(--color-text);">Show Bloch sphere</span>
+				<span class="block text-sm font-medium" style="color: var(--color-text);"
+					>Show Bloch sphere</span
+				>
 				<span class="block text-xs" style="color: var(--color-muted);">
 					Display the 3D Bloch sphere panel below the circuit.
 				</span>

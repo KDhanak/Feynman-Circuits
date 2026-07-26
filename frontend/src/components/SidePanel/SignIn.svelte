@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { signIn } from '$lib/auth/session';
-	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import { validateEmail, validateRequired } from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
 
@@ -51,8 +51,8 @@
 			setTimeout(() => {
 				onSignedIn();
 			}, 1000);
-		} catch (err: any) {
-			const data = err?.response?.data;
+		} catch (err) {
+			const data = extractResponseData(err);
 			const errors = normalizeBackendErrors(data);
 
 			signinErrors = {
@@ -92,11 +92,7 @@
 			onInput={() => clearError('password', 'detail')}
 		/>
 
-		<button
-			type="submit"
-			class="btn-primary w-full"
-			disabled={loading}
-		>
+		<button type="submit" class="btn-primary w-full" disabled={loading}>
 			{loading ? 'Signing in...' : 'Sign In'}
 		</button>
 

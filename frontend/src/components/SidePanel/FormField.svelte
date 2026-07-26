@@ -12,14 +12,7 @@
 	<label class="mb-1 block text-sm font-medium" style="color: var(--color-text);" for={id}>
 		{label}
 	</label>
-	<input
-		{id}
-		{type}
-		{placeholder}
-		bind:value
-		on:input={onInput}
-		class="input-field"
-	/>
+	<input {id} {type} {placeholder} bind:value on:input={onInput} class="input-field" />
 	{#if error}
 		<p class="mt-1 text-sm font-bold text-red-500">{error}</p>
 	{/if}
