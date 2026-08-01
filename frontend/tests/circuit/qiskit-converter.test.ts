@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { circuitToQiskit, qiskitToCircuit } from '$lib/circuit/qiskitConverter';
 import type { CircuitIR, UnitaryOperation, CircuitOperation } from '$lib/IR/schema';
 
-function makeIR(numQubits: number, numClassicalBits: number, operations: CircuitOperation[]): CircuitIR {
+function makeIR(
+	numQubits: number,
+	numClassicalBits: number,
+	operations: CircuitOperation[]
+): CircuitIR {
 	return {
 		version: '1.0',
 		registers: { q: numQubits, c: numClassicalBits },
@@ -56,7 +60,9 @@ describe('circuitToQiskit', () => {
 
 	it('omits the classical register when there are no classical bits', () => {
 		const ir = makeIR(1, 0, [unitary('x', 0, [0])]);
-		expect(circuitToQiskit(ir, { includeComments: false })).toContain('circuit = QuantumCircuit(1)');
+		expect(circuitToQiskit(ir, { includeComments: false })).toContain(
+			'circuit = QuantumCircuit(1)'
+		);
 	});
 
 	it('uses named controlled methods where Qiskit has them', () => {

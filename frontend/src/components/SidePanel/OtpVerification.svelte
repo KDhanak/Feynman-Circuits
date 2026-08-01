@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { verifyPasswordResetOtp, requestPasswordReset } from '$lib/auth/session';
-	import { normalizeBackendErrors } from '$lib/utils/errorUtils';
+	import { normalizeBackendErrors, extractResponseData } from '$lib/utils/errorUtils';
 
 	export let email = '';
 	export let onVerified: (resetToken: string) => void = () => {};
@@ -63,8 +63,8 @@
 			clearOtpBoxes();
 			resendMsg = 'A new OTP has been sent.';
 			startCooldown(30);
-		} catch (err: any) {
-			const data = err?.response?.data;
+		} catch (err) {
+			const data = extractResponseData(err);
 			const errors = normalizeBackendErrors(data);
 			generalErrorMsg = errors.detail || 'Could not resend OTP.';
 		} finally {
@@ -86,8 +86,8 @@
 			const res = await verifyPasswordResetOtp(email, otp);
 			successMsg = 'OTP verified successfully.';
 			onVerified(res.data.reset_token);
-		} catch (err: any) {
-			const data = err?.response?.data;
+		} catch (err) {
+			const data = extractResponseData(err);
 			const errors = normalizeBackendErrors(data);
 
 			otpErrors = {
@@ -182,11 +182,13 @@
 <div>
 	<p class="mb-4 text-sm" style="color: var(--color-text);">
 		Enter the 6-digit OTP sent to
-		<span class="font-semibold underline-offset-4 underline" style="color: var(--color-text);">{email}</span>
+		<span class="font-semibold underline-offset-4 underline" style="color: var(--color-text);"
+			>{email}</span
+		>
 	</p>
 
 	<div class="flex items-center justify-between gap-2" on:paste={handlePaste}>
-		{#each otp as digit, index}
+		{#each otp as _digit, index (index)}
 			<input
 				bind:this={inputs[index]}
 				type="text"

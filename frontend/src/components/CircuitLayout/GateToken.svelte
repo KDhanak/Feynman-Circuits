@@ -2,11 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { UnitaryOperation, MeasureOperation, CircuitOperation } from '$lib/IR/schema';
 	import { isDragging } from '$lib/stores/uiStores';
-	import {
-		handleGateDragStart,
-		handleDoubleClick,
-		removeGate
-	} from '$lib/circuit/dragDropUtils';
+	import { handleGateDragStart, handleDoubleClick, removeGate } from '$lib/circuit/dragDropUtils';
 	import {
 		selectedGateIds,
 		handleGateSelection,
@@ -77,7 +73,12 @@
 			{#if gate.gate === 'swap'}
 				<span class={$isMobile ? 'text-[20px]' : 'text-[32px]'}>×</span>
 			{:else if gate.gate === 'x'}
-				<svg viewBox="0 0 28 28" width={$isMobile ? '16' : '20'} height={$isMobile ? '16' : '20'} aria-hidden="true">
+				<svg
+					viewBox="0 0 28 28"
+					width={$isMobile ? '16' : '20'}
+					height={$isMobile ? '16' : '20'}
+					aria-hidden="true"
+				>
 					<circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="2" />
 					<line x1="2" y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="2" />
 					<line x1="14" y1="2" x2="14" y2="26" stroke="currentColor" stroke-width="2" />
@@ -133,7 +134,6 @@
 			<div class="w-3 h-3 rounded-full border border-text"></div>
 		</div>
 	{/if}
-
 {:else if op.kind === 'measure'}
 	{@const measureOp = op as MeasureOperation}
 

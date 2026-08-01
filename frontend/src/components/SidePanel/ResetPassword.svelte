@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { confirmPasswordReset } from '$lib/auth/session';
-	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import { validatePasswordLength, validatePasswordsMatch } from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
 
@@ -56,8 +56,8 @@
 			setTimeout(() => {
 				onResetDone();
 			}, 1500);
-		} catch (err: any) {
-			const data = err?.response?.data;
+		} catch (err) {
+			const data = extractResponseData(err);
 			const errors = normalizeBackendErrors(data);
 
 			resetPasswordErrors = {
@@ -101,11 +101,7 @@
 			onInput={() => clearError('password2', 'detail')}
 		/>
 
-		<button
-			type="submit"
-			class="btn-primary w-full"
-			disabled={loading}
-		>
+		<button type="submit" class="btn-primary w-full" disabled={loading}>
 			{loading ? 'Resetting...' : 'Reset Password'}
 		</button>
 

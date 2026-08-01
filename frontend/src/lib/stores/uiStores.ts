@@ -15,7 +15,7 @@ export const circuitLayout = writable({
 	columnWidth: COLUMN_WIDTH,
 	// Full pixel width of the gate track (all columns). Used to give the wire
 	// rows an explicit min-width so the board can scroll horizontally.
-	totalWidth: MAX_COLUMNS * COLUMN_WIDTH,
+	totalWidth: MAX_COLUMNS * COLUMN_WIDTH
 });
 
 // Toast notification

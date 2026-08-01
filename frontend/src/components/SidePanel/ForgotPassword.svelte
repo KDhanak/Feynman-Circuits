@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { requestPasswordReset } from '$lib/auth/session';
-	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import { validateEmail } from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
 
@@ -44,8 +44,8 @@
 			setTimeout(() => {
 				onOtpSent(resetEmail);
 			}, 1500);
-		} catch (err: any) {
-			const data = err?.response?.data;
+		} catch (err) {
+			const data = extractResponseData(err);
 			const errors = normalizeBackendErrors(data);
 
 			resetErrors = {
@@ -74,11 +74,7 @@
 			onInput={() => clearError('email', 'detail')}
 		/>
 
-		<button
-			type="submit"
-			class="btn-primary w-full"
-			disabled={loading}
-		>
+		<button type="submit" class="btn-primary w-full" disabled={loading}>
 			{loading ? 'Sending OTP...' : 'Send OTP'}
 		</button>
 

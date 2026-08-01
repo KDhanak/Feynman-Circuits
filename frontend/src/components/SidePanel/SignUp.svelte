@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { signUp } from '$lib/auth/session';
-	import { normalizeBackendErrors, clearFields } from '$lib/utils/errorUtils';
+	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import {
 		validateEmail,
 		validateRequired,
@@ -70,8 +70,8 @@
 			signupPassword = '';
 			signupPassword2 = '';
 			signupErrors = {};
-		} catch (err: any) {
-			const data = err?.response?.data;
+		} catch (err) {
+			const data = extractResponseData(err);
 			const errors = normalizeBackendErrors(data);
 
 			signupErrors = {
@@ -144,10 +144,7 @@
 			error={signupErrors.password2}
 			onInput={() => clearError('password2')}
 		/>
-		<button
-			type="submit"
-			class="btn-primary w-full"
-		>
+		<button type="submit" class="btn-primary w-full">
 			{loading ? 'Creating...' : 'Create Account'}
 		</button>
 		{#if signupErrors.non_field_errors}

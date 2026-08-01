@@ -11,7 +11,7 @@
 	import MyAccount from './MyAccount.svelte';
 	import Settings from './Settings.svelte';
 	import { showNotification } from '$lib/utils/notificationUtils';
-	import { normalizeBackendErrors } from '$lib/utils/errorUtils';
+	import { normalizeBackendErrors, extractResponseData } from '$lib/utils/errorUtils';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { browser } from '$app/environment';
 	import { onDestroy } from 'svelte';
@@ -91,8 +91,8 @@
 		try {
 			await loadSession();
 			showNotification('Signed out!', 'success');
-		} catch (err: any) {
-			const data = err?.response?.data;
+		} catch (err) {
+			const data = extractResponseData(err);
 			const errors = normalizeBackendErrors(data);
 			showNotification(errors.detail || 'Sign out failed', 'error');
 		} finally {
