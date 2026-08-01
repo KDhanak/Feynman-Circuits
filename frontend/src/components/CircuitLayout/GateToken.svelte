@@ -11,6 +11,7 @@
 	} from '$lib/circuit/selection';
 	import { isMobile } from '$lib/stores/isMobile';
 	import { PARAMETRIC_GATE_IDS } from '$lib/quantum/gates';
+	import { createLongPress } from '$lib/circuit/touchUtils';
 
 	export let op: CircuitOperation;
 	export let qubit: number;
@@ -27,8 +28,25 @@
 		if (!editableGates.includes(gate.gate)) return;
 		e.preventDefault();
 		e.stopPropagation();
+		// Android fires `contextmenu` partway through a long press. Swallow it and
+		// let the long-press timer open the menu, so touch takes exactly one path.
+		if (longPress.isTouchActive()) return;
 		dispatch('gatecontextmenu', { gate, x: e.clientX, y: e.clientY });
 	}
+
+	// Touch has no right-click, so hold an editable gate to open the same editor.
+	$: editableOp = op.kind === 'unitary' && editableGates.includes(op.gate) ? op : null;
+
+	const longPress = createLongPress({
+		enabled: () => editableOp !== null,
+		onLongPress: (target) => {
+			if (!editableOp) return;
+			// Anchor under the gate rather than at the touch point, which is covered
+			// by the user's finger. Matches where a freshly dropped gate opens.
+			const rect = target.getBoundingClientRect();
+			dispatch('gatecontextmenu', { gate: editableOp, x: rect.left, y: rect.bottom + 6 });
+		}
+	});
 
 	function onKeyDown(e: KeyboardEvent, gateId: string) {
 		if (e.key === 'Delete') {
@@ -60,6 +78,10 @@
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 			on:contextmenu={(e) => onContextMenu(e, gate)}
+			on:touchstart={longPress.onTouchStart}
+			on:touchmove={longPress.onTouchMove}
+			on:touchend={longPress.onTouchEnd}
+			on:touchcancel={longPress.cancel}
 			class={`gate z-10 cursor-grab select-none rounded-sm border border-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center ${
 				gate.gate === 'swap'
 					? `bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white font-extralight ${$isMobile ? 'h-9 w-8' : 'h-11 w-10'}`
@@ -168,6 +190,8 @@
 		transform: translate(-50%, -50%);
 		z-index: 10;
 		white-space: nowrap;
+		/* Suppress iOS's own long-press callout so ours is the only thing a hold does. */
+		-webkit-touch-callout: none;
 	}
 
 	.gate.copying {

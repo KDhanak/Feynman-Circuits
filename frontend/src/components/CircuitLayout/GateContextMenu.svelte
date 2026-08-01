@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, tick } from 'svelte';
 	import type { UnitaryOperation } from '$lib/IR/schema';
 	import { circuitIR } from '$lib/IR/stores';
 	import { updateOperation } from '$lib/IR/operations';
 	import { triggerSimulation } from '$lib/circuit/dragDropUtils';
 	import { parsePiInput, formatRadiansAsPi } from '$lib/utils/piMath';
+	import { isMobile } from '$lib/stores/isMobile';
 
 	export let gate: UnitaryOperation;
 	export let x: number;
@@ -12,10 +13,35 @@
 
 	const dispatch = createEventDispatcher<{ close: void }>();
 
+	// The menu is fixed-positioned at the anchor it's handed, which pushes it off
+	// screen for a gate near the right or bottom edge — cramped desktop windows,
+	// and almost any gate on a phone. Clamp it into the viewport once it's been
+	// measured. Falls back to the raw anchor for the first paint.
+	const MARGIN = 8;
+	let menuEl: HTMLDivElement | undefined;
+	let posStyle = '';
+	$: posStyle = `left: ${x}px; top: ${y}px;`;
+	$: clampIntoViewport(x, y, menuEl);
+
+	async function clampIntoViewport(nx: number, ny: number, el: HTMLDivElement | undefined) {
+		if (!el) return;
+		await tick(); // let the menu render so we can measure it
+		const w = el.offsetWidth;
+		const h = el.offsetHeight;
+		const left = Math.max(MARGIN, Math.min(nx, window.innerWidth - w - MARGIN));
+		const top = Math.max(MARGIN, Math.min(ny, window.innerHeight - h - MARGIN));
+		posStyle = `left: ${left}px; top: ${top}px;`;
+	}
+
 	let angle = '';
 	let target0 = 0;
 	let target1 = 1;
 	let error = '';
+
+	// Roomier hit areas on touch — the desktop sizes are well under a comfortable
+	// tap target.
+	$: fieldClass = `input-field text-sm ${$isMobile ? 'py-2.5' : 'py-1.5'}`;
+	$: buttonClass = `flex-1 text-sm ${$isMobile ? 'py-2.5' : 'py-1.5'}`;
 
 	// Reset internal state whenever a different gate is opened
 	$: {
@@ -67,8 +93,11 @@
 </script>
 
 <div
-	class="ctx-menu gate-ctx-menu z-200 w-52 bg-background border border-ternary-2"
-	style="left: {x}px; top: {y}px; color: var(--color-text);"
+	bind:this={menuEl}
+	class="ctx-menu gate-ctx-menu z-200 {$isMobile
+		? 'w-60'
+		: 'w-52'} bg-background border border-ternary-2"
+	style="{posStyle} color: var(--color-text);"
 	role="menu"
 	tabindex="0"
 	on:click|stopPropagation={() => {}}
@@ -91,7 +120,7 @@
 					max={$circuitIR.registers.q - 1}
 					bind:value={target0}
 					on:keydown={onFieldKeydown}
-					class="input-field py-1.5 text-sm"
+					class={fieldClass}
 				/>
 			</div>
 			<div>
@@ -103,7 +132,7 @@
 					max={$circuitIR.registers.q - 1}
 					bind:value={target1}
 					on:keydown={onFieldKeydown}
-					class="input-field py-1.5 text-sm"
+					class={fieldClass}
 				/>
 			</div>
 			{#if error}
@@ -118,7 +147,7 @@
 				type="text"
 				bind:value={angle}
 				on:keydown={onFieldKeydown}
-				class="input-field py-1.5 text-sm"
+				class={fieldClass}
 			/>
 			{#if error}
 				<p class="mt-1 text-xs text-red-500">{error}</p>
@@ -127,9 +156,7 @@
 	{/if}
 
 	<div class="flex gap-2 px-4 py-2.5 border-t border-gray-100">
-		<button class="btn-primary flex-1 py-1.5 text-sm" on:click={apply}>Apply</button>
-		<button class="btn-secondary flex-1 py-1.5 text-sm" on:click={() => dispatch('close')}
-			>Cancel</button
-		>
+		<button class="btn-primary {buttonClass}" on:click={apply}>Apply</button>
+		<button class="btn-secondary {buttonClass}" on:click={() => dispatch('close')}>Cancel</button>
 	</div>
 </div>
