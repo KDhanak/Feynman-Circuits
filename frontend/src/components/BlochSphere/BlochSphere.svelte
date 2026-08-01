@@ -8,32 +8,77 @@
 	$: CENTER = size / 2;
 	$: R = size * 0.35;
 
-	function project(x: number, y: number, z: number) {
-		const px = CENTER + x * 0.9 * R - y * 0.45 * R;
-		const py = CENTER - z * 0.95 * R + y * 0.28 * R;
-		return { x: px, y: py };
-	}
+	// Orthographic projection of a unit sphere seen from elevation θ above the
+	// equatorial plane, at azimuth α around it:
+	//   screen right = −sinα·x + cosα·y
+	//   screen up    = −sinθ·(cosα·x + sinα·y) + cosθ·z
+	// Every mark is derived from these two angles, which is what keeps the axes,
+	// the equator and the outline in agreement: the equator projects to an ellipse
+	// with semi-axes R and sinθ·R (so the ±x/±y tips land exactly on it), and the
+	// poles land at cosθ·R — just inside the outline, as orthographic projection
+	// of a sphere requires. Because the camera sits in the +x+y+z octant, the
+	// negative half of each axis is the one pointing away from the viewer.
+	const SIN_TILT = 0.35; // sin θ — also the equator ellipse's vertical squash
+	const COS_TILT = Math.sqrt(1 - SIN_TILT * SIN_TILT);
+	const AZIMUTH = (20 * Math.PI) / 180; // α — swings +x toward the viewer's lower left
+	const SIN_AZ = Math.sin(AZIMUTH);
+	const COS_AZ = Math.cos(AZIMUTH);
+
+	// Reactive so the projected points follow CENTER/R when `size` changes.
+	$: project = (x: number, y: number, z: number) => {
+		const right = -SIN_AZ * x + COS_AZ * y;
+		const up = -SIN_TILT * (COS_AZ * x + SIN_AZ * y) + COS_TILT * z;
+		return { x: CENTER + right * R, y: CENTER - up * R };
+	};
 
 	$: tip = project(vector.x, vector.y, vector.z);
 	$: centerPoint = project(0, 0, 0);
-	$: plusX = project(1, 0, 0);
-	$: plusY = project(0, 1, 0);
-	$: plusZ = project(0, 0, 1);
-	$: minusX = project(-1, 0, 0);
-	$: minusY = project(0, -1, 0);
-	$: minusZ = project(0, 0, -1);
-	// Radius at which axis labels sit. <1 keeps them inside the sphere outline,
-	// >1 pushes them outside it. Scales with size automatically via project().
-	const LABEL_RADIUS = 0.82;
+	// Each axis as a near half (centre → +tip, solid) and a far half (centre →
+	// −tip, dashed) so the depth ordering is legible.
+	$: axes = [
+		{ near: project(1, 0, 0), far: project(-1, 0, 0) },
+		{ near: project(0, 1, 0), far: project(0, -1, 0) },
+		{ near: project(0, 0, 1), far: project(0, 0, -1) }
+	];
+	// Labels sit just outside the outline; >1 pushes them out, <1 pulls them in.
+	const LABEL_RADIUS = 1.18;
 	$: xLabel = project(LABEL_RADIUS, 0, 0);
 	$: yLabel = project(0, LABEL_RADIUS, 0);
 	$: zLabel = project(0, 0, LABEL_RADIUS);
 	$: labelFont = Math.max(8, size * 0.06);
+	$: equatorRy = R * SIN_TILT;
 	$: coordText = `x=${vector.x.toFixed(2)} y=${vector.y.toFixed(2)} z=${vector.z.toFixed(2)}`;
 </script>
 
 <div class="bloch-card">
 	<svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
+		<circle cx={CENTER} cy={CENTER} r={R} class="sphere" />
+		<ellipse cx={CENTER} cy={CENTER} rx={R} ry={equatorRy} class="equator" />
+
+		{#each axes as axis}
+			<line
+				x1={centerPoint.x}
+				y1={centerPoint.y}
+				x2={axis.far.x}
+				y2={axis.far.y}
+				class="axis axis-far"
+			/>
+			<line
+				x1={centerPoint.x}
+				y1={centerPoint.y}
+				x2={axis.near.x}
+				y2={axis.near.y}
+				class="axis"
+			/>
+		{/each}
+
+		<line x1={centerPoint.x} y1={centerPoint.y} x2={tip.x} y2={tip.y} class="vector" />
+
+		<circle cx={tip.x} cy={tip.y} r={Math.max(2.5, size * 0.02)} class="tip" />
+		<circle cx={centerPoint.x} cy={centerPoint.y} r={Math.max(1.5, size * 0.016)} class="origin" />
+
+		<!-- Labels last: the sphere's fill is opaque, so anything drawn before it
+		     that falls inside the outline gets painted over. -->
 		{#if showAxisLabels}
 			<text
 				x={xLabel.x}
@@ -60,18 +105,6 @@
 				class="axis-label">+z</text
 			>
 		{/if}
-
-		<circle cx={CENTER} cy={CENTER} r={R} class="sphere" />
-		<ellipse cx={CENTER} cy={CENTER} rx={R} ry={R * 0.35} class="equator" />
-
-		<line x1={minusZ.x} y1={minusZ.y} x2={plusZ.x} y2={plusZ.y} class="axis" />
-		<line x1={minusX.x} y1={minusX.y} x2={plusX.x} y2={plusX.y} class="axis" />
-		<line x1={minusY.x} y1={minusY.y} x2={plusY.x} y2={plusY.y} class="axis" />
-
-		<line x1={centerPoint.x} y1={centerPoint.y} x2={tip.x} y2={tip.y} class="vector" />
-
-		<circle cx={tip.x} cy={tip.y} r={Math.max(2.5, size * 0.02)} class="tip" />
-		<circle cx={centerPoint.x} cy={centerPoint.y} r={Math.max(1.5, size * 0.016)} class="origin" />
 	</svg>
 
 	{#if showDetails}
@@ -102,6 +135,11 @@
 	.axis {
 		stroke: var(--color-line);
 		stroke-width: 1;
+	}
+	/* Half of each axis pointing away from the viewer. */
+	.axis-far {
+		stroke-dasharray: 2 3;
+		opacity: 0.6;
 	}
 	.vector {
 		stroke: var(--color-ternary-1);
