@@ -211,7 +211,7 @@
 			{#if showBloch}
 				<Tooltip
 					quick="Bloch Sphere"
-					detail="A 3D representation of a single qubit's state. The north pole is |0⟩, south pole is |1⟩, and the equator is superposition."
+					detail="Each qubit's state reduces to a vector r = (⟨X⟩, ⟨Y⟩, ⟨Z⟩): the north pole is |0⟩, the south pole is |1⟩, and the equator is superposition. This sphere plots the average of those vectors across the register, so it is exact for one qubit and only a summary for more — |01⟩ and a Bell pair both average to the centre. |r| = 1 means a pure state; |r| < 1 means mixed, which for a single qubit signals entanglement with the others."
 				>
 					<div
 						class="w-full h-full shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
