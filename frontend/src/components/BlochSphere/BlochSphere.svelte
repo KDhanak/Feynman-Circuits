@@ -24,27 +24,33 @@
 	const SIN_AZ = Math.sin(AZIMUTH);
 	const COS_AZ = Math.cos(AZIMUTH);
 
-	// Reactive so the projected points follow CENTER/R when `size` changes.
-	$: project = (x: number, y: number, z: number) => {
-		const right = -SIN_AZ * x + COS_AZ * y;
-		const up = -SIN_TILT * (COS_AZ * x + SIN_AZ * y) + COS_TILT * z;
-		return { x: CENTER + right * R, y: CENTER - up * R };
-	};
-
-	$: tip = project(vector.x, vector.y, vector.z);
-	$: centerPoint = project(0, 0, 0);
-	// Each axis as a near half (centre → +tip, solid) and a far half (centre →
-	// −tip, dashed) so the depth ordering is legible.
-	$: axes = [
-		{ near: project(1, 0, 0), far: project(-1, 0, 0) },
-		{ near: project(0, 1, 0), far: project(0, -1, 0) },
-		{ near: project(0, 0, 1), far: project(0, 0, -1) }
-	];
 	// Labels sit just outside the outline; >1 pushes them out, <1 pulls them in.
 	const LABEL_RADIUS = 1.18;
-	$: xLabel = project(LABEL_RADIUS, 0, 0);
-	$: yLabel = project(0, LABEL_RADIUS, 0);
-	$: zLabel = project(0, 0, LABEL_RADIUS);
+
+	// `centre` and `radius` are passed in rather than closed over so the reactive
+	// statements below list CENTER/R as dependencies and re-run when `size` changes.
+	function project(x: number, y: number, z: number, centre: number, radius: number) {
+		const right = -SIN_AZ * x + COS_AZ * y;
+		const up = -SIN_TILT * (COS_AZ * x + SIN_AZ * y) + COS_TILT * z;
+		return { x: centre + right * radius, y: centre - up * radius };
+	}
+
+	$: tip = project(vector.x, vector.y, vector.z, CENTER, R);
+	$: centerPoint = project(0, 0, 0, CENTER, R);
+	// Each axis as a near half (centre → +tip, solid) and a far half (centre →
+	// −tip, dashed) so the depth ordering is legible.
+	$: axes = (
+		[
+			['x', [1, 0, 0]],
+			['y', [0, 1, 0]],
+			['z', [0, 0, 1]]
+		] as const
+	).map(([name, [x, y, z]]) => ({
+		name,
+		near: project(x, y, z, CENTER, R),
+		far: project(-x, -y, -z, CENTER, R),
+		label: project(x * LABEL_RADIUS, y * LABEL_RADIUS, z * LABEL_RADIUS, CENTER, R)
+	}));
 	$: labelFont = Math.max(8, size * 0.06);
 	$: equatorRy = R * SIN_TILT;
 	$: coordText = `x=${vector.x.toFixed(2)} y=${vector.y.toFixed(2)} z=${vector.z.toFixed(2)}`;
@@ -55,7 +61,7 @@
 		<circle cx={CENTER} cy={CENTER} r={R} class="sphere" />
 		<ellipse cx={CENTER} cy={CENTER} rx={R} ry={equatorRy} class="equator" />
 
-		{#each axes as axis}
+		{#each axes as axis (axis.name)}
 			<line
 				x1={centerPoint.x}
 				y1={centerPoint.y}
@@ -63,13 +69,7 @@
 				y2={axis.far.y}
 				class="axis axis-far"
 			/>
-			<line
-				x1={centerPoint.x}
-				y1={centerPoint.y}
-				x2={axis.near.x}
-				y2={axis.near.y}
-				class="axis"
-			/>
+			<line x1={centerPoint.x} y1={centerPoint.y} x2={axis.near.x} y2={axis.near.y} class="axis" />
 		{/each}
 
 		<line x1={centerPoint.x} y1={centerPoint.y} x2={tip.x} y2={tip.y} class="vector" />
@@ -80,30 +80,16 @@
 		<!-- Labels last: the sphere's fill is opaque, so anything drawn before it
 		     that falls inside the outline gets painted over. -->
 		{#if showAxisLabels}
-			<text
-				x={xLabel.x}
-				y={xLabel.y}
-				font-size={labelFont}
-				text-anchor="middle"
-				dominant-baseline="middle"
-				class="axis-label">+x</text
-			>
-			<text
-				x={yLabel.x}
-				y={yLabel.y}
-				font-size={labelFont}
-				text-anchor="middle"
-				dominant-baseline="middle"
-				class="axis-label">+y</text
-			>
-			<text
-				x={zLabel.x}
-				y={zLabel.y}
-				font-size={labelFont}
-				text-anchor="middle"
-				dominant-baseline="middle"
-				class="axis-label">+z</text
-			>
+			{#each axes as axis (axis.name)}
+				<text
+					x={axis.label.x}
+					y={axis.label.y}
+					font-size={labelFont}
+					text-anchor="middle"
+					dominant-baseline="middle"
+					class="axis-label">+{axis.name}</text
+				>
+			{/each}
 		{/if}
 	</svg>
 

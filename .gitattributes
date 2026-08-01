@@ -1,0 +1,17 @@
+# Line endings.
+#
+# Every text file is stored with LF in the repository and checked out with LF
+# in the working tree, on every platform. This overrides each contributor's
+# core.autocrlf setting, so the working copy always matches what is committed
+# and what CI sees.
+#
+# Without it, Windows clones get CRLF on disk while the repository holds LF.
+# Prettier normalises to LF, so `prettier --check .` then fails on nearly every
+# file locally while passing on the Linux CI runner — noise that hides the real
+# formatting failures.
+* text=auto eol=lf
+
+# Binary files are detected automatically by text=auto, but declaring the ones
+# we actually have makes that explicit and immune to a bad heuristic.
+*.png binary
+*.svg text eol=lf
