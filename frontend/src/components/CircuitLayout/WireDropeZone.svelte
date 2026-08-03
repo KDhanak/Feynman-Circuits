@@ -475,8 +475,9 @@
 		{/if}
 		<!-- Re-enables pointer events on the text alone, so a truncated name still
 		     reveals itself on hover while the rest of the strip stays click-through. -->
-		<span class="truncate text-sm py-1.5 px-4 font-semibold pointer-events-auto backdrop-blur-lg rounded-sm shadow-sm" title={$currentCircuitName}
-			>{$currentCircuitName}</span
+		<span
+			class="truncate text-sm py-1.5 px-4 font-semibold pointer-events-auto backdrop-blur-lg rounded-sm shadow-sm"
+			title={$currentCircuitName}>{$currentCircuitName}</span
 		>
 	</div>
 
