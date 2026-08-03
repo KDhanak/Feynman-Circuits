@@ -13,8 +13,7 @@
 	import CircuitDataPanel from '../components/CircuitDataPanel.svelte';
 	import Icon from '@iconify/svelte';
 	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
-	import { session } from '$lib/auth/session';
-	import { saveStatus, notification } from '$lib/stores/uiStores';
+	import { notification } from '$lib/stores/uiStores';
 	import '$lib/circuit/autoSave';
 	import { get } from 'svelte/store';
 	import FeedbackModal from '../components/FeedbackModal.svelte';
@@ -133,28 +132,10 @@
 			<span class="mb-2 text-xl font-semibold" style="color: var(--color-text);">CIRCUITS</span>
 		</div>
 
+		<!-- The circuit name and save status now live on the board itself
+		     (WireDropeZone), centred between its two button clusters, so they show
+		     at phone widths too — this header copy was hidden below `sm`. -->
 		<div class="flex items-center gap-2">
-			<div
-				class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-sm"
-				class:invisible={$session.status !== 'authenticated'}
-				style="color: var(--color-muted);"
-			>
-				<Icon icon="ph:circuit-board" width="15" height="15" />
-				<span class="w-3.25 h-3.25 shrink-0 flex items-center justify-center">
-					{#if $saveStatus === 'saving'}
-						<Icon
-							icon="svg-spinners:ring-resize"
-							width="13"
-							height="13"
-							style="color: var(--color-measured);"
-						/>
-					{:else if $saveStatus === 'saved'}
-						<Icon icon="ph:check-bold" width="13" height="13" class="text-green-500" />
-					{/if}
-				</span>
-				<span class="text-sm font-semibold max-w-40 truncate">{$currentCircuitName}</span>
-			</div>
-
 			<button
 				on:click={toggleTheme}
 				aria-label="Toggle theme"

@@ -3,8 +3,9 @@
 	import { onMount, tick } from 'svelte';
 	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
-	import { simulationResult, circuitIR } from '$lib/IR/stores';
-	import { circuitLayout, isDragging, armedGate } from '$lib/stores/uiStores';
+	import { simulationResult, circuitIR, currentCircuitName } from '$lib/IR/stores';
+	import { circuitLayout, isDragging, armedGate, saveStatus } from '$lib/stores/uiStores';
+	import { session } from '$lib/auth/session';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -447,9 +448,41 @@
 		</div>
 	{/if}
 
+	<!-- Circuit name, centred in the strip between the qubit controls on the left
+	     and the copy/reset buttons on the right. Width-capped to the gap between
+	     those two clusters (~7rem each plus breathing room) so a long name
+	     truncates instead of running underneath them — which is what keeps this
+	     readable at phone widths. Non-interactive so it never swallows a tap
+	     meant for the board. -->
+	<div
+		class="absolute p-1 top-2 left-1/2 z-200 flex max-w-[calc(100%-14rem)] -translate-x-1/2 items-center gap-1.5 pointer-events-none"
+		style="color: var(--color-muted);"
+	>
+		<Icon icon="ph:circuit-board" width="15" height="15" class="shrink-0" />
+		{#if $session.status === 'authenticated'}
+			<span class="w-3.25 h-3.25 shrink-0 flex items-center justify-center">
+				{#if $saveStatus === 'saving'}
+					<Icon
+						icon="svg-spinners:ring-resize"
+						width="13"
+						height="13"
+						style="color: var(--color-measured);"
+					/>
+				{:else if $saveStatus === 'saved'}
+					<Icon icon="ph:check-bold" width="13" height="13" class="text-green-500" />
+				{/if}
+			</span>
+		{/if}
+		<!-- Re-enables pointer events on the text alone, so a truncated name still
+		     reveals itself on hover while the rest of the strip stays click-through. -->
+		<span class="truncate text-sm py-1.5 px-4 font-semibold pointer-events-auto backdrop-blur-lg rounded-sm shadow-sm" title={$currentCircuitName}
+			>{$currentCircuitName}</span
+		>
+	</div>
+
 	<!-- Copy + Reset buttons, pinned to the board's top-right corner (icon only) -->
 	<div
-		class="absolute top-2 right-2 z-200 flex items-center gap-1"
+		class="absolute top-2 right-2 z-200 flex items-center gap-1 backdrop-blur-lg rounded-sm shadow-sm"
 		style="color: var(--color-text);"
 	>
 		<button
