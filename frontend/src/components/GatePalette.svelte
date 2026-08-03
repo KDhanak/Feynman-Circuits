@@ -2,6 +2,7 @@
 	import type { GateData } from '$lib/IR/schema';
 	import { handlePaletteDrop, handleDoubleClick } from '$lib/circuit/dragDropUtils';
 	import { isDragging, armedGate } from '$lib/stores/uiStores';
+	import { clearSelection } from '$lib/circuit/selection';
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import { manualSave, isCircuitSaved } from '$lib/circuit/autoSave';
 	import { currentCircuitName } from '$lib/IR/stores';
@@ -77,9 +78,14 @@
 	let dragEnterCount = 0;
 
 	// Mobile tap-to-place: tapping a gate arms it (tapping the armed gate disarms).
+	// Clears any board selection, which would otherwise leave a gate ringed as
+	// picked-up while the palette gate is the one actually armed.
 	function toggleArm(gateType: string) {
+		clearSelection();
 		armedGate.update((cur) =>
-			cur?.gateType === gateType ? null : { source: 'palette', gateType }
+			cur?.source === 'palette' && cur.gateType === gateType
+				? null
+				: { source: 'palette', gateType }
 		);
 	}
 

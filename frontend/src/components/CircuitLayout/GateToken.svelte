@@ -1,8 +1,15 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { get } from 'svelte/store';
 	import type { UnitaryOperation, MeasureOperation, CircuitOperation } from '$lib/IR/schema';
 	import { isDragging } from '$lib/stores/uiStores';
-	import { handleGateDragStart, handleDoubleClick, removeGate } from '$lib/circuit/dragDropUtils';
+	import {
+		handleGateDragStart,
+		handleDoubleClick,
+		removeGate,
+		armGateForMove,
+		disarmGate
+	} from '$lib/circuit/dragDropUtils';
 	import {
 		selectedGateIds,
 		handleGateSelection,
@@ -32,6 +39,18 @@
 		// let the long-press timer open the menu, so touch takes exactly one path.
 		if (longPress.isTouchActive()) return;
 		dispatch('gatecontextmenu', { gate, x: e.clientX, y: e.clientY });
+	}
+
+	// Mobile: a tap both toggles the gate in the selection (which drives the
+	// delete button) and arms it for a tap-to-move — the two follow-up actions
+	// don't collide, since one is a tap on the trash button and the other a tap on
+	// the board. Arming only when the tapped gate is the whole selection keeps
+	// multi-select-to-delete working: adding a second gate drops back to delete-only.
+	function onMobileTap(gateId: string, gateType?: string, qubit?: number) {
+		toggleGateSelection(gateId);
+		const selected = get(selectedGateIds);
+		if (selected.size === 1 && selected.has(gateId)) armGateForMove(gateId, gateType, qubit);
+		else disarmGate();
 	}
 
 	// Touch has no right-click, so hold an editable gate to open the same editor.
@@ -74,7 +93,7 @@
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id)}
 			on:dragend={() => isDragging.set(false)}
-			on:click={(e) => ($isMobile ? toggleGateSelection(gate.id) : handleGateSelection(gate.id, e))}
+			on:click={(e) => ($isMobile ? onMobileTap(gate.id) : handleGateSelection(gate.id, e))}
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: gate.id })}
 			on:contextmenu={(e) => onContextMenu(e, gate)}
@@ -123,7 +142,8 @@
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id, 'CONTROL', qubit)}
 			on:dragend={() => isDragging.set(false)}
-			on:click={(e) => ($isMobile ? toggleGateSelection(gate.id) : handleGateSelection(gate.id, e))}
+			on:click={(e) =>
+				$isMobile ? onMobileTap(gate.id, 'CONTROL', qubit) : handleGateSelection(gate.id, e)}
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() =>
 				handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'CONTROL', qubit })}
@@ -146,7 +166,8 @@
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id, 'ANTI_CONTROL', qubit)}
 			on:dragend={() => isDragging.set(false)}
-			on:click={(e) => ($isMobile ? toggleGateSelection(gate.id) : handleGateSelection(gate.id, e))}
+			on:click={(e) =>
+				$isMobile ? onMobileTap(gate.id, 'ANTI_CONTROL', qubit) : handleGateSelection(gate.id, e)}
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() =>
 				handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'ANTI_CONTROL', qubit })}
@@ -172,7 +193,7 @@
 			on:dragstart={(e) => handleGateDragStart(e, measureOp.id)}
 			on:dragend={() => isDragging.set(false)}
 			on:click={(e) =>
-				$isMobile ? toggleGateSelection(measureOp.id) : handleGateSelection(measureOp.id, e)}
+				$isMobile ? onMobileTap(measureOp.id) : handleGateSelection(measureOp.id, e)}
 			on:keydown={(e) => e.key === 'Delete' && removeGate(measureOp.id)}
 			on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: measureOp.id })}
 			class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-orange-100 text-orange-700 active:bg-orange-400 border-orange-300 active:text-white active:border-white shadow transition-colors duration-100"

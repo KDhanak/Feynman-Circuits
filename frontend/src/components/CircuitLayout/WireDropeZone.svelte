@@ -314,13 +314,21 @@
 		if (cell) handleDrop(e, cell.col, cell.qubit);
 	}
 
-	// Mobile tap-to-place, delegated from the board click handler. Returns true when
-	// it consumed the tap so the caller can skip selection-clearing.
+	// Mobile tap-to-place / tap-to-move, delegated from the board click handler.
+	// Returns true when it consumed the tap so the caller can skip selection-clearing.
 	function handleBoardTap(e: MouseEvent): boolean {
 		if (!$isMobile || !$armedGate) return false;
+		// A tap that lands on a gate is arming or selecting that gate, never a drop
+		// target — otherwise tapping a gate to pick it up would immediately try to
+		// drop the armed gate onto the cell the tap passed through.
+		if ((e.target as HTMLElement).closest('.gate')) return false;
 		const cell = resolveCell(e.target, e.clientX);
 		if (!cell) return false;
+		const wasMove = $armedGate.source === 'wire';
 		placeArmedGate(cell.col, cell.qubit);
+		// A moved gate has arrived; drop the selection so the board isn't left
+		// showing it as picked up. A palette gate stays armed for repeated taps.
+		if (wasMove) clearSelection();
 		return true;
 	}
 

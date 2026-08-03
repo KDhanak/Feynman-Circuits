@@ -204,14 +204,31 @@ export function handleDragOver(e: DragEvent) {
 
 /*──────────────────────── tap-to-place ──────────────────*/
 
-// Mobile tap-to-place: drops the currently armed palette gate at (col, qubit) by
-// reusing the full handleDrop pipeline via a synthetic event — so ghost-wire
-// expansion, controls, SWAP and parametric gates all behave identically to a
-// real drag-drop (including popping the inline editor for RX/RY/RZ/SWAP). The
-// gate stays armed so repeated taps place more of it.
+// Arms a gate that is already on the board for a tap-to-move. Touch has no
+// usable HTML5 drag, so moving a placed gate mirrors the palette's tap-to-place:
+// tap the gate, then tap where it should go. `gateType`/`qubit` are set only for
+// control dots, whose move semantics differ (all siblings travel together).
+export function armGateForMove(gateId: string, gateType?: string, qubit?: number) {
+	armedGate.set({ source: 'wire', gateId, gateType, qubit });
+}
+
+export function disarmGate() {
+	armedGate.set(null);
+}
+
+// Mobile tap-to-place: drops the currently armed gate at (col, qubit) by reusing
+// the full handleDrop pipeline via a synthetic event — so ghost-wire expansion,
+// controls, SWAP and parametric gates all behave identically to a real
+// drag-drop (including popping the inline editor for RX/RY/RZ/SWAP).
+//
+// A palette gate stays armed so repeated taps place more of it; a gate moved
+// from the board disarms, since it has arrived and a second tap elsewhere should
+// not drag it along.
 export function placeArmedGate(col: number, qubit: number) {
 	const armed = get(armedGate);
-	if (!armed?.gateType) return;
+	if (!armed) return;
+	// A palette gate is identified by its type, a board gate by its id.
+	if (armed.source === 'palette' ? !armed.gateType : !armed.gateId) return;
 
 	const syntheticEvent = {
 		preventDefault: () => {},
@@ -219,6 +236,8 @@ export function placeArmedGate(col: number, qubit: number) {
 	} as unknown as DragEvent;
 
 	handleDrop(syntheticEvent, col, qubit);
+
+	if (armed.source === 'wire') armedGate.set(null);
 }
 
 /*──────────────────────── drop logic ────────────────────*/
