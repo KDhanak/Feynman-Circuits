@@ -41,4 +41,27 @@ Object.defineProperty(window, 'localStorage', {
 	value: new LocalStorageMock()
 });
 
+// required for svelte5 + jsdom as jsdom does not implement the Web Animations
+// API, which Svelte's `transition:` directives drive. Any component rendering a
+// transition on mount (e.g. the onboarding welcome modal) throws without it.
+class AnimationMock {
+	onfinish: (() => void) | null = null;
+	oncancel: (() => void) | null = null;
+	currentTime = 0;
+	startTime = 0;
+	playbackRate = 1;
+	effect = { getComputedTiming: () => ({ duration: 0, delay: 0 }) };
+	play = vi.fn();
+	pause = vi.fn();
+	cancel = vi.fn();
+	finish = vi.fn();
+	addEventListener = vi.fn();
+	removeEventListener = vi.fn();
+}
+Object.defineProperty(Element.prototype, 'animate', {
+	writable: true,
+	enumerable: true,
+	value: vi.fn(() => new AnimationMock())
+});
+
 // add more mocks here if you need them

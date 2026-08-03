@@ -134,6 +134,7 @@
 		if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active');
 	}}
 	class="relative mb-2.5 max-w-420 mx-auto w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm shadow-sm shadow-secondary-2 bg-secondary-3/20"
+	data-tour="palette"
 >
 	{#each gates as gate (gate.name)}
 		<!-- Separator before multi-qubit gates -->
@@ -201,6 +202,7 @@
 	{/each}
 	<button
 		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
+		data-tour="save"
 		on:click={openNameDialog}>{$isCircuitSaved ? 'Rename Circuit' : 'Save Circuit'}</button
 	>
 	<button

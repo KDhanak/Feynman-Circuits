@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { positionPopover } from '$lib/utils/positionPopover';
 
 	export let quick: string;
 	export let detail: string = '';
@@ -9,36 +10,14 @@
 	let tooltipEl: HTMLDivElement;
 	let posStyle = '';
 
-	const MARGIN = 8; // keep this much gap from the viewport edges
-	const GAP = 6; // gap between the trigger and the tooltip
-
 	async function position() {
 		if (!triggerEl) return;
 		await tick(); // wait for the tooltip to be in the DOM so we can measure it
 
-		const r = triggerEl.getBoundingClientRect();
-		const vw = window.innerWidth;
-		const vh = window.innerHeight;
-
-		const width = Math.min(320, vw - MARGIN * 2);
-		const height = tooltipEl?.offsetHeight ?? 120;
-
-		// Horizontal: centre on the trigger, then clamp so neither side
-		// spills off-screen — effectively flips to whichever side has room.
-		let left = r.left + r.width / 2 - width / 2;
-		left = Math.max(MARGIN, Math.min(left, vw - width - MARGIN));
-
-		// Vertical: prefer below the trigger; flip above when there isn't room.
-		let top: number;
-		if (r.bottom + GAP + height + MARGIN <= vh) {
-			top = r.bottom + GAP;
-		} else if (r.top - GAP - height - MARGIN >= 0) {
-			top = r.top - GAP - height;
-		} else {
-			// Doesn't fully fit either side — clamp into view.
-			top = Math.max(MARGIN, Math.min(vh - height - MARGIN, r.bottom + GAP));
-		}
-
+		const { left, top, width } = positionPopover(
+			triggerEl.getBoundingClientRect(),
+			tooltipEl?.offsetHeight ?? 120
+		);
 		posStyle = `left:${left}px; top:${top}px; width:${width}px;`;
 	}
 

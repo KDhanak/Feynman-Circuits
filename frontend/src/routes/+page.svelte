@@ -18,6 +18,8 @@
 	import { get } from 'svelte/store';
 	import FeedbackModal from '../components/FeedbackModal.svelte';
 	import Tooltip from '../components/Tooltip.svelte';
+	import OnboardingHost from '../components/Onboarding/OnboardingHost.svelte';
+	import { openWelcome } from '$lib/stores/onboardingStore';
 
 	let feedbackOpen = false;
 
@@ -137,6 +139,15 @@
 		     at phone widths too — this header copy was hidden below `sm`. -->
 		<div class="flex items-center gap-2">
 			<button
+				on:click={openWelcome}
+				aria-label="Open the guided tour"
+				data-tour="help"
+				class="shrink-0 p-2 rounded-full cursor-pointer transition-colors"
+			>
+				<Icon icon="ph:question-bold" width="22" height="22" style="color: var(--color-text)" />
+			</button>
+
+			<button
 				on:click={toggleTheme}
 				aria-label="Toggle theme"
 				class="shrink-0 p-2 rounded-full cursor-pointer transition-colors"
@@ -161,6 +172,7 @@
 	{#snippet mainContent()}
 		<!-- Circuit board — fills all remaining vertical space -->
 		<div
+			data-tour="board"
 			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 min-h-[55vh] lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
 		>
 			<CircuitLayout />
@@ -179,12 +191,14 @@
 			class="{contentWidth} mt-2.5 mb-1 grid grid-cols-1 sm:grid-cols-2 sm:grid-flow-row-dense sm:auto-rows-[20.625rem] gap-2.5 shrink-0 {resultsGridCols}"
 		>
 			<div
+				data-tour="results"
 				class="shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-y-auto min-w-0 min-h-0 {simSpan}"
 			>
 				<SimulationResult />
 			</div>
 			{#if !$isMobile && !leftMode}
 				<div
+					data-tour="code"
 					class="sm:col-span-2 lg:col-span-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden min-w-0 min-h-0"
 				>
 					<CircuitDataPanel />
@@ -221,6 +235,7 @@
 	>
 		{#if leftMode}
 			<aside
+				data-tour="code"
 				class="shrink-0 flex flex-col min-h-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
 				style="width: clamp({MIN_LEFT}px, {codePanelWidth}px, 65%)"
 			>
@@ -265,6 +280,8 @@
 		<span class="underline underline-offset-2 font-bold text-green-600">Feedback</span>
 	</button>
 </main>
+
+<OnboardingHost />
 
 {#if feedbackOpen}
 	<FeedbackModal onClose={() => (feedbackOpen = false)} />
