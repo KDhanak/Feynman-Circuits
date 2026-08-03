@@ -26,13 +26,13 @@ function touch(type: string, x: number, y: number) {
 	return e;
 }
 
-function setup(gate: string) {
+function setup(gate: string, overrides: Partial<UnitaryOperation> = {}) {
 	const onMenu = vi.fn();
 	// Svelte 5 dropped `component.$on`; createEventDispatcher now reads its
 	// listeners from the `$$events` prop, which is how a legacy `on:` directive
 	// on the parent is passed down.
 	const props = {
-		op: makeGate(gate),
+		op: { ...makeGate(gate), ...overrides },
 		qubit: 0,
 		columnWidth: 60,
 		$$events: { gatecontextmenu: onMenu }
@@ -43,6 +43,50 @@ function setup(gate: string) {
 	const el = container.querySelector('[data-type="GATE"]') as HTMLElement;
 	return { el, onMenu };
 }
+
+describe('GateToken parameter display', () => {
+	it.each([
+		[Math.PI / 2, 'π/2'],
+		[-Math.PI / 4, '-π/4'],
+		[(3 * Math.PI) / 4, '3π/4'],
+		[Math.PI, 'π'],
+		[0, '0'],
+		[1.234, '1.234'] // not a clean fraction of π — falls back to radians
+	])('shows %f as %s on the token', (radians, shown) => {
+		const { el } = setup('rx', { params: [radians] });
+		expect(el.textContent).toContain('RX');
+		expect(el.textContent).toContain(shown);
+	});
+
+	it('shows each parametric gate its own angle', () => {
+		for (const gate of ['rx', 'ry', 'rz', 'p']) {
+			const { el } = setup(gate, { params: [Math.PI / 2] });
+			expect(el.textContent).toContain(gate.toUpperCase());
+			expect(el.textContent).toContain('π/2');
+		}
+	});
+
+	it('leaves a non-parametric gate unchanged', () => {
+		const { el } = setup('h');
+		expect(el.textContent?.trim()).toBe('H');
+	});
+
+	it('describes the angle in the title and accessible name', () => {
+		const { el } = setup('rx', { params: [Math.PI / 2] });
+		expect(el.getAttribute('title')).toBe('RX angle π/2');
+		expect(el.getAttribute('aria-label')).toContain('RX angle π/2');
+	});
+
+	it('describes a SWAP by its target pair', () => {
+		const { el } = setup('swap', { targets: [0, 2] });
+		expect(el.getAttribute('title')).toBe('SWAP q0 ↔ q2');
+	});
+
+	it('gives a plain gate no title', () => {
+		const { el } = setup('h');
+		expect(el.getAttribute('title')).toBeNull();
+	});
+});
 
 describe('GateToken long-press to edit', () => {
 	beforeEach(() => vi.useFakeTimers());

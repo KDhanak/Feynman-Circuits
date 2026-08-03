@@ -19,6 +19,7 @@
 	import { isMobile } from '$lib/stores/isMobile';
 	import { PARAMETRIC_GATE_IDS } from '$lib/quantum/gates';
 	import { createLongPress } from '$lib/circuit/touchUtils';
+	import { formatRadiansAsPi } from '$lib/utils/piMath';
 
 	export let op: CircuitOperation;
 	export let qubit: number;
@@ -30,6 +31,20 @@
 
 	// Editable = anything with an angle (parametric) plus swap (target picker).
 	const editableGates = [...PARAMETRIC_GATE_IDS, 'swap'];
+
+	// The angle a parametric gate carries, shown on the token so the circuit can
+	// be read without opening each gate's editor. Rendered as a fraction of π
+	// ("π/2"), which is how the editor takes it too. Presentation only — the value
+	// already lives in the operation's `params`.
+	const isParametric = (g: string) => PARAMETRIC_GATE_IDS.includes(g as never);
+	const angleOf = (g: UnitaryOperation) => formatRadiansAsPi(g.params[0] ?? 0);
+
+	// Hover/long-press text spelling out what a tap-to-edit would change.
+	function editableSummary(g: UnitaryOperation): string | undefined {
+		if (isParametric(g.gate)) return `${g.gate.toUpperCase()} angle ${angleOf(g)}`;
+		if (g.gate === 'swap') return `SWAP q${g.targets[0]} ↔ q${g.targets[1] ?? '?'}`;
+		return undefined;
+	}
 
 	function onContextMenu(e: MouseEvent, gate: UnitaryOperation) {
 		if (!editableGates.includes(gate.gate)) return;
@@ -88,7 +103,10 @@
 			data-qubit={qubit}
 			data-type="GATE"
 			role="button"
-			aria-label={`Remove ${gate.gate} gate`}
+			aria-label={editableSummary(gate)
+				? `Remove ${gate.gate} gate, ${editableSummary(gate)}`
+				: `Remove ${gate.gate} gate`}
+			title={editableSummary(gate)}
 			tabindex="0"
 			draggable="true"
 			on:dragstart={(e) => handleGateDragStart(e, gate.id)}
@@ -106,7 +124,11 @@
 					? `bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white font-extralight ${$isMobile ? 'h-9 w-8' : 'h-11 w-10'}`
 					: gate.gate === 'x'
 						? `bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-1.5 py-1.5' : 'px-2 py-2'}`
-						: `bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-2.5 py-1.5 text-sm' : 'px-3 py-2 text-base'}`
+						: isParametric(gate.gate)
+							? // Tighter padding than a plain gate: the angle adds a second line,
+								// and the column is only 58px wide (40px at its floor).
+								`bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-1.5 py-1' : 'px-2 py-1.5'}`
+							: `bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-2.5 py-1.5 text-sm' : 'px-3 py-2 text-base'}`
 			}`}
 			class:selected={$selectedGateIds.has(gate.id)}
 			style="left: {(gate.column + 0.5) * columnWidth}px;"
@@ -124,6 +146,11 @@
 					<line x1="2" y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="2" />
 					<line x1="14" y1="2" x2="14" y2="26" stroke="currentColor" stroke-width="2" />
 				</svg>
+			{:else if isParametric(gate.gate)}
+				<span class="flex flex-col items-center leading-none">
+					<span class={$isMobile ? 'text-xs' : 'text-sm'}>{gate.gate.toUpperCase()}</span>
+					<span class="gate-angle">{angleOf(gate)}</span>
+				</span>
 			{:else}
 				{gate.gate.toUpperCase()}
 			{/if}
@@ -219,6 +246,15 @@
 		box-shadow: 0 0 0 2px #3bc96f;
 		outline: 2px solid #28ff33;
 		outline-offset: -1px;
+	}
+
+	/* The angle under a parametric gate's letter. Deliberately small and dimmed:
+	   it's secondary to the gate identity, and the column is only 58px wide. */
+	.gate-angle {
+		font-size: 0.5rem;
+		margin-top: 1px;
+		opacity: 0.75;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.gate.selected {
