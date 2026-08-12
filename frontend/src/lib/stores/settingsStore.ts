@@ -28,6 +28,9 @@ export type Settings = {
 	codePanelPosition: CodePanelPosition;
 	// Desired width (px) of the left-docked code panel; CSS clamps it responsively.
 	codePanelWidthPx: number;
+	// Desired height (px) of the results row beneath the board. Only applied on
+	// wide screens (≥1024px), where the board flexes to absorb the difference.
+	resultsRowHeightPx: number;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,7 +41,9 @@ export const DEFAULT_SETTINGS: Settings = {
 	showBlochSphere: true,
 	bitOrder: 'q0-right',
 	codePanelPosition: 'bottom',
-	codePanelWidthPx: 480
+	codePanelWidthPx: 480,
+	// 330px === the 20.625rem the row used to be hard-coded to.
+	resultsRowHeightPx: 330
 };
 
 export const AUTO_SAVE_INTERVAL_OPTIONS = [

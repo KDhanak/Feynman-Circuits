@@ -99,6 +99,59 @@
 		updateSettings({ codePanelWidthPx: Math.round(codePanelWidth) });
 	}
 
+	// ── Draggable divider between the board and the results row ──────────
+	// Only active ≥1024px, where <main> is h-screen and the board is `lg:flex-1
+	// lg:min-h-0` — so shrinking the results row hands that space straight back
+	// to the board. Below that the page scrolls and the row keeps its CSS height.
+	let boardEl: HTMLDivElement | undefined;
+	let vDragging = false;
+	let resultsHeight = get(settings).resultsRowHeightPx;
+	const MIN_RESULTS = 160;
+	const MIN_BOARD = 220;
+	// Captured at pointerdown: board + results is a constant during a drag, so the
+	// ceiling can be fixed up front instead of re-measuring a moving layout.
+	let vStartY = 0;
+	let vStartHeight = 0;
+	let vMaxHeight = Number.POSITIVE_INFINITY;
+
+	function clampHeight(px: number): number {
+		return Math.max(MIN_RESULTS, Math.min(px, vMaxHeight));
+	}
+
+	function startVDrag(e: PointerEvent) {
+		vDragging = true;
+		vStartY = e.clientY;
+		vStartHeight = resultsHeight;
+		vMaxHeight = boardEl ? resultsHeight + boardEl.clientHeight - MIN_BOARD : 1200;
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		e.preventDefault();
+	}
+	function onVDrag(e: PointerEvent) {
+		if (!vDragging) return;
+		// Dragging up (smaller clientY) grows the results row.
+		resultsHeight = clampHeight(vStartHeight + (vStartY - e.clientY));
+	}
+	function endVDrag(e: PointerEvent) {
+		if (!vDragging) return;
+		vDragging = false;
+		try {
+			(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+		} catch {
+			/* pointer may already be released */
+		}
+		updateSettings({ resultsRowHeightPx: Math.round(resultsHeight) });
+	}
+	function onVHandleKey(e: KeyboardEvent) {
+		const STEP = 16;
+		// Keyboard nudges skip pointerdown, so establish the ceiling here too.
+		vMaxHeight = boardEl ? resultsHeight + boardEl.clientHeight - MIN_BOARD : 1200;
+		if (e.key === 'ArrowUp') resultsHeight = clampHeight(resultsHeight + STEP);
+		else if (e.key === 'ArrowDown') resultsHeight = clampHeight(resultsHeight - STEP);
+		else return;
+		e.preventDefault();
+		updateSettings({ resultsRowHeightPx: Math.round(resultsHeight) });
+	}
+
 	// Only initialize on first load — stores survive HMR so skip re-init
 	if (!get(currentCircuitId)) {
 		currentCircuitId.set(crypto.randomUUID());
@@ -172,11 +225,38 @@
 	{#snippet mainContent()}
 		<!-- Circuit board — fills all remaining vertical space -->
 		<div
+			bind:this={boardEl}
 			data-tour="board"
 			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 min-h-[55vh] lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
 		>
 			<CircuitLayout />
 		</div>
+		{#if isWideScreen}
+			<!-- Drag handle: resize the results row; persists on release -->
+			<div
+				role="slider"
+				aria-label="Resize results row"
+				aria-orientation="vertical"
+				aria-valuemin={MIN_RESULTS}
+				aria-valuemax={Math.round(vMaxHeight === Number.POSITIVE_INFINITY ? 1200 : vMaxHeight)}
+				aria-valuenow={Math.round(resultsHeight)}
+				tabindex="0"
+				class="group flex h-2.5 shrink-0 cursor-row-resize items-center justify-center {contentWidth} {vDragging
+					? 'select-none'
+					: ''}"
+				on:pointerdown={startVDrag}
+				on:pointermove={onVDrag}
+				on:pointerup={endVDrag}
+				on:pointercancel={endVDrag}
+				on:keydown={onVHandleKey}
+			>
+				<span
+					class="h-1 w-10 rounded-full bg-secondary-2/40 transition-colors group-hover:bg-secondary-2 {vDragging
+						? 'bg-secondary-2'
+						: ''}"
+				></span>
+			</div>
+		{/if}
 		<!--
 			Results row layout:
 			  • < 640px (mobile): single column — only SimulationResult shows.
@@ -187,8 +267,18 @@
 			    column, so this grid only holds Sim (+ Bloch).
 			Row height fixed at 20.625rem so nothing shifts.
 		-->
+		<!--
+			`grid-auto-rows` is driven inline only on wide screens, where the drag
+			handle exists and the board can give up the space. Below 1024px the
+			inline style is omitted so the `sm:auto-rows-[20.625rem]` class stands.
+		-->
 		<div
-			class="{contentWidth} mt-2.5 mb-1 grid grid-cols-1 sm:grid-cols-2 sm:grid-flow-row-dense sm:auto-rows-[20.625rem] gap-2.5 shrink-0 {resultsGridCols}"
+			class="{contentWidth} {isWideScreen
+				? 'mt-1'
+				: 'mt-2.5'} mb-1 grid grid-cols-1 sm:grid-cols-2 sm:grid-flow-row-dense sm:auto-rows-[20.625rem] gap-2.5 shrink-0 {resultsGridCols}"
+			style={isWideScreen
+				? `grid-auto-rows: clamp(${MIN_RESULTS}px, ${resultsHeight}px, 60vh)`
+				: ''}
 		>
 			<div
 				data-tour="results"

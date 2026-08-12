@@ -132,13 +132,34 @@
 	$: showHistogram = $settings.defaultResultView === 'histogram';
 	$: isMeasured = ($simulationResult.measuredQubits ?? []).length > 0;
 	$: barColor = isMeasured ? 'var(--color-measured)' : 'var(--color-probability)';
+	// Past 3 qubits the full basis is too wide to plot, so only the most likely
+	// states get bars; the popup window still lists every state.
+	const HISTOGRAM_TOP_N = 10;
 	$: histogramStates = shouldShowPopupButton
-		? [...probabilitiesArray].sort((a, b) => b.prob - a.prob).slice(0, 8)
+		? [...probabilitiesArray].sort((a, b) => b.prob - a.prob).slice(0, HISTOGRAM_TOP_N)
 		: probabilitiesArray;
-	const CHART_H = 115;
-	const CHART_TOP = 28;
-	const CHART_LEFT = 35;
-	const CHART_W = 257;
+
+	// The chart used to draw into a fixed 300×215 viewBox, which `preserveAspect-
+	// Ratio` then letterboxed inside the (much wider) panel — the plot stayed
+	// small and the side margins were dead space. Binding the wrapper's real size
+	// and using it as the viewBox makes 1 unit === 1px, so the plot fills the
+	// panel and reflows when the results row is resized.
+	let chartBoxW = 0;
+	let chartBoxH = 0;
+	const AXIS_LEFT = 34; // room for the 0–100% tick labels
+	const CHART_TOP = 14; // room for the value label above a full-height bar
+	const AXIS_RIGHT = 6; // keeps the last bar off the panel edge
+	const LABEL_FONT = 13;
+	// State labels are rotated -45°, so each one reaches down by its rendered
+	// length × sin45°. Length is the bit string plus the two ket glyphs, at the
+	// ~0.6em per glyph of a monospace face. Capped so tall labels on wide
+	// registers can't squeeze the plot area away entirely.
+	$: labelGutter = Math.min(
+		Math.round((numQubits + 2) * LABEL_FONT * 0.6 * 0.71) + 8,
+		Math.round(chartBoxH * 0.45)
+	);
+	$: plotW = Math.max(0, chartBoxW - AXIS_LEFT - AXIS_RIGHT);
+	$: plotH = Math.max(0, chartBoxH - CHART_TOP - labelGutter);
 
 	function openResultsInNewWindow() {
 		if (popupWindow && !popupWindow.closed) {
@@ -354,77 +375,85 @@
 	</div>
 
 	{#if showHistogram}
-		<!-- Histogram view — shows 8 states for 3 qubits -->
+		<!-- Histogram view — every state up to 3 qubits, top 10 beyond that -->
 		{@const n = histogramStates.length}
-		{@const slotW = n > 0 ? CHART_W / n : CHART_W}
-		{@const barW = slotW * 0.55}
-		<div class="flex-1 min-h-0 px-2 pb-2" in:fade={{ duration: 350 }}>
-			<svg
-				viewBox="0 0 300 215"
-				class="w-full h-full"
-				role="img"
-				aria-label="Probability histogram"
-			>
-				<!-- Gridlines at 0%, 25%, 50%, 75%, 100% -->
-				{#each [0, 0.25, 0.5, 0.75, 1] as tick (tick)}
-					{@const y = CHART_TOP + CHART_H - tick * CHART_H}
-					<line
-						x1={CHART_LEFT}
-						x2={CHART_LEFT + CHART_W}
-						y1={y}
-						y2={y}
-						stroke="var(--color-ternary-2)"
-						stroke-width={tick === 0 ? 1 : 0.5}
-					/>
-					<text
-						x={CHART_LEFT - 3}
-						y={y + 4}
-						text-anchor="end"
-						font-size="13"
-						fill="var(--color-muted)">{Math.round(tick * 100)}%</text
-					>
-				{/each}
-				<!-- Bars -->
-				{#each histogramStates as item, i (i)}
-					{@const barH = item.prob * CHART_H}
-					{@const x = CHART_LEFT + i * slotW + (slotW - barW) / 2}
-					{@const cx = x + barW / 2}
-					{@const barY = CHART_TOP + CHART_H - barH}
-					<rect
-						class="histogram-bar"
-						{x}
-						y={barY}
-						width={barW}
-						height={barH}
-						style="animation-delay: {i * 60}ms"
-						fill={item.prob > 0 ? barColor : 'var(--color-ternary-2)'}
-						rx="1.5"
-					/>
-					{#if item.prob > 0.015}
+		{@const slotW = n > 0 ? plotW / n : plotW}
+		{@const barW = Math.min(slotW * 0.62, 72)}
+		{@const baseline = CHART_TOP + plotH}
+		<div
+			class="flex-1 min-h-0 px-1 pb-1"
+			bind:clientWidth={chartBoxW}
+			bind:clientHeight={chartBoxH}
+			in:fade={{ duration: 350 }}
+		>
+			{#if plotW > 0 && plotH > 0}
+				<svg
+					viewBox="0 0 {chartBoxW} {chartBoxH}"
+					class="w-full h-full"
+					role="img"
+					aria-label="Probability histogram"
+				>
+					<!-- Gridlines at 0%, 25%, 50%, 75%, 100% -->
+					{#each [0, 0.25, 0.5, 0.75, 1] as tick (tick)}
+						{@const y = baseline - tick * plotH}
+						<line
+							x1={AXIS_LEFT}
+							x2={AXIS_LEFT + plotW}
+							y1={y}
+							y2={y}
+							stroke="var(--color-ternary-2)"
+							stroke-width={tick === 0 ? 1 : 0.5}
+						/>
+						<text
+							x={AXIS_LEFT - 3}
+							y={y + 4}
+							text-anchor="end"
+							font-size="13"
+							fill="var(--color-muted)">{Math.round(tick * 100)}%</text
+						>
+					{/each}
+					<!-- Bars -->
+					{#each histogramStates as item, i (i)}
+						{@const barH = item.prob * plotH}
+						{@const x = AXIS_LEFT + i * slotW + (slotW - barW) / 2}
+						{@const cx = x + barW / 2}
+						{@const barY = baseline - barH}
+						<rect
+							class="histogram-bar"
+							{x}
+							y={barY}
+							width={barW}
+							height={barH}
+							style="animation-delay: {i * 60}ms"
+							fill={item.prob > 0 ? barColor : 'var(--color-ternary-2)'}
+							rx="1.5"
+						/>
+						<!-- Value labels need ~34px of slot to sit side by side without colliding -->
+						{#if item.prob > 0.015 && slotW >= 34}
+							<text
+								x={cx}
+								y={barY - 3}
+								text-anchor="middle"
+								font-size="10"
+								fill={barColor}
+								font-weight="600"
+							>
+								{(item.prob * 100).toFixed(1)}%
+							</text>
+						{/if}
+						<!-- State label, rotated -->
 						<text
 							x={cx}
-							y={barY - 3}
-							text-anchor="middle"
-							font-size="10"
-							fill={barColor}
-							font-weight="600"
+							y={baseline + 7}
+							text-anchor="end"
+							font-size={LABEL_FONT}
+							fill="var(--color-muted)"
+							font-family="ui-monospace,monospace"
+							transform="rotate(-45 {cx} {baseline + 7})">|{displayBasis(item.state)}⟩</text
 						>
-							{(item.prob * 100).toFixed(1)}%
-						</text>
-					{/if}
-					<!-- State label, rotated -->
-					<text
-						x={cx}
-						y={CHART_TOP + CHART_H + 7}
-						text-anchor="end"
-						font-size="13"
-						fill="var(--color-muted)"
-						font-family="ui-monospace,monospace"
-						transform="rotate(-45 {cx} {CHART_TOP + CHART_H + 7})"
-						>|{displayBasis(item.state)}⟩</text
-					>
-				{/each}
-			</svg>
+					{/each}
+				</svg>
+			{/if}
 		</div>
 		<div class="flex flex-col items-center gap-1">
 			<p class="bit-legend" title="Each character in a state label is this qubit.">
@@ -438,12 +467,16 @@
 						showTooltip(
 							e,
 							'Probability Histogram',
-							'Each bar shows the probability of measuring that bit string. Taller bars are more likely outcomes. Only the top 8 states are shown — click "View All States" for the full list.',
+							`Each bar shows the probability of measuring that bit string. Taller bars are more likely outcomes. Beyond 3 qubits only the top ${HISTOGRAM_TOP_N} states are plotted — click "View All States" for the full list.`,
 							'left'
 						)}
 					aria-label="More info">i</button
 				>
-				<p class="text-xs text-center" style="color: var(--color-muted);">Showing 8 top states.</p>
+				<p class="text-xs text-center" style="color: var(--color-muted);">
+					{histogramStates.length === probabilitiesArray.length
+						? `Showing all ${histogramStates.length} states.`
+						: `Showing top ${histogramStates.length} states.`}
+				</p>
 			</div>
 		</div>
 	{:else if shouldShowPopupButton}

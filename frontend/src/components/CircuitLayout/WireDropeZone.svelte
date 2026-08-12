@@ -411,10 +411,11 @@
 	{#if !($isMobile && $selectedGateIds.size > 0)}
 		<div
 			class="absolute top-2 pl-0.5 left-1.5 z-200 flex items-center backdrop-blur-lg rounded-sm shadow-sm"
+			style="color: var(--color-muted);"
 		>
 			<button
 				type="button"
-				class="flex cursor-pointer items-center justify-center rounded-sm p-1 text-ternary-2 transition-colors hover:bg-ternary-2/10 hover:text-ternary-1 active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ternary-2"
+				class="flex cursor-pointer items-center justify-center rounded-sm p-1 transition-colors active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
 				on:click|stopPropagation={addQubitWire}
 				disabled={$circuitIR.registers.q >= MAX_QUBITS}
 				aria-label="Add qubit"
@@ -431,11 +432,11 @@
 				on:click|stopPropagation
 				aria-label="Number of qubits"
 				title="Number of qubits"
-				class="z-10 w-10 h-7 px-1 cursor-text text-[11px] focus:scale-105 text-ternary-1 focus:shadow-sm focus:shadow-ternary-1 text-center rounded-sm focus:outline-none select-auto"
+				class="z-10 w-10 h-7 px-1 cursor-text text-[11px] focus:scale-105 focus:shadow-sm focus:shadow-ternary-1 text-center rounded-sm focus:outline-none select-auto"
 			/>
 			<button
 				type="button"
-				class="flex cursor-pointer items-center justify-center rounded-sm p-1 text-ternary-2 transition-colors hover:bg-ternary-2/10 hover:text-ternary-1 active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ternary-2"
+				class="flex cursor-pointer items-center justify-center rounded-sm p-1 transition-colors active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
 				on:click|stopPropagation={removeLastQubitWire}
 				disabled={!canRemoveLastQubit}
 				aria-label="Remove last qubit"
