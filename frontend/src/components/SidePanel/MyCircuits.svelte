@@ -8,11 +8,11 @@
 		deleteCircuit,
 		renameCircuit as renameCircuitApi,
 		fetchAllCircuitIds,
+		setCircuitPublic,
 		type CircuitSummary
 	} from '$lib/api/circuitApi';
 	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
-	import { triggerSimulation } from '$lib/circuit/dragDropUtils';
-	import { markNameResolved, isCircuitSaved } from '$lib/circuit/autoSave';
+	import { applyCircuit } from '$lib/circuit/applyCircuit';
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import { downloadCircuit, copyToClipboard } from '$lib/circuit/circuitActions';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
@@ -183,12 +183,7 @@
 		closeContextMenu();
 		try {
 			const ir = await loadCircuit(circuit.circuit_id);
-			circuitIR.set(ir);
-			currentCircuitId.set(circuit.circuit_id);
-			currentCircuitName.set(circuit.name);
-			markNameResolved();
-			isCircuitSaved.set(true);
-			triggerSimulation(ir);
+			applyCircuit(ir, { id: circuit.circuit_id, name: circuit.name, saved: true });
 			showNotification(`"${circuit.name}" loaded.`, 'success');
 			onClose();
 		} catch {
@@ -247,6 +242,35 @@
 			downloadCircuit(circuit.name, ir);
 		} catch {
 			showNotification('Failed to download circuit.', 'error');
+		}
+	}
+
+	// Publish the circuit (if it isn't already) and put a shareable link on the
+	// clipboard. Publishing is implicit in asking for a link — a link to a
+	// private circuit would just 404 for whoever received it.
+	async function handleShare(circuit: CircuitSummary) {
+		closeContextMenu();
+		try {
+			if (!circuit.is_public) {
+				await setCircuitPublic(circuit.circuit_id, true);
+				circuit.is_public = true;
+			}
+			const link = `${window.location.origin}/?circuit=${circuit.circuit_id}`;
+			await copyToClipboard(link);
+			showNotification(`"${circuit.name}" is public — link copied.`, 'success');
+		} catch {
+			showNotification('Failed to create a share link.', 'error');
+		}
+	}
+
+	async function handleUnshare(circuit: CircuitSummary) {
+		closeContextMenu();
+		try {
+			await setCircuitPublic(circuit.circuit_id, false);
+			circuit.is_public = false;
+			showNotification(`"${circuit.name}" is private again.`, 'success');
+		} catch {
+			showNotification('Failed to make the circuit private.', 'error');
 		}
 	}
 
@@ -541,6 +565,33 @@
 			<Icon icon="mingcute:download-fill" width="16" height="16" />
 			Download
 		</button>
+		{#if contextMenuCircuit.is_public}
+			<button
+				class="ctx-menu-item"
+				role="menuitem"
+				on:click={() => handleShare(contextMenuCircuit!)}
+			>
+				<Icon icon="ph:link-bold" width="16" height="16" />
+				Copy Share Link
+			</button>
+			<button
+				class="ctx-menu-item"
+				role="menuitem"
+				on:click={() => handleUnshare(contextMenuCircuit!)}
+			>
+				<Icon icon="ph:globe-x" width="16" height="16" />
+				Make Private
+			</button>
+		{:else}
+			<button
+				class="ctx-menu-item"
+				role="menuitem"
+				on:click={() => handleShare(contextMenuCircuit!)}
+			>
+				<Icon icon="ph:share-network-bold" width="16" height="16" />
+				Share Publicly
+			</button>
+		{/if}
 		<button
 			class="ctx-menu-item-danger rounded-b-sm"
 			role="menuitem"

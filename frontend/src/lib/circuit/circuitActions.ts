@@ -5,6 +5,7 @@ import {
 	exportToQiskit,
 	importFromQiskit
 } from './IE';
+import { applyCircuit } from '$lib/circuit/applyCircuit';
 import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 import type { CircuitIR, CircuitOperation } from '../IR/schema';
 import {
@@ -59,9 +60,8 @@ export function importJson(jsonText: string): void {
 		return;
 	}
 
-	circuitIR.set(ir);
 	try {
-		triggerSimulation(ir);
+		applyCircuit(ir);
 	} catch {
 		showNotification('Circuit imported but simulation failed', 'error');
 	}
@@ -184,9 +184,8 @@ export function importOpenQasm(qasmText: string): void {
 	}
 
 	const ir = result.data;
-	circuitIR.set(ir);
 	try {
-		triggerSimulation(ir);
+		applyCircuit(ir);
 	} catch {
 		showNotification('Circuit imported but simulation failed', 'error');
 	}
@@ -207,9 +206,8 @@ export function importQiskit(pythonText: string): void {
 	}
 
 	const ir = result.data;
-	circuitIR.set(ir);
 	try {
-		triggerSimulation(ir);
+		applyCircuit(ir);
 	} catch {
 		showNotification('Circuit imported but simulation failed', 'error');
 	}

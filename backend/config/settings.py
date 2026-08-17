@@ -69,6 +69,26 @@ else:
 
 CORS_ALLOW_CREDENTIALS = True
 
+# The public /api/v1/ namespace is deliberately excluded from django-cors-headers.
+# It serves `Access-Control-Allow-Origin: *` (see config.middleware.PublicApiCorsMiddleware),
+# which the browser forbids combining with credentials — and letting both layers
+# write the header would emit it twice, which browsers reject outright.
+CORS_URLS_REGEX = r"^/(?!api/v1/).*$"
+
+# Absolute base URL of the SvelteKit app, used to build the `open_url` handed
+# back to partner platforms. FRONTEND_URL may hold a comma-separated list for
+# CORS, so take the first entry.
+APP_BASE_URL = (
+    (CORS_ALLOWED_ORIGINS[0] if CORS_ALLOWED_ORIGINS else "").rstrip("/")
+    or "http://localhost:5173"
+)
+
+# Largest handoff body the public import endpoint will accept, in bytes. A
+# maximally dense circuit (8 qubits x 30 columns) is well under 40 KB of JSON,
+# so this leaves generous headroom while bounding what an anonymous caller can
+# push into the database in one request.
+MAX_HANDOFF_BODY_BYTES = 256 * 1024
+
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -120,6 +140,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "drf_spectacular",
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
     *( ["anymail"] if not DEBUG else [] ),
@@ -128,6 +149,10 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    # Sits right after CorsMiddleware and covers the /api/v1/ paths that
+    # CORS_URLS_REGEX excludes from it. Early enough to short-circuit OPTIONS
+    # preflight before auth or CSRF get involved.
+    "config.middleware.PublicApiCorsMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -167,7 +192,29 @@ REST_FRAMEWORK = {
         "anon": "100/hour",
         "password_reset": "5/hour",
         "feedback": "10/hour",
+        # Public cross-platform API. Writes are the abuse surface, so handoff
+        # creation is tight; reads are cheap and cached-friendly, so they get
+        # room for a partner polling on a user's behalf.
+        "circuit_handoff": "30/hour",
+        "public_read": "600/hour",
     },
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Feynman Circuits Open API",
+    "DESCRIPTION": (
+        "Public, cross-platform API for handing quantum circuits to and from "
+        "Feynman Circuits. Circuits are exchanged as Circuit IR v1.0 documents; "
+        "see shared/circuit-ir.schema.json for the JSON Schema."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    # Publish only the open namespace. The internal, cookie-authenticated
+    # /circuits/ and /accounts/ endpoints are not part of the public contract
+    # and must not appear in the partner-facing schema.
+    "SERVE_PUBLIC": True,
+    "PREPROCESSING_HOOKS": ["config.schema.public_endpoints_only"],
 }
 
 # Password validation

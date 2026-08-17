@@ -20,6 +20,15 @@
 	import Tooltip from '../components/Tooltip.svelte';
 	import OnboardingHost from '../components/Onboarding/OnboardingHost.svelte';
 	import { openWelcome } from '$lib/stores/onboardingStore';
+	import ImportHandoffDialog from '../components/ImportHandoffDialog.svelte';
+	import {
+		clearHandoffFromUrl,
+		readHandoffFromUrl,
+		resolveHandoff,
+		type ResolvedHandoff
+	} from '$lib/circuit/handoff';
+	import { applyCircuit } from '$lib/circuit/applyCircuit';
+	import { showNotification } from '$lib/utils/notificationUtils';
 
 	let feedbackOpen = false;
 
@@ -158,8 +167,48 @@
 		currentCircuitName.set('Untitled Circuit');
 	}
 
+	// --- Cross-platform handoff ---------------------------------------------
+	// A partner platform can send a user here with a circuit attached to the
+	// link. Resolved on the client rather than in a `+page.ts` load: the inline
+	// transport lives in the URL fragment, which never reaches the server, so a
+	// universal load could not see it anyway.
+	let pendingHandoff: ResolvedHandoff | null = null;
+	let handoffError: string | null = null;
+
+	function acceptHandoff() {
+		if (!pendingHandoff) return;
+		const { ir, name, circuitId } = pendingHandoff;
+		// A circuit published from this app keeps its identity so the visitor can
+		// tell it is the same circuit; anything from elsewhere gets a fresh local
+		// id, and neither is treated as already-saved — this visitor does not own
+		// it until they save it themselves.
+		applyCircuit(ir, { id: circuitId, name, saved: false });
+		showNotification(`"${name}" loaded.`, 'success');
+		dismissHandoff();
+	}
+
+	function dismissHandoff() {
+		pendingHandoff = null;
+		handoffError = null;
+		// Drop the param so a refresh does not re-import over the user's edits.
+		clearHandoffFromUrl();
+	}
+
 	onMount(() => {
 		loadSession();
+
+		const handoff = readHandoffFromUrl(new URL(window.location.href));
+		if (!handoff) return;
+		resolveHandoff(handoff)
+			.then((resolved) => {
+				pendingHandoff = resolved;
+			})
+			.catch((err) => {
+				handoffError =
+					err instanceof Error
+						? err.message
+						: 'That circuit link could not be opened. It may have expired.';
+			});
 	});
 </script>
 
@@ -372,6 +421,13 @@
 </main>
 
 <OnboardingHost />
+
+<ImportHandoffDialog
+	handoff={pendingHandoff}
+	error={handoffError}
+	onConfirm={acceptHandoff}
+	onCancel={dismissHandoff}
+/>
 
 {#if feedbackOpen}
 	<FeedbackModal onClose={() => (feedbackOpen = false)} />

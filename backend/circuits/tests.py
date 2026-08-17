@@ -18,11 +18,23 @@ User = get_user_model()
 
 # Minimal circuit IR the serializer's validate_ir accepts: version 1.0, a valid
 # qubit register (1–8), and one operation using a registered gate id in range.
+# The operation field is `targets` — an earlier version of this fixture said
+# `qubits`, which the schema has never had; validation was loose enough to let
+# a target-less operation through until circuits/validation.py tightened it.
 VALID_IR = {
     "version": "1.0",
     "registers": {"q": 2, "c": 0},
+    "qubitLabels": ["Qubit 0", "Qubit 1"],
     "operations": [
-        {"kind": "unitary", "gate": "h", "column": 0, "qubits": [0]},
+        {
+            "kind": "unitary",
+            "gate": "h",
+            "column": 0,
+            "targets": [0],
+            "controls": [],
+            "antiControls": [],
+            "params": [],
+        },
     ],
 }
 

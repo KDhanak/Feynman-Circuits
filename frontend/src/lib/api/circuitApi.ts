@@ -61,6 +61,14 @@ export async function renameCircuit(circuit_id: string, name: string): Promise<v
 	await api.patch(`/circuits/api/circuits/${circuit_id}/`, { name });
 }
 
+// Publishing a circuit makes it readable by anyone through the public API at
+// GET /api/v1/circuits/<id>/ — see docs/api-v1.md. Private circuits are
+// indistinguishable from circuits that do not exist, so unsetting this fully
+// revokes access.
+export async function setCircuitPublic(circuit_id: string, is_public: boolean): Promise<void> {
+	await api.patch(`/circuits/api/circuits/${circuit_id}/`, { is_public });
+}
+
 export async function deleteCircuit(circuit_id: string): Promise<void> {
 	await api.delete(`/circuits/api/circuits/${circuit_id}/`);
 }
