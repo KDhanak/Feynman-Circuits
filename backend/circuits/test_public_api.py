@@ -18,6 +18,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Circuit, CircuitHandoff
+from .public_views import PublicCircuitDetailView
 
 User = get_user_model()
 
@@ -72,6 +73,36 @@ class PublicCircuitReadTests(APITestCase):
         self.assertNotIn("user", resp.data)
         self.assertNotIn("is_public", resp.data)
         self.assertNotIn("owner@example.com", str(resp.data))
+
+    def test_response_exposes_exactly_the_published_fields(self):
+        """The contract, asserted positively.
+
+        The negative assertions above only catch leaks someone already thought
+        of; a field added to the serializer tomorrow would pass them all. This
+        pins the whole key set, so widening the public response has to be a
+        deliberate edit to this test.
+        """
+        circuit = Circuit.objects.create(
+            user=self.owner, name="Bell", ir=BELL_IR, is_public=True
+        )
+        resp = self.client.get(self._url(circuit.id))
+        self.assertEqual(
+            set(resp.data),
+            {"circuit_id", "name", "description", "ir", "created_at", "updated_at"},
+        )
+
+    def test_owner_is_never_loaded_from_the_database(self):
+        """The `.only()` projection, not just the serializer, keeps the owner out.
+
+        Belt and braces: even if something downstream reached for `.user`, the
+        column was never selected, so it is not sitting in memory waiting to be
+        rendered into a response or a log line.
+        """
+        circuit = Circuit.objects.create(
+            user=self.owner, name="Bell", ir=BELL_IR, is_public=True
+        )
+        instance = PublicCircuitDetailView().get_queryset().get(pk=circuit.id)
+        self.assertTrue({"user", "user_id"} & instance.get_deferred_fields())
 
     def test_private_circuit_is_404_not_403(self):
         """403 would confirm the id exists, making this an enumeration oracle."""

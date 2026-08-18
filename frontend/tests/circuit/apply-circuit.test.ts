@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
 import { applyCircuit } from '../../src/lib/circuit/applyCircuit';
 import { isCircuitSaved } from '../../src/lib/circuit/autoSave';
-import { circuitIR, currentCircuitId, currentCircuitName } from '../../src/lib/IR/stores';
+import {
+	circuitIR,
+	currentCircuitId,
+	currentCircuitIsPublic,
+	currentCircuitName
+} from '../../src/lib/IR/stores';
 import type { CircuitIR } from '../../src/lib/IR/schema';
 
 function ir(gate: 'h' | 'x'): CircuitIR {
@@ -30,6 +35,7 @@ describe('applyCircuit', () => {
 		currentCircuitId.set('');
 		currentCircuitName.set('Untitled Circuit');
 		isCircuitSaved.set(false);
+		currentCircuitIsPublic.set(false);
 	});
 
 	it('adopts the server identity when loading a saved circuit', () => {
@@ -72,6 +78,21 @@ describe('applyCircuit', () => {
 
 		expect(get(currentCircuitId)).toBe('someone-elses');
 		expect(get(isCircuitSaved)).toBe(false);
+	});
+
+	it('carries the published flag for a saved circuit the user owns', () => {
+		applyCircuit(ir('h'), { id: 'server-uuid', name: 'Bell', saved: true, isPublic: true });
+
+		expect(get(currentCircuitIsPublic)).toBe(true);
+	});
+
+	it('treats anything without an explicit flag as not published', () => {
+		currentCircuitIsPublic.set(true);
+		// A file import or a handoff: not the visitor's published circuit, so the
+		// board must not keep claiming the previous circuit's public state.
+		applyCircuit(ir('x'), { name: 'Imported From Elsewhere' });
+
+		expect(get(currentCircuitIsPublic)).toBe(false);
 	});
 
 	it('leaves the name alone when none is supplied', () => {

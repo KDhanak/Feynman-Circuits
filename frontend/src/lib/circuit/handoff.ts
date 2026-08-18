@@ -219,14 +219,32 @@ export function clearHandoffFromUrl(): void {
 	window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
-/** Build an inline handoff link. Used by the share UI and documented for
- *  partners as the reference implementation of the encoding. */
-export function buildInlineLink(
+async function gzipToBytes(text: string): Promise<Uint8Array> {
+	const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+	return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/**
+ * Build an inline handoff link — the whole circuit encoded in the URL, needing
+ * no account and no server round-trip.
+ *
+ * The payload is gzipped before base64. `decodeInlinePayload` sniffs the gzip
+ * magic bytes rather than being told, so this stays the same link format either
+ * way; compressing matters because an uncompressed dense circuit is ~38 KB of
+ * base64, well past MAX_INLINE_PAYLOAD_CHARS, while the same circuit gzips to
+ * around 1.2 KB.
+ *
+ * Throws rather than returning an oversized link: better to fail here, where we
+ * can say why, than to hand someone a URL the receiver will reject.
+ *
+ * Also documented for partners as the reference implementation of the encoding.
+ */
+export async function buildInlineLink(
 	baseUrl: string,
 	ir: CircuitIR,
 	name?: string,
 	source?: string
-): string {
+): Promise<string> {
 	const payload: HandoffPayload = {
 		v: 1,
 		...(name ? { name } : {}),
@@ -237,10 +255,16 @@ export function buildInlineLink(
 			operations: ir.operations.map(({ id: _id, ...rest }) => rest)
 		}
 	};
-	const json = JSON.stringify(payload);
-	const bytes = new TextEncoder().encode(json);
+	const bytes = await gzipToBytes(JSON.stringify(payload));
 	let binary = '';
 	for (const byte of bytes) binary += String.fromCharCode(byte);
 	const encoded = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+	if (encoded.length > MAX_INLINE_PAYLOAD_CHARS) {
+		throw new Error(
+			'This circuit is too large to put in a link. Save it and share it from My Circuits instead.'
+		);
+	}
+
 	return `${baseUrl.replace(/\/$/, '')}/#handoff=${encoded}`;
 }

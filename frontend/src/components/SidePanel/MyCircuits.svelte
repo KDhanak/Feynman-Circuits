@@ -11,7 +11,7 @@
 		setCircuitPublic,
 		type CircuitSummary
 	} from '$lib/api/circuitApi';
-	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
+	import { currentCircuitId, currentCircuitIsPublic, currentCircuitName } from '$lib/IR/stores';
 	import { applyCircuit } from '$lib/circuit/applyCircuit';
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import { downloadCircuit, copyToClipboard } from '$lib/circuit/circuitActions';
@@ -25,7 +25,8 @@
 		circuitListCache,
 		setCircuitListCache,
 		removeFromCircuitListCache,
-		renameInCircuitListCache
+		renameInCircuitListCache,
+		setPublicInCircuitListCache
 	} from '$lib/stores/circuitListCache';
 
 	export let onClose: () => void;
@@ -183,7 +184,12 @@
 		closeContextMenu();
 		try {
 			const ir = await loadCircuit(circuit.circuit_id);
-			applyCircuit(ir, { id: circuit.circuit_id, name: circuit.name, saved: true });
+			applyCircuit(ir, {
+				id: circuit.circuit_id,
+				name: circuit.name,
+				saved: true,
+				isPublic: circuit.is_public
+			});
 			showNotification(`"${circuit.name}" loaded.`, 'success');
 			onClose();
 		} catch {
@@ -245,6 +251,17 @@
 		}
 	}
 
+	// Reassign rather than mutating `circuit.is_public` in place — Svelte does not
+	// track property writes on an object inside an array, so the row's Public badge
+	// would not re-render. The cache is updated too, since reopening the panel
+	// rehydrates from it.
+	function markPublic(circuit_id: string, is_public: boolean) {
+		circuits = circuits.map((c) => (c.circuit_id === circuit_id ? { ...c, is_public } : c));
+		setPublicInCircuitListCache(circuit_id, is_public);
+		// If this is the circuit on the board, its indicator has to move too.
+		if (circuit_id === get(currentCircuitId)) currentCircuitIsPublic.set(is_public);
+	}
+
 	// Publish the circuit (if it isn't already) and put a shareable link on the
 	// clipboard. Publishing is implicit in asking for a link — a link to a
 	// private circuit would just 404 for whoever received it.
@@ -253,7 +270,7 @@
 		try {
 			if (!circuit.is_public) {
 				await setCircuitPublic(circuit.circuit_id, true);
-				circuit.is_public = true;
+				markPublic(circuit.circuit_id, true);
 			}
 			const link = `${window.location.origin}/?circuit=${circuit.circuit_id}`;
 			await copyToClipboard(link);
@@ -267,7 +284,7 @@
 		closeContextMenu();
 		try {
 			await setCircuitPublic(circuit.circuit_id, false);
-			circuit.is_public = false;
+			markPublic(circuit.circuit_id, false);
 			showNotification(`"${circuit.name}" is private again.`, 'success');
 		} catch {
 			showNotification('Failed to make the circuit private.', 'error');
@@ -446,6 +463,15 @@
 													class="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"
 												>
 													Active
+												</span>
+											{/if}
+											{#if circuit.is_public}
+												<span
+													class="shrink-0 inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700"
+													title="Public — anyone with the link can view this circuit"
+												>
+													<Icon icon="ph:globe-simple-bold" width="12" height="12" />
+													Public
 												</span>
 											{/if}
 										</div>

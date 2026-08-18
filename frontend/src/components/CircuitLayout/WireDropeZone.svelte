@@ -18,6 +18,13 @@
 	import { updateQubitLabel } from '$lib/circuit/qubitLables';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 	import { copyToClipboard } from '$lib/circuit/circuitActions';
+	import { buildInlineLink } from '$lib/circuit/handoff';
+	import { isCircuitSaved } from '$lib/circuit/autoSave';
+	import { currentCircuitId, currentCircuitIsPublic } from '$lib/IR/stores';
+	import { setCircuitPublic } from '$lib/api/circuitApi';
+	import { setPublicInCircuitListCache } from '$lib/stores/circuitListCache';
+	import { showNotification } from '$lib/utils/notificationUtils';
+	import ShareDialog from '../ShareDialog.svelte';
 	import Icon from '@iconify/svelte';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import ConnectorLayer from './ConnectorLayer.svelte';
@@ -344,6 +351,51 @@
 		copyToClipboard(buildCanonicalString($circuitIR));
 	}
 
+	// --- Sharing ------------------------------------------------------------
+	// Two link shapes, picked by what the circuit actually is rather than by
+	// asking the user. A saved circuit the signed-in user owns can be published,
+	// which gives a short link that tracks later edits and can be revoked.
+	// Anything else — signed out, or never saved — gets an inline link carrying
+	// the circuit in the URL, so sharing never requires an account.
+	let shareOpen = false;
+	let shareLink = '';
+	let shareKind: 'public' | 'inline' = 'inline';
+	let sharing = false;
+
+	async function shareCircuit() {
+		if (sharing) return;
+		sharing = true;
+		try {
+			const canPublish = $session.status === 'authenticated' && $isCircuitSaved;
+			if (canPublish) {
+				const id = get(currentCircuitId);
+				await setCircuitPublic(id, true);
+				// Keep the circuit list's Public badge honest without a refetch.
+				setPublicInCircuitListCache(id, true);
+				currentCircuitIsPublic.set(true);
+				shareLink = `${window.location.origin}/?circuit=${id}`;
+				shareKind = 'public';
+			} else {
+				shareLink = await buildInlineLink(window.location.origin, $circuitIR, $currentCircuitName);
+				shareKind = 'inline';
+			}
+			shareOpen = true;
+		} catch (err) {
+			// buildInlineLink throws with a usable message when the circuit is too
+			// large to encode; anything else is a failed publish request.
+			showNotification(
+				err instanceof Error && err.message ? err.message : 'Failed to create a share link.',
+				'error'
+			);
+		} finally {
+			sharing = false;
+		}
+	}
+
+	function copyShareLink() {
+		copyToClipboard(shareLink);
+	}
+
 	onMount(() => {
 		const handleClickOutside = (e: MouseEvent) => {
 			const target = e.target as HTMLElement;
@@ -480,13 +532,32 @@
 			class="truncate text-sm py-1.5 px-4 font-semibold pointer-events-auto backdrop-blur-lg rounded-sm shadow-sm"
 			title={$currentCircuitName}>{$currentCircuitName}</span
 		>
+		{#if $session.status === 'authenticated' && $currentCircuitIsPublic}
+			<span
+				class="shrink-0 flex items-center pointer-events-auto text-sky-500"
+				title="Public — anyone with the link can view this circuit"
+				aria-label="This circuit is public"
+			>
+				<Icon icon="ph:globe-simple-bold" width="14" height="14" />
+			</span>
+		{/if}
 	</div>
 
-	<!-- Copy + Reset buttons, pinned to the board's top-right corner (icon only) -->
+	<!-- Share + Copy + Reset buttons, pinned to the board's top-right corner (icon only) -->
 	<div
 		class="absolute top-2 right-2 z-200 flex items-center gap-1 backdrop-blur-lg rounded-sm shadow-sm"
 		style="color: var(--color-text);"
 	>
+		<button
+			type="button"
+			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-wait disabled:opacity-50"
+			on:click|stopPropagation={shareCircuit}
+			disabled={sharing}
+			aria-label="Share circuit"
+			title="Share circuit"
+		>
+			<Icon icon="ph:share-network-bold" width="18" height="18" />
+		</button>
 		<button
 			type="button"
 			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500"
@@ -753,6 +824,14 @@
 		<GateContextMenu gate={gateMenuGate} x={gateMenuX} y={gateMenuY} on:close={closeGateMenu} />
 	{/if}
 </div>
+
+<ShareDialog
+	open={shareOpen}
+	kind={shareKind}
+	link={shareLink}
+	onCopy={copyShareLink}
+	onClose={() => (shareOpen = false)}
+/>
 
 <style>
 	.ghost-wire {

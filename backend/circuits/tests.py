@@ -134,6 +134,79 @@ class CircuitAPITests(APITestCase):
         circuit.refresh_from_db()
         self.assertEqual(circuit.name, "Renamed")
 
+    # --- saving a circuit that was shared with you --------------------------
+
+    def test_saving_a_shared_circuit_creates_your_own_copy(self):
+        """The recipient of a share link keeps the sender's circuit id on their
+        board, so their first save arrives as a PUT to an id they do not own."""
+        shared = Circuit.objects.create(user=self.other, name="Bell", ir=VALID_IR)
+
+        resp = self.client.put(
+            self._detail_url(shared.id),
+            {"name": "Bell", "ir": VALID_IR},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        # A new row, under a new id, owned by the recipient.
+        self.assertNotEqual(resp.data["circuit_id"], str(shared.id))
+        copy = Circuit.objects.get(id=resp.data["circuit_id"])
+        self.assertEqual(copy.user, self.user)
+        # The sender's circuit is untouched and still theirs.
+        shared.refresh_from_db()
+        self.assertEqual(shared.user, self.other)
+        self.assertEqual(shared.name, "Bell")
+
+    def test_copy_is_renamed_when_the_name_is_already_taken(self):
+        Circuit.objects.create(user=self.user, name="Bell", ir=VALID_IR)
+        shared = Circuit.objects.create(user=self.other, name="Bell", ir=VALID_IR)
+
+        resp = self.client.put(
+            self._detail_url(shared.id),
+            {"name": "Bell", "ir": VALID_IR},
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["name"], "Bell (copy)")
+
+    def test_copy_keeps_a_free_name_unchanged(self):
+        shared = Circuit.objects.create(user=self.other, name="Bell", ir=VALID_IR)
+
+        resp = self.client.put(
+            self._detail_url(shared.id),
+            {"name": "Bell", "ir": VALID_IR},
+            format="json",
+        )
+
+        self.assertEqual(resp.data["name"], "Bell")
+
+    def test_copy_is_not_published_even_if_the_original_was(self):
+        shared = Circuit.objects.create(
+            user=self.other, name="Bell", ir=VALID_IR, is_public=True
+        )
+
+        resp = self.client.put(
+            self._detail_url(shared.id),
+            {"name": "Bell", "ir": VALID_IR, "is_public": True},
+            format="json",
+        )
+
+        self.assertFalse(Circuit.objects.get(id=resp.data["circuit_id"]).is_public)
+
+    def test_patching_a_circuit_you_do_not_own_is_404(self):
+        """PATCH cannot copy — it carries only the changed fields — and editing
+        someone else's circuit is not a thing this endpoint should invent."""
+        shared = Circuit.objects.create(user=self.other, name="Bell", ir=VALID_IR)
+
+        resp = self.client.patch(
+            self._detail_url(shared.id), {"is_public": True}, format="json"
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        shared.refresh_from_db()
+        self.assertFalse(shared.is_public)
+
     # --- delete -------------------------------------------------------------
 
     def test_delete_circuit(self):

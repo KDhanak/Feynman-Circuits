@@ -45,6 +45,16 @@ export function renameInCircuitListCache(id: string, name: string) {
 	);
 }
 
+// Reflect a publish/unpublish without a refetch, so the "Public" badge survives
+// closing and reopening the panel (which rehydrates from this cache).
+export function setPublicInCircuitListCache(id: string, is_public: boolean) {
+	circuitListCache.update((c) =>
+		c.loaded
+			? { ...c, circuits: c.circuits.map((x) => (x.circuit_id === id ? { ...x, is_public } : x)) }
+			: c
+	);
+}
+
 // Drop the cache entirely (e.g. on sign-out).
 export function clearCircuitListCache() {
 	circuitListCache.set({ ...EMPTY });

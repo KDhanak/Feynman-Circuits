@@ -57,6 +57,29 @@ class Circuit(models.Model):
             n += 1
         return 'Untitled Circuit' if n == 1 else f'Untitled Circuit {n}'
 
+    @classmethod
+    def available_name(cls, user, desired):
+        """`desired`, or the nearest free variant of it, for this user.
+
+        Names are unique per user, so saving a circuit someone shared with you
+        must not fail just because you already have one called "Bell" — it
+        becomes "Bell (copy)", then "Bell (copy 2)", and so on.
+        """
+        desired = (desired or '').strip() or 'Untitled Circuit'
+        taken = set(cls.objects.filter(user=user).values_list('name', flat=True))
+        if desired not in taken:
+            return desired
+
+        # Leave room for the longest suffix this loop can append, so a name at
+        # the 255-char limit still yields a storable variant.
+        stem = desired[:200]
+        n = 1
+        while True:
+            candidate = f'{stem} (copy)' if n == 1 else f'{stem} (copy {n})'
+            if candidate not in taken:
+                return candidate
+            n += 1
+
 
 class CircuitHandoff(models.Model):
     """A circuit handed to us by another platform, parked under an opaque token

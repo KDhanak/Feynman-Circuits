@@ -10,12 +10,26 @@ export interface CircuitSummary {
 	updated_at: string;
 }
 
+export interface UpsertResult {
+	circuit_id: string;
+	name: string;
+}
+
+// Returns what the server actually stored, which is not always what was sent:
+// saving a circuit that was shared with you creates your own copy under a fresh
+// id, and renames it if you already have one by that name. Callers must adopt
+// the returned values or their next save will repeat the same collision.
 export async function upsertCircuit(
 	circuit_id: string,
 	name: string,
 	ir: CircuitIR
-): Promise<void> {
-	await api.put(`/circuits/api/circuits/${circuit_id}/`, { circuit_id, name, ir });
+): Promise<UpsertResult> {
+	const response = await api.put(`/circuits/api/circuits/${circuit_id}/`, {
+		circuit_id,
+		name,
+		ir
+	});
+	return { circuit_id: response.data.circuit_id, name: response.data.name };
 }
 
 export async function getNextUntitledName(): Promise<string> {

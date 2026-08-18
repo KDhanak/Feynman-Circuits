@@ -1,4 +1,9 @@
-import { circuitIR, currentCircuitId, currentCircuitName } from '../IR/stores';
+import {
+	circuitIR,
+	currentCircuitId,
+	currentCircuitIsPublic,
+	currentCircuitName
+} from '../IR/stores';
 import { showNotification } from '../utils/notificationUtils';
 import { get, writable } from 'svelte/store';
 import { upsertCircuit, getNextUntitledName } from '../api/circuitApi';
@@ -96,7 +101,19 @@ async function attemptAutoSave(): Promise<boolean> {
 		}
 		autoSaveState.update((st) => ({ ...st, nameResolved: true }));
 		saveStatus.set('saving');
-		await upsertCircuit(circuit_id, name, get(circuitIR));
+		const stored = await upsertCircuit(circuit_id, name, get(circuitIR));
+
+		// The server may have stored this somewhere other than where we asked.
+		// Saving a circuit that was shared with us creates our own copy under a
+		// fresh id — adopt it, or every later save repeats the same collision and
+		// we keep writing to a circuit that is not ours.
+		if (stored.circuit_id && stored.circuit_id !== circuit_id) {
+			currentCircuitId.set(stored.circuit_id);
+			// A copy is never born published, whatever the original was.
+			currentCircuitIsPublic.set(false);
+		}
+		if (stored.name && stored.name !== name) currentCircuitName.set(stored.name);
+
 		autoSaveState.update((st) => ({ ...st, isDirty: false, consecutiveFailures: 0 }));
 		isCircuitSaved.set(true);
 		saveStatus.set('saved');

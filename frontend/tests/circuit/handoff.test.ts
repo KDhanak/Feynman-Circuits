@@ -164,7 +164,7 @@ describe('acceptForeignIR', () => {
 
 describe('buildInlineLink', () => {
 	it('round-trips a circuit through the inline transport', async () => {
-		const link = buildInlineLink('https://app.example', BELL, 'Bell', 'feynman');
+		const link = await buildInlineLink('https://app.example', BELL, 'Bell', 'feynman');
 		const encoded = new URL(link).hash.replace('#handoff=', '');
 		const decoded = await decodeInlinePayload(encoded);
 		const ir = acceptForeignIR(decoded.ir);
@@ -175,7 +175,7 @@ describe('buildInlineLink', () => {
 	});
 
 	it('strips per-operation ids to keep the link short', async () => {
-		const link = buildInlineLink('https://app.example', BELL);
+		const link = await buildInlineLink('https://app.example', BELL);
 		const encoded = new URL(link).hash.replace('#handoff=', '');
 		const decoded = await decodeInlinePayload(encoded);
 		const operations = (decoded.ir as { operations: Array<Record<string, unknown>> }).operations;
@@ -184,15 +184,24 @@ describe('buildInlineLink', () => {
 		}
 	});
 
-	it('keeps a typical circuit well inside the size ceiling', () => {
-		const link = buildInlineLink('https://app.example', BELL, 'Bell');
+	it('keeps a typical circuit well inside the size ceiling', async () => {
+		const link = await buildInlineLink('https://app.example', BELL, 'Bell');
 		const encoded = new URL(link).hash.replace('#handoff=', '');
 		expect(encoded.length).toBeLessThan(MAX_INLINE_PAYLOAD_CHARS);
 	});
 
-	it('tolerates a base URL with a trailing slash', () => {
-		expect(buildInlineLink('https://app.example/', BELL)).toContain(
+	it('tolerates a base URL with a trailing slash', async () => {
+		expect(await buildInlineLink('https://app.example/', BELL)).toContain(
 			'https://app.example/#handoff='
 		);
+	});
+
+	it('compresses, so the decoder takes the gzip path', async () => {
+		const link = await buildInlineLink('https://app.example', BELL, 'Bell');
+		const encoded = new URL(link).hash.replace('#handoff=', '');
+		const normalised = encoded.replace(/-/g, '+').replace(/_/g, '/');
+		const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, '=');
+		const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+		expect([bytes[0], bytes[1]]).toEqual([0x1f, 0x8b]);
 	});
 });

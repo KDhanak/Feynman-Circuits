@@ -19,3 +19,13 @@ export const simulationResult = writable<SimulationResult>({
 
 export const currentCircuitId = writable<string>('');
 export const currentCircuitName = writable<string>('Untitled Circuit');
+
+// Whether the circuit on the board is published through the public API.
+//
+// Held explicitly rather than derived from circuitListCache, which only caches
+// the first page — a circuit opened via "Load more" would read as private.
+//
+// False for anything the signed-in user does not own, including a public
+// circuit they arrived at through someone else's share link: the board should
+// never suggest the visitor published it.
+export const currentCircuitIsPublic = writable<boolean>(false);

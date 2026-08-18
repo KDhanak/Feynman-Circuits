@@ -1,5 +1,10 @@
 import type { CircuitIR } from '../IR/schema';
-import { circuitIR, currentCircuitId, currentCircuitName } from '../IR/stores';
+import {
+	circuitIR,
+	currentCircuitId,
+	currentCircuitIsPublic,
+	currentCircuitName
+} from '../IR/stores';
 import { isCircuitSaved, markAsReset, markNameResolved } from './autoSave';
 import { triggerSimulation } from './dragDropUtils';
 
@@ -12,6 +17,10 @@ export interface ApplyCircuitOptions {
 	/** Whether this circuit already exists server-side. Drives the Save/Rename
 	 *  button label and whether auto-save may write to `id`. */
 	saved?: boolean;
+	/** Whether the signed-in owner has published this circuit. Defaults to false,
+	 *  which is right for everything that is not the owner's own saved circuit —
+	 *  file imports, handoffs, and circuits opened from someone else's link. */
+	isPublic?: boolean;
 }
 
 /**
@@ -28,7 +37,7 @@ export interface ApplyCircuitOptions {
  * id and mark itself reset before the board is touched.
  */
 export function applyCircuit(ir: CircuitIR, options: ApplyCircuitOptions = {}): void {
-	const { id, name, saved = Boolean(id) } = options;
+	const { id, name, saved = Boolean(id), isPublic = false } = options;
 
 	// Identity first: `circuitIR.set` is what wakes auto-save up, so by the time
 	// it fires the destination must already be correct.
@@ -43,6 +52,7 @@ export function applyCircuit(ir: CircuitIR, options: ApplyCircuitOptions = {}): 
 		markAsReset();
 	}
 	isCircuitSaved.set(saved);
+	currentCircuitIsPublic.set(isPublic);
 
 	circuitIR.set(ir);
 	triggerSimulation(ir);

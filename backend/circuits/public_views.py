@@ -168,7 +168,12 @@ class PublicCircuitDetailView(PublicAPIView, RetrieveAPIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'public_read'
 
+    # Exactly the fields PublicCircuitSerializer publishes. Anything outside this
+    # list — `user` above all — is never selected, so the owner is not merely
+    # left out of the response, it is never loaded into memory on this path.
+    PUBLIC_FIELDS = ('id', 'name', 'description', 'ir', 'created_at', 'updated_at')
+
     def get_queryset(self):
         # 404 rather than 403 for private circuits: a 403 would confirm the id
         # exists, turning this endpoint into an oracle for enumerating circuits.
-        return Circuit.objects.filter(is_public=True)
+        return Circuit.objects.filter(is_public=True).only(*self.PUBLIC_FIELDS)
