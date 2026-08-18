@@ -20,7 +20,7 @@
 	import Tooltip from '../components/Tooltip.svelte';
 	import OnboardingHost from '../components/Onboarding/OnboardingHost.svelte';
 	import { openWelcome } from '$lib/stores/onboardingStore';
-	import ImportHandoffDialog from '../components/ImportHandoffDialog.svelte';
+	import HandoffDialog from '../components/HandoffDialog.svelte';
 	import {
 		clearHandoffFromUrl,
 		readHandoffFromUrl,
@@ -190,7 +190,7 @@
 	function dismissHandoff() {
 		pendingHandoff = null;
 		handoffError = null;
-		// Drop the param so a refresh does not re-import over the user's edits.
+		// Drop the param so a refresh does not reload the handoff over the user's edits.
 		clearHandoffFromUrl();
 	}
 
@@ -422,7 +422,7 @@
 
 <OnboardingHost />
 
-<ImportHandoffDialog
+<HandoffDialog
 	handoff={pendingHandoff}
 	error={handoffError}
 	onConfirm={acceptHandoff}

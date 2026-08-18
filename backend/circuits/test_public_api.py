@@ -17,7 +17,7 @@ from rest_framework.test import APITestCase
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Circuit, CircuitImport
+from .models import Circuit, CircuitHandoff
 
 User = get_user_model()
 
@@ -110,13 +110,13 @@ class PublicCircuitReadTests(APITestCase):
 
 
 class CircuitHandoffTests(APITestCase):
-    create_url = "/api/v1/imports/"
+    create_url = "/api/v1/handoffs/"
 
     def setUp(self):
         clear_throttles()
 
     def _detail_url(self, token):
-        return f"/api/v1/imports/{token}/"
+        return f"/api/v1/handoffs/{token}/"
 
     def test_partner_can_park_a_circuit_and_read_it_back(self):
         resp = self.client.post(
@@ -126,7 +126,7 @@ class CircuitHandoffTests(APITestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         token = resp.data["token"]
-        self.assertIn(f"?import={token}", resp.data["open_url"])
+        self.assertIn(f"?handoff={token}", resp.data["open_url"])
 
         read = self.client.get(self._detail_url(token))
         self.assertEqual(read.status_code, status.HTTP_200_OK)
@@ -144,7 +144,7 @@ class CircuitHandoffTests(APITestCase):
             self.assertEqual(resp.status_code, status.HTTP_200_OK)
 
     def test_expired_handoff_is_404(self):
-        handoff = CircuitImport.objects.create(
+        handoff = CircuitHandoff.objects.create(
             ir=BELL_IR, expires_at=timezone.now() - timedelta(seconds=1)
         )
         resp = self.client.get(self._detail_url(handoff.token))
@@ -160,11 +160,11 @@ class CircuitHandoffTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_creating_a_handoff_purges_expired_ones(self):
-        stale = CircuitImport.objects.create(
+        stale = CircuitHandoff.objects.create(
             ir=BELL_IR, expires_at=timezone.now() - timedelta(hours=1)
         )
         self.client.post(self.create_url, {"ir": BELL_IR}, format="json")
-        self.assertFalse(CircuitImport.objects.filter(token=stale.token).exists())
+        self.assertFalse(CircuitHandoff.objects.filter(token=stale.token).exists())
 
     @override_settings(MAX_HANDOFF_BODY_BYTES=64)
     def test_oversized_body_is_rejected(self):
@@ -227,7 +227,7 @@ class PublicApiCorsTests(APITestCase):
 
     def test_preflight_is_answered_for_the_handoff_post(self):
         resp = self.client.options(
-            "/api/v1/imports/",
+            "/api/v1/handoffs/",
             HTTP_ORIGIN="https://quantumcanvas.example",
             HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
             HTTP_ACCESS_CONTROL_REQUEST_HEADERS="content-type",
@@ -242,7 +242,7 @@ class IRValidationHardeningTests(APITestCase):
     """The public endpoint takes IR from platforms we do not control, so the
     checks the frontend used to guarantee by construction are enforced here."""
 
-    url = "/api/v1/imports/"
+    url = "/api/v1/handoffs/"
 
     def setUp(self):
         clear_throttles()
@@ -330,7 +330,7 @@ class SchemaTests(APITestCase):
         resp = self.client.get("/api/v1/schema/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         body = resp.content.decode()
-        self.assertIn("/api/v1/imports/", body)
+        self.assertIn("/api/v1/handoffs/", body)
         # Internal, cookie-authenticated routes are not a published contract.
         self.assertNotIn("/circuits/api/circuits/", body)
         self.assertNotIn("/accounts/", body)

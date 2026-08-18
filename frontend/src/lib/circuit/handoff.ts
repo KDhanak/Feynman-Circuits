@@ -8,9 +8,9 @@ import { fetchHandoff, fetchPublicCircuit } from '../api/publicApi';
  *
  * Three link shapes, all handled here:
  *
- *   /?circuit=<uuid>    a circuit published from this app
- *   /?import=<token>    a handoff parked via POST /api/v1/imports/
- *   /#import=<base64>   the whole circuit inline, no server round-trip
+ *   /?circuit=<uuid>     a circuit published from this app
+ *   /?handoff=<token>    a handoff parked via POST /api/v1/handoffs/
+ *   /#handoff=<base64>   the whole circuit inline, no server round-trip
  *
  * The inline form uses the URL *fragment* deliberately — fragments are never
  * sent to a server, so a circuit shared this way never lands in an access log
@@ -56,13 +56,13 @@ export function readHandoffFromUrl(url: URL): Handoff | null {
 	const circuitId = url.searchParams.get('circuit');
 	if (circuitId) return { kind: 'circuit', circuitId };
 
-	const token = url.searchParams.get('import');
+	const token = url.searchParams.get('handoff');
 	if (token) return { kind: 'token', token };
 
 	// The fragment is not a query string, but it is shaped like one.
 	const fragment = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
 	if (fragment) {
-		const encoded = new URLSearchParams(fragment).get('import');
+		const encoded = new URLSearchParams(fragment).get('handoff');
 		if (encoded) return { kind: 'inline', encoded };
 	}
 
@@ -202,17 +202,17 @@ export async function resolveHandoff(handoff: Handoff): Promise<ResolvedHandoff>
 /**
  * Drop the handoff from the address bar once it has been dealt with.
  *
- * Without this a refresh re-triggers the import — and worse, after the user has
- * edited and saved the circuit, reloading would silently throw their work away
- * and re-import the original.
+ * Without this a refresh re-triggers the handoff — and worse, after the user
+ * has edited and saved the circuit, reloading would silently throw their work
+ * away and load the original again.
  */
 export function clearHandoffFromUrl(): void {
 	const url = new URL(window.location.href);
 	url.searchParams.delete('circuit');
-	url.searchParams.delete('import');
+	url.searchParams.delete('handoff');
 	if (url.hash) {
 		const params = new URLSearchParams(url.hash.slice(1));
-		params.delete('import');
+		params.delete('handoff');
 		const rest = params.toString();
 		url.hash = rest ? `#${rest}` : '';
 	}
@@ -242,5 +242,5 @@ export function buildInlineLink(
 	let binary = '';
 	for (const byte of bytes) binary += String.fromCharCode(byte);
 	const encoded = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-	return `${baseUrl.replace(/\/$/, '')}/#import=${encoded}`;
+	return `${baseUrl.replace(/\/$/, '')}/#handoff=${encoded}`;
 }

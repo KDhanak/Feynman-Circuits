@@ -10,8 +10,8 @@ from django.urls import path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from .public_views import (
-    CircuitImportCreateView,
-    CircuitImportDetailView,
+    CircuitHandoffCreateView,
+    CircuitHandoffDetailView,
     PublicCircuitDetailView,
 )
 
@@ -22,14 +22,14 @@ urlpatterns = [
         name="public-circuit-detail",
     ),
     path(
-        "imports/",
-        CircuitImportCreateView.as_view(),
-        name="public-circuit-import-create",
+        "handoffs/",
+        CircuitHandoffCreateView.as_view(),
+        name="public-circuit-handoff-create",
     ),
     path(
-        "imports/<str:token>/",
-        CircuitImportDetailView.as_view(),
-        name="public-circuit-import-detail",
+        "handoffs/<str:token>/",
+        CircuitHandoffDetailView.as_view(),
+        name="public-circuit-handoff-detail",
     ),
     path("schema/", SpectacularAPIView.as_view(), name="public-schema"),
     path(

@@ -7,12 +7,12 @@ schedule (or by hand after a burst) to guarantee nothing lingers.
 
 from django.core.management.base import BaseCommand
 
-from circuits.models import CircuitImport
+from circuits.models import CircuitHandoff
 
 
 class Command(BaseCommand):
     help = "Delete expired circuit handoff payloads."
 
     def handle(self, *args, **options):
-        deleted = CircuitImport.purge_expired()
+        deleted = CircuitHandoff.purge_expired()
         self.stdout.write(self.style.SUCCESS(f"Purged {deleted} expired circuit import(s)."))

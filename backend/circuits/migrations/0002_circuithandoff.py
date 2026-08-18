@@ -12,12 +12,12 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="CircuitImport",
+            name="CircuitHandoff",
             fields=[
                 (
                     "token",
                     models.CharField(
-                        default=circuits.models._new_import_token,
+                        default=circuits.models._new_handoff_token,
                         editable=False,
                         max_length=64,
                         primary_key=True,
@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                 (
                     "expires_at",
                     models.DateTimeField(
-                        db_index=True, default=circuits.models._default_import_expiry
+                        db_index=True, default=circuits.models._default_handoff_expiry
                     ),
                 ),
             ],

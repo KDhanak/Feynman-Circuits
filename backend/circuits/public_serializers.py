@@ -8,7 +8,7 @@ written out explicitly rather than inherited from the internal serializers.
 
 from rest_framework import serializers
 
-from .models import Circuit, CircuitImport
+from .models import Circuit, CircuitHandoff
 from .validation import validate_circuit_ir
 
 
@@ -28,7 +28,7 @@ class PublicCircuitSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class CircuitImportCreateSerializer(serializers.Serializer):
+class CircuitHandoffCreateSerializer(serializers.Serializer):
     """Inbound handoff from a partner platform."""
 
     ir = serializers.JSONField()
@@ -39,13 +39,13 @@ class CircuitImportCreateSerializer(serializers.Serializer):
         return validate_circuit_ir(value)
 
     def create(self, validated_data):
-        return CircuitImport.objects.create(**validated_data)
+        return CircuitHandoff.objects.create(**validated_data)
 
 
-class CircuitImportReadSerializer(serializers.ModelSerializer):
+class CircuitHandoffReadSerializer(serializers.ModelSerializer):
     """A parked handoff, as the app reads it back when the user follows the link."""
 
     class Meta:
-        model = CircuitImport
+        model = CircuitHandoff
         fields = ['ir', 'name', 'source', 'created_at', 'expires_at']
         read_only_fields = fields

@@ -59,12 +59,12 @@ describe('readHandoffFromUrl', () => {
 	});
 
 	it('reads a handoff token from the query string', () => {
-		const url = new URL('https://app.example/?import=tok_xyz');
+		const url = new URL('https://app.example/?handoff=tok_xyz');
 		expect(readHandoffFromUrl(url)).toEqual({ kind: 'token', token: 'tok_xyz' });
 	});
 
 	it('reads an inline payload from the fragment', () => {
-		const url = new URL('https://app.example/#import=SGVsbG8');
+		const url = new URL('https://app.example/#handoff=SGVsbG8');
 		expect(readHandoffFromUrl(url)).toEqual({ kind: 'inline', encoded: 'SGVsbG8' });
 	});
 
@@ -165,7 +165,7 @@ describe('acceptForeignIR', () => {
 describe('buildInlineLink', () => {
 	it('round-trips a circuit through the inline transport', async () => {
 		const link = buildInlineLink('https://app.example', BELL, 'Bell', 'feynman');
-		const encoded = new URL(link).hash.replace('#import=', '');
+		const encoded = new URL(link).hash.replace('#handoff=', '');
 		const decoded = await decodeInlinePayload(encoded);
 		const ir = acceptForeignIR(decoded.ir);
 
@@ -176,7 +176,7 @@ describe('buildInlineLink', () => {
 
 	it('strips per-operation ids to keep the link short', async () => {
 		const link = buildInlineLink('https://app.example', BELL);
-		const encoded = new URL(link).hash.replace('#import=', '');
+		const encoded = new URL(link).hash.replace('#handoff=', '');
 		const decoded = await decodeInlinePayload(encoded);
 		const operations = (decoded.ir as { operations: Array<Record<string, unknown>> }).operations;
 		for (const op of operations) {
@@ -186,11 +186,13 @@ describe('buildInlineLink', () => {
 
 	it('keeps a typical circuit well inside the size ceiling', () => {
 		const link = buildInlineLink('https://app.example', BELL, 'Bell');
-		const encoded = new URL(link).hash.replace('#import=', '');
+		const encoded = new URL(link).hash.replace('#handoff=', '');
 		expect(encoded.length).toBeLessThan(MAX_INLINE_PAYLOAD_CHARS);
 	});
 
 	it('tolerates a base URL with a trailing slash', () => {
-		expect(buildInlineLink('https://app.example/', BELL)).toContain('https://app.example/#import=');
+		expect(buildInlineLink('https://app.example/', BELL)).toContain(
+			'https://app.example/#handoff='
+		);
 	});
 });

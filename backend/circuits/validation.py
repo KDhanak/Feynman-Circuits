@@ -3,7 +3,7 @@ handoff API.
 
 This lives outside serializers.py because two very different callers need it:
 the authenticated CircuitDetailSerializer, where the payload comes from our own
-frontend, and the public /api/v1/imports/ endpoint, where the payload comes from
+frontend, and the public /api/v1/handoffs/ endpoint, where the payload comes from
 an arbitrary third-party platform. The public caller is the reason the checks
 here are stricter than they used to be — anything the frontend guarantees by
 construction has to be proven on the wire instead.

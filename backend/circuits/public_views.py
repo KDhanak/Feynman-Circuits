@@ -2,7 +2,7 @@
 
 Two directions:
 
-* Inbound — a partner platform POSTs a circuit to /api/v1/imports/ and gets back
+* Inbound — a partner platform POSTs a circuit to /api/v1/handoffs/ and gets back
   an `open_url`. Putting that behind an "Open in Feynman Circuits" button hands
   the circuit over in one click.
 * Outbound — anyone may GET a circuit whose owner has marked it public.
@@ -25,10 +25,10 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .models import Circuit, CircuitImport
+from .models import Circuit, CircuitHandoff
 from .public_serializers import (
-    CircuitImportCreateSerializer,
-    CircuitImportReadSerializer,
+    CircuitHandoffCreateSerializer,
+    CircuitHandoffReadSerializer,
     PublicCircuitSerializer,
 )
 
@@ -50,7 +50,7 @@ class PublicAPIView:
         'For small circuits you can skip this call entirely and build a link '
         'directly — see the inline transport in docs/api-v1.md.'
     ),
-    request=CircuitImportCreateSerializer,
+    request=CircuitHandoffCreateSerializer,
     responses={
         201: OpenApiResponse(description='Handoff created.'),
         400: OpenApiResponse(description='The circuit IR failed validation.'),
@@ -83,7 +83,7 @@ class PublicAPIView:
         ),
     ],
 )
-class CircuitImportCreateView(PublicAPIView, APIView):
+class CircuitHandoffCreateView(PublicAPIView, APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'circuit_handoff'
 
@@ -104,22 +104,22 @@ class CircuitImportCreateView(PublicAPIView, APIView):
                 status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
 
-        serializer = CircuitImportCreateSerializer(data=request.data)
+        serializer = CircuitHandoffCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        circuit_import = serializer.save()
+        handoff = serializer.save()
 
         # Opportunistic sweep so abandoned handoffs do not accumulate between
-        # runs of the purge_expired_imports command.
-        CircuitImport.purge_expired()
+        # runs of the purge_expired_handoffs command.
+        CircuitHandoff.purge_expired()
 
         return Response(
             {
-                'token': circuit_import.token,
-                'open_url': f'{settings.APP_BASE_URL}/?import={circuit_import.token}',
+                'token': handoff.token,
+                'open_url': f'{settings.APP_BASE_URL}/?handoff={handoff.token}',
                 'api_url': request.build_absolute_uri(
-                    reverse('public-circuit-import-detail', args=[circuit_import.token])
+                    reverse('public-circuit-handoff-detail', args=[handoff.token])
                 ),
-                'expires_at': circuit_import.expires_at,
+                'expires_at': handoff.expires_at,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -134,12 +134,12 @@ class CircuitImportCreateView(PublicAPIView, APIView):
         'the link keeps working.'
     ),
     responses={
-        200: CircuitImportReadSerializer,
+        200: CircuitHandoffReadSerializer,
         404: OpenApiResponse(description='Unknown or expired token.'),
     },
 )
-class CircuitImportDetailView(PublicAPIView, RetrieveAPIView):
-    serializer_class = CircuitImportReadSerializer
+class CircuitHandoffDetailView(PublicAPIView, RetrieveAPIView):
+    serializer_class = CircuitHandoffReadSerializer
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'public_read'
     lookup_field = 'token'
@@ -147,7 +147,7 @@ class CircuitImportDetailView(PublicAPIView, RetrieveAPIView):
     def get_queryset(self):
         # Filtering on expiry here means an expired handoff 404s naturally,
         # without a separate branch in the view.
-        return CircuitImport.objects.filter(expires_at__gt=timezone.now())
+        return CircuitHandoff.objects.filter(expires_at__gt=timezone.now())
 
 
 @extend_schema(

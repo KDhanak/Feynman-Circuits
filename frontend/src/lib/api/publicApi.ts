@@ -51,5 +51,5 @@ export function fetchPublicCircuit(circuitId: string): Promise<PublicCircuit> {
 /** Fetch a circuit another platform parked for us. Rejects if the token is
  *  unknown or has expired. */
 export function fetchHandoff(token: string): Promise<CircuitHandoff> {
-	return getJson<CircuitHandoff>(`/api/v1/imports/${encodeURIComponent(token)}/`);
+	return getJson<CircuitHandoff>(`/api/v1/handoffs/${encodeURIComponent(token)}/`);
 }

@@ -35,7 +35,7 @@ has on their board.
 Base64url-encode a small JSON envelope and hang it off the URL **fragment**:
 
 ```
-https://<app-host>/#import=<base64url payload>
+https://<app-host>/#handoff=<base64url payload>
 ```
 
 The envelope:
@@ -59,7 +59,7 @@ function openInFeynmanCircuits(ir, name) {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-  return `https://<app-host>/#import=${b64}`;
+  return `https://<app-host>/#handoff=${b64}`;
 }
 ```
 
@@ -80,12 +80,12 @@ third of an uncompressed payload.
 
 ### Transport B — handoff token
 
-#### `POST /api/v1/imports/`
+#### `POST /api/v1/handoffs/`
 
 Park a circuit and get back a link.
 
 ```bash
-curl -X POST https://<api-host>/api/v1/imports/ \
+curl -X POST https://<api-host>/api/v1/handoffs/ \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "Bell State",
@@ -109,8 +109,8 @@ curl -X POST https://<api-host>/api/v1/imports/ \
 ```json
 {
   "token": "PZ8mS3v...",
-  "open_url": "https://<app-host>/?import=PZ8mS3v...",
-  "api_url": "https://<api-host>/api/v1/imports/PZ8mS3v.../",
+  "open_url": "https://<app-host>/?handoff=PZ8mS3v...",
+  "api_url": "https://<api-host>/api/v1/handoffs/PZ8mS3v.../",
   "expires_at": "2026-08-18T21:30:00Z"
 }
 ```
@@ -126,7 +126,7 @@ Point your button at `open_url`.
 Errors: **400** invalid IR (the body names the failing operation), **413** body over 256 KB,
 **429** rate limited (30 requests/hour per IP).
 
-#### `GET /api/v1/imports/{token}/`
+#### `GET /api/v1/handoffs/{token}/`
 
 Read a parked handoff. The app calls this itself when the user follows the link; you generally do
 not need it.

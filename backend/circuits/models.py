@@ -9,15 +9,15 @@ from django.utils import timezone
 # How long a handoff link stays openable. Long enough that a user can follow the
 # link later from another device, short enough that abandoned payloads do not
 # accumulate.
-IMPORT_TOKEN_TTL = timedelta(hours=24)
+HANDOFF_TOKEN_TTL = timedelta(hours=24)
 
 
-def _new_import_token():
+def _new_handoff_token():
     return secrets.token_urlsafe(24)
 
 
-def _default_import_expiry():
-    return timezone.now() + IMPORT_TOKEN_TTL
+def _default_handoff_expiry():
+    return timezone.now() + HANDOFF_TOKEN_TTL
 
 
 class Circuit(models.Model):
@@ -58,7 +58,7 @@ class Circuit(models.Model):
         return 'Untitled Circuit' if n == 1 else f'Untitled Circuit {n}'
 
 
-class CircuitImport(models.Model):
+class CircuitHandoff(models.Model):
     """A circuit handed to us by another platform, parked under an opaque token
     until the user follows the link and opens it.
 
@@ -73,7 +73,7 @@ class CircuitImport(models.Model):
     the only lifecycle control.
     """
 
-    token = models.CharField(max_length=64, primary_key=True, default=_new_import_token, editable=False)
+    token = models.CharField(max_length=64, primary_key=True, default=_new_handoff_token, editable=False)
     ir = models.JSONField()
     name = models.CharField(max_length=255, default='Imported Circuit')
     # Free-text platform identifier supplied by the caller ("quantumcanvas").
@@ -81,7 +81,7 @@ class CircuitImport(models.Model):
     # untrusted text and never used for any authorization decision.
     source = models.CharField(max_length=64, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(default=_default_import_expiry, db_index=True)
+    expires_at = models.DateTimeField(default=_default_handoff_expiry, db_index=True)
 
     class Meta:
         ordering = ['-created_at']
