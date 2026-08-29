@@ -50,10 +50,13 @@ circuitIR.subscribe(() => {
 		autoSaveState.update((st) => ({ ...st, initialized: true }));
 		return;
 	}
-	// Only mark as dirty if user is authenticated
-	if (get(session).status !== 'authenticated') return;
-	// any store change after a reset means the user is editing again
+	// Any store change after a reset means the user is editing again. Tracked
+	// regardless of session state: someone who builds a circuit — or opens one
+	// shared with them — while signed out, then signs in, should not have to
+	// touch the board again before it can be saved. The auth gate lives in
+	// attemptAutoSave, which is the thing that actually talks to the server.
 	autoSaveState.update((st) => ({ ...st, isReset: false, isDirty: true }));
+	if (get(session).status !== 'authenticated') return;
 	if (get(settings).autoSaveEnabled) saveStatus.set('saving');
 });
 
@@ -137,7 +140,17 @@ async function attemptAutoSave(): Promise<boolean> {
 }
 
 export async function manualSave(): Promise<void> {
-	autoSaveState.update((st) => ({ ...st, consecutiveFailures: 0, lastSaveError: null }));
+	// Clearing isReset is what separates an explicit save from an automatic one.
+	// `isReset` exists to stop auto-save writing a circuit the user has not
+	// touched; clicking Save Circuit is unambiguous intent, so it must go
+	// through even for an untouched circuit — such as one just opened from a
+	// share link and saved as-is.
+	autoSaveState.update((st) => ({
+		...st,
+		consecutiveFailures: 0,
+		lastSaveError: null,
+		isReset: false
+	}));
 	const success = await attemptAutoSave();
 	autoSaveState.update((st) => ({ ...st, isDirty: false }));
 	if (!success) throw get(autoSaveState).lastSaveError ?? new Error('Save failed');
