@@ -37,11 +37,10 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 - Cloud circuit save with auto-save while editing
 - Circuit library — load and manage saved circuits
 
-**Open API — cross-platform circuit exchange**
-- Public, unauthenticated REST API at `/api/v1/` with an OpenAPI 3 schema and Swagger UI
-- Other platforms can hand a circuit over with a link — "Open in Feynman Circuits" loads it straight onto the board
-- Publish a circuit and share it by URL; anyone can read it as JSON
-- Full reference: [docs/api-v1.md](docs/api-v1.md) · IR JSON Schema: [shared/circuit-ir.schema.json](shared/circuit-ir.schema.json)
+**Sharing**
+- Publish a saved circuit and share it by link — recipients need no account
+- Signed-out users can share too: the circuit is encoded in the link itself
+- Opening a shared link loads the circuit onto the board and simulates it
 
 **UI**
 - Dark and light theme
@@ -76,7 +75,7 @@ feynman-circuits/
 │       └── routes/         # SvelteKit pages
 └── backend/                # Django REST API
     ├── accounts/           # Auth — sign up, sign in, JWT, password reset
-    ├── circuits/           # Circuit CRUD, IR validation, public /api/v1/ API
+    ├── circuits/           # Circuit CRUD, IR validation, public share endpoint
     └── config/             # Django settings & URL config
 ```
 

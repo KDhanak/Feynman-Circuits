@@ -3,10 +3,10 @@ handoff API.
 
 This lives outside serializers.py because two very different callers need it:
 the authenticated CircuitDetailSerializer, where the payload comes from our own
-frontend, and the public /api/v1/handoffs/ endpoint, where the payload comes from
-an arbitrary third-party platform. The public caller is the reason the checks
-here are stricter than they used to be — anything the frontend guarantees by
-construction has to be proven on the wire instead.
+frontend, and circuits arriving from a share link, which may have been built in
+another browser or hand-edited in the URL. That second caller is the reason the
+checks here are strict — anything the frontend guarantees by construction has to
+be proven on the wire instead.
 
 The gate rules are driven entirely by shared/gates.json (`arity` and `numParams`
 per gate), so adding a gate to the registry extends validation automatically

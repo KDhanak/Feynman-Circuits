@@ -27,7 +27,7 @@ export interface ApplyCircuitOptions {
  * Put a circuit on the board.
  *
  * Everything that loads a circuit goes through here — the library, the JSON /
- * OpenQASM / Qiskit importers, and the cross-platform handoff — because the
+ * OpenQASM / Qiskit importers, and circuits opened from a share link — because the
  * order of these store writes matters and getting it wrong is silent.
  *
  * Specifically: `autoSave` subscribes to `circuitIR` and persists to whatever

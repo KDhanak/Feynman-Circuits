@@ -22,7 +22,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("accounts.urls")),
     path("circuits/", include("circuits.urls")),
-    # Public, unauthenticated cross-platform API. Versioned and mounted at the
+    # Public, unauthenticated read endpoint for share links. Versioned and mounted at the
     # root because it is a published contract with third parties, unlike the
     # routes above, which are internal to this app and its own frontend.
     path("api/v1/", include("circuits.public_urls")),

@@ -16,18 +16,9 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 export interface PublicCircuit {
 	circuit_id: string;
 	name: string;
-	description: string;
 	ir: CircuitIR;
 	created_at: string;
 	updated_at: string;
-}
-
-export interface CircuitHandoff {
-	ir: CircuitIR;
-	name: string;
-	source: string;
-	created_at: string;
-	expires_at: string;
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -46,10 +37,4 @@ async function getJson<T>(path: string): Promise<T> {
  *  what a private circuit returns, deliberately. */
 export function fetchPublicCircuit(circuitId: string): Promise<PublicCircuit> {
 	return getJson<PublicCircuit>(`/api/v1/circuits/${circuitId}/`);
-}
-
-/** Fetch a circuit another platform parked for us. Rejects if the token is
- *  unknown or has expired. */
-export function fetchHandoff(token: string): Promise<CircuitHandoff> {
-	return getJson<CircuitHandoff>(`/api/v1/handoffs/${encodeURIComponent(token)}/`);
 }

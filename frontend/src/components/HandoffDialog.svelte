@@ -48,12 +48,7 @@
 					<button type="button" class="btn-primary" on:click={onCancel}>Close</button>
 				</div>
 			{:else if handoff}
-				<p class="text-sm" style="color: var(--color-muted);">
-					<!-- `source` is supplied by the sending platform, so it is rendered as
-					     plain text and never trusted for anything beyond this sentence. -->
-					<span style="color: var(--color-text);">{handoff.source}</span>
-					wants to open a circuit in Feynman Circuits.
-				</p>
+				<p class="text-sm" style="color: var(--color-muted);">Someone shared a circuit with you.</p>
 
 				<div class="mt-3 rounded-sm p-3" style="background-color: var(--color-background);">
 					<p class="truncate font-semibold" style="color: var(--color-text);">{handoff.name}</p>

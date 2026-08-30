@@ -58,11 +58,6 @@ describe('readHandoffFromUrl', () => {
 		expect(readHandoffFromUrl(url)).toEqual({ kind: 'circuit', circuitId: 'abc-123' });
 	});
 
-	it('reads a handoff token from the query string', () => {
-		const url = new URL('https://app.example/?handoff=tok_xyz');
-		expect(readHandoffFromUrl(url)).toEqual({ kind: 'token', token: 'tok_xyz' });
-	});
-
 	it('reads an inline payload from the fragment', () => {
 		const url = new URL('https://app.example/#handoff=SGVsbG8');
 		expect(readHandoffFromUrl(url)).toEqual({ kind: 'inline', encoded: 'SGVsbG8' });
@@ -80,21 +75,20 @@ describe('readHandoffFromUrl', () => {
 
 describe('decodeInlinePayload', () => {
 	it('decodes an uncompressed base64url payload', async () => {
-		const payload: HandoffPayload = { v: 1, name: 'Bell', source: 'quantumcanvas', ir: BELL };
+		const payload: HandoffPayload = { name: 'Bell', ir: BELL };
 		const decoded = await decodeInlinePayload(encodeBase64Url(JSON.stringify(payload)));
 		expect(decoded.name).toBe('Bell');
-		expect(decoded.source).toBe('quantumcanvas');
 	});
 
 	it('detects gzip from the magic bytes and inflates', async () => {
-		const payload: HandoffPayload = { v: 1, name: 'Compressed', ir: BELL };
+		const payload: HandoffPayload = { name: 'Compressed', ir: BELL };
 		const decoded = await decodeInlinePayload(await gzipBase64Url(JSON.stringify(payload)));
 		expect(decoded.name).toBe('Compressed');
 		expect((decoded.ir as CircuitIR).registers.q).toBe(2);
 	});
 
 	it('accepts standard base64 as well as base64url', async () => {
-		const payload: HandoffPayload = { v: 1, ir: BELL };
+		const payload: HandoffPayload = { ir: BELL };
 		const json = JSON.stringify(payload);
 		const bytes = new TextEncoder().encode(json);
 		let binary = '';
@@ -164,7 +158,7 @@ describe('acceptForeignIR', () => {
 
 describe('buildInlineLink', () => {
 	it('round-trips a circuit through the inline transport', async () => {
-		const link = await buildInlineLink('https://app.example', BELL, 'Bell', 'feynman');
+		const link = await buildInlineLink('https://app.example', BELL, 'Bell');
 		const encoded = new URL(link).hash.replace('#handoff=', '');
 		const decoded = await decodeInlinePayload(encoded);
 		const ir = acceptForeignIR(decoded.ir);

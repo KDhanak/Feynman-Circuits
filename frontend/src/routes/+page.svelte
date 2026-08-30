@@ -167,11 +167,10 @@
 		currentCircuitName.set('Untitled Circuit');
 	}
 
-	// --- Cross-platform handoff ---------------------------------------------
-	// A partner platform can send a user here with a circuit attached to the
-	// link. Resolved on the client rather than in a `+page.ts` load: the inline
-	// transport lives in the URL fragment, which never reaches the server, so a
-	// universal load could not see it anyway.
+	// --- Shared-circuit links ------------------------------------------------
+	// A share link can carry a circuit. Resolved on the client rather than in a
+	// `+page.ts` load: the inline form lives in the URL fragment, which never
+	// reaches the server, so a universal load could not see it anyway.
 	let pendingHandoff: ResolvedHandoff | null = null;
 	let handoffError: string | null = null;
 

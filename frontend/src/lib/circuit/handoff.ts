@@ -1,15 +1,13 @@
 import type { CircuitIR } from '../IR/schema';
 import { importCircuit } from './IE';
-import { fetchHandoff, fetchPublicCircuit } from '../api/publicApi';
+import { fetchPublicCircuit } from '../api/publicApi';
 
 /**
- * Cross-platform circuit handoff: how a circuit gets from another quantum
- * platform onto this board via a link.
+ * Share links: how a circuit gets from a link onto this board.
  *
- * Three link shapes, all handled here:
+ * Two link shapes, both handled here:
  *
- *   /?circuit=<uuid>     a circuit published from this app
- *   /?handoff=<token>    a handoff parked via POST /api/v1/handoffs/
+ *   /?circuit=<uuid>     a saved circuit its owner has published
  *   /#handoff=<base64>   the whole circuit inline, no server round-trip
  *
  * The inline form uses the URL *fragment* deliberately — fragments are never
@@ -20,21 +18,15 @@ import { fetchHandoff, fetchPublicCircuit } from '../api/publicApi';
 /** Wire envelope for the inline transport. Versioned separately from the IR so
  *  the envelope can gain fields without implying an IR schema change. */
 export interface HandoffPayload {
-	v: 1;
 	name?: string;
-	source?: string;
 	ir: unknown;
 }
 
-export type Handoff =
-	| { kind: 'circuit'; circuitId: string }
-	| { kind: 'token'; token: string }
-	| { kind: 'inline'; encoded: string };
+export type Handoff = { kind: 'circuit'; circuitId: string } | { kind: 'inline'; encoded: string };
 
 export interface ResolvedHandoff {
 	ir: CircuitIR;
 	name: string;
-	source: string;
 	/** Set only for `?circuit=` links, where the circuit has a server identity
 	 *  worth preserving. A handoff from elsewhere gets a fresh local id. */
 	circuitId?: string;
@@ -45,9 +37,9 @@ export interface ResolvedHandoff {
  *
  * A maximally dense circuit is ~38 KB of base64 uncompressed, which is past
  * what is comfortable to paste, embed in an anchor, or hand to a QR code — and
- * gzip brings that same circuit under 2 KB. Partners with anything larger
- * should use the token transport, so refusing here surfaces the problem at the
- * boundary instead of as a mysterious truncation later.
+ * gzip brings that same circuit under 2 KB. Refusing here surfaces an oversized
+ * circuit at the boundary rather than as a mysterious truncation later; the
+ * sender is told to save it and share the saved-circuit link instead.
  */
 export const MAX_INLINE_PAYLOAD_CHARS = 8192;
 
@@ -55,9 +47,6 @@ export const MAX_INLINE_PAYLOAD_CHARS = 8192;
 export function readHandoffFromUrl(url: URL): Handoff | null {
 	const circuitId = url.searchParams.get('circuit');
 	if (circuitId) return { kind: 'circuit', circuitId };
-
-	const token = url.searchParams.get('handoff');
-	if (token) return { kind: 'token', token };
 
 	// The fragment is not a query string, but it is shaped like one.
 	const fragment = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
@@ -70,8 +59,8 @@ export function readHandoffFromUrl(url: URL): Handoff | null {
 }
 
 function base64UrlToBytes(encoded: string): Uint8Array {
-	// Accept both base64url (what we document) and standard base64, so a partner
-	// that reaches for a stock encoder still interoperates.
+	// Accept both base64url (what we emit) and standard base64, so a link that has
+	// been through a tool using a stock encoder still decodes.
 	const normalised = encoded.replace(/-/g, '+').replace(/_/g, '/');
 	const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, '=');
 	const binary = atob(padded);
@@ -93,8 +82,7 @@ async function gunzip(bytes: Uint8Array): Promise<string> {
  * The encoding is self-describing rather than signalled by a separate param:
  * after base64 decoding we sniff the gzip magic bytes (0x1f 0x8b) and inflate
  * only if they are present. That keeps one link format for both plain and
- * compressed payloads, so a partner can start with `btoa(JSON.stringify(...))`
- * and add compression later without changing the URL shape.
+ * compressed payloads, so an uncompressed link built by hand still opens.
  *
  * Compression uses the platform's own DecompressionStream — no dependency.
  */
@@ -177,25 +165,14 @@ export async function resolveHandoff(handoff: Handoff): Promise<ResolvedHandoff>
 		return {
 			ir: acceptForeignIR(circuit.ir),
 			name: circuit.name,
-			source: 'Feynman Circuits',
 			circuitId: circuit.circuit_id
-		};
-	}
-
-	if (handoff.kind === 'token') {
-		const parked = await fetchHandoff(handoff.token);
-		return {
-			ir: acceptForeignIR(parked.ir),
-			name: parked.name || 'Imported Circuit',
-			source: parked.source || 'another platform'
 		};
 	}
 
 	const payload = await decodeInlinePayload(handoff.encoded);
 	return {
 		ir: acceptForeignIR(payload.ir),
-		name: payload.name || 'Imported Circuit',
-		source: payload.source || 'another platform'
+		name: payload.name || 'Shared Circuit'
 	};
 }
 
@@ -209,7 +186,6 @@ export async function resolveHandoff(handoff: Handoff): Promise<ResolvedHandoff>
 export function clearHandoffFromUrl(): void {
 	const url = new URL(window.location.href);
 	url.searchParams.delete('circuit');
-	url.searchParams.delete('handoff');
 	if (url.hash) {
 		const params = new URLSearchParams(url.hash.slice(1));
 		params.delete('handoff');
@@ -236,19 +212,14 @@ async function gzipToBytes(text: string): Promise<Uint8Array> {
  *
  * Throws rather than returning an oversized link: better to fail here, where we
  * can say why, than to hand someone a URL the receiver will reject.
- *
- * Also documented for partners as the reference implementation of the encoding.
  */
 export async function buildInlineLink(
 	baseUrl: string,
 	ir: CircuitIR,
-	name?: string,
-	source?: string
+	name?: string
 ): Promise<string> {
 	const payload: HandoffPayload = {
-		v: 1,
 		...(name ? { name } : {}),
-		...(source ? { source } : {}),
 		// Strip ids on the way out; the receiver regenerates them.
 		ir: {
 			...ir,

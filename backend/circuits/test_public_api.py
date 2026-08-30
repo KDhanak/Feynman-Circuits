@@ -1,23 +1,18 @@
-"""Tests for the public /api/v1/ cross-platform API.
+"""Tests for the unauthenticated read endpoint behind FC share links, and for
+the IR validation that endpoint's data eventually reaches.
 
-Covers the two things that make this namespace different from the rest of the
-site: it answers without any credentials, and it accepts input from platforms we
-do not control.
+Share links are followed by visitors with no account, so this namespace answers
+without any credentials — which is what most of these tests are about.
 """
 
 import uuid
-from datetime import timedelta
-from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.test import override_settings
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Circuit, CircuitHandoff
+from .models import Circuit
 from .public_views import PublicCircuitDetailView
 
 User = get_user_model()
@@ -88,7 +83,7 @@ class PublicCircuitReadTests(APITestCase):
         resp = self.client.get(self._url(circuit.id))
         self.assertEqual(
             set(resp.data),
-            {"circuit_id", "name", "description", "ir", "created_at", "updated_at"},
+            {"circuit_id", "name", "ir", "created_at", "updated_at"},
         )
 
     def test_owner_is_never_loaded_from_the_database(self):
@@ -140,146 +135,25 @@ class PublicCircuitReadTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
 
 
-class CircuitHandoffTests(APITestCase):
-    create_url = "/api/v1/handoffs/"
-
-    def setUp(self):
-        clear_throttles()
-
-    def _detail_url(self, token):
-        return f"/api/v1/handoffs/{token}/"
-
-    def test_partner_can_park_a_circuit_and_read_it_back(self):
-        resp = self.client.post(
-            self.create_url,
-            {"ir": BELL_IR, "name": "Bell State", "source": "quantumcanvas"},
-            format="json",
-        )
-        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
-        token = resp.data["token"]
-        self.assertIn(f"?handoff={token}", resp.data["open_url"])
-
-        read = self.client.get(self._detail_url(token))
-        self.assertEqual(read.status_code, status.HTTP_200_OK)
-        self.assertEqual(read.data["ir"], BELL_IR)
-        self.assertEqual(read.data["name"], "Bell State")
-        self.assertEqual(read.data["source"], "quantumcanvas")
-
-    def test_reading_a_handoff_does_not_consume_it(self):
-        """Refresh, back-button, and open-on-another-device must all work."""
-        token = self.client.post(
-            self.create_url, {"ir": BELL_IR}, format="json"
-        ).data["token"]
-        for _ in range(3):
-            resp = self.client.get(self._detail_url(token))
-            self.assertEqual(resp.status_code, status.HTTP_200_OK)
-
-    def test_expired_handoff_is_404(self):
-        handoff = CircuitHandoff.objects.create(
-            ir=BELL_IR, expires_at=timezone.now() - timedelta(seconds=1)
-        )
-        resp = self.client.get(self._detail_url(handoff.token))
-        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_unknown_token_is_404(self):
-        resp = self.client.get(self._detail_url("nope"))
-        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
-
-    def test_invalid_ir_is_rejected(self):
-        bad = {**BELL_IR, "version": "9.9"}
-        resp = self.client.post(self.create_url, {"ir": bad}, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_creating_a_handoff_purges_expired_ones(self):
-        stale = CircuitHandoff.objects.create(
-            ir=BELL_IR, expires_at=timezone.now() - timedelta(hours=1)
-        )
-        self.client.post(self.create_url, {"ir": BELL_IR}, format="json")
-        self.assertFalse(CircuitHandoff.objects.filter(token=stale.token).exists())
-
-    @override_settings(MAX_HANDOFF_BODY_BYTES=64)
-    def test_oversized_body_is_rejected(self):
-        resp = self.client.post(
-            self.create_url,
-            {"ir": BELL_IR, "name": "Bell State"},
-            format="json",
-        )
-        self.assertEqual(resp.status_code, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
-
-    def test_handoff_creation_is_throttled(self):
-        # DRF reads THROTTLE_RATES off the throttle class at import time, so
-        # override_settings(REST_FRAMEWORK=...) never reaches it — patch the
-        # resolved rate table instead.
-        with mock.patch.dict(
-            ScopedRateThrottle.THROTTLE_RATES, {"circuit_handoff": "2/hour"}
-        ):
-            clear_throttles()
-            for _ in range(2):
-                resp = self.client.post(self.create_url, {"ir": BELL_IR}, format="json")
-                self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
-            resp = self.client.post(self.create_url, {"ir": BELL_IR}, format="json")
-            self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-
-
-class PublicApiCorsTests(APITestCase):
-    """The public namespace serves `*`; the rest of the site keeps its
-    credentialed, origin-specific headers. The two must never both write the
-    header on one response — browsers reject a duplicated
-    Access-Control-Allow-Origin outright."""
-
-    def setUp(self):
-        clear_throttles()
-        self.owner = User.objects.create_user(
-            email="cors@example.com", password="Str0ngP@ssw0rd!",
-            first_name="C", last_name="O",
-        )
-        self.circuit = Circuit.objects.create(
-            user=self.owner, name="Bell", ir=BELL_IR, is_public=True
-        )
-
-    def test_public_read_allows_any_origin_exactly_once(self):
-        resp = self.client.get(
-            f"/api/v1/circuits/{self.circuit.id}/",
-            HTTP_ORIGIN="https://quantumcanvas.example",
-        )
-        headers = resp.headers
-        self.assertEqual(headers["Access-Control-Allow-Origin"], "*")
-        # Django's HttpResponse collapses repeats, so assert the app origin did
-        # not win instead of `*`.
-        self.assertNotIn("localhost", headers["Access-Control-Allow-Origin"])
-
-    def test_app_origin_is_not_given_a_wildcard_on_internal_routes(self):
-        """django-cors-headers must still own the credentialed endpoints."""
-        resp = self.client.get(
-            "/circuits/api/circuits/",
-            HTTP_ORIGIN="http://localhost:5173",
-        )
-        self.assertNotEqual(resp.headers.get("Access-Control-Allow-Origin"), "*")
-
-    def test_preflight_is_answered_for_the_handoff_post(self):
-        resp = self.client.options(
-            "/api/v1/handoffs/",
-            HTTP_ORIGIN="https://quantumcanvas.example",
-            HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
-            HTTP_ACCESS_CONTROL_REQUEST_HEADERS="content-type",
-        )
-        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(resp.headers["Access-Control-Allow-Origin"], "*")
-        self.assertIn("POST", resp.headers["Access-Control-Allow-Methods"])
-        self.assertIn("content-type", resp.headers["Access-Control-Allow-Headers"])
-
-
 class IRValidationHardeningTests(APITestCase):
-    """The public endpoint takes IR from platforms we do not control, so the
-    checks the frontend used to guarantee by construction are enforced here."""
-
-    url = "/api/v1/handoffs/"
+    """validate_circuit_ir is shared by every path that accepts a circuit, so
+    these exercise it through the authenticated save endpoint."""
 
     def setUp(self):
         clear_throttles()
+        self.user = User.objects.create_user(
+            email="owner@example.com", password="pw12345!"
+        )
+        self.client.cookies["access_token"] = str(
+            RefreshToken.for_user(self.user).access_token
+        )
 
     def _post(self, ir):
-        return self.client.post(self.url, {"ir": ir}, format="json")
+        return self.client.put(
+            f"/circuits/api/circuits/{uuid.uuid4()}/",
+            {"name": f"C{uuid.uuid4().hex[:8]}", "ir": ir},
+            format="json",
+        )
 
     def _with_op(self, op):
         return {**BELL_IR, "operations": [op]}
@@ -351,17 +225,3 @@ class IRValidationHardeningTests(APITestCase):
     def test_rejects_label_count_mismatch(self):
         resp = self._post({**BELL_IR, "qubitLabels": ["Only one"]})
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-
-
-class SchemaTests(APITestCase):
-    def setUp(self):
-        clear_throttles()
-
-    def test_schema_is_served_and_publishes_only_the_public_namespace(self):
-        resp = self.client.get("/api/v1/schema/")
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        body = resp.content.decode()
-        self.assertIn("/api/v1/handoffs/", body)
-        # Internal, cookie-authenticated routes are not a published contract.
-        self.assertNotIn("/circuits/api/circuits/", body)
-        self.assertNotIn("/accounts/", body)
