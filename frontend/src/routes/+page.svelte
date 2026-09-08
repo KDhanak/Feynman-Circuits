@@ -390,7 +390,7 @@
 				>
 					<div
 						data-tour="results"
-						class="w-full h-full shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
+						class="w-full h-full shadow-sm shadow-qec-1 bg-qec-surface/20 rounded-sm p-4 overflow-hidden flex justify-center"
 					>
 						<LatticePanel />
 					</div>

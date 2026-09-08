@@ -219,11 +219,8 @@ Unavailable in QEC mode: ${gate.name} is not a Clifford gate, and the stabiliser
 			? 'QEC mode is on — only Clifford gates are available'
 			: 'QEC mode — restricts the palette to Clifford gates'}
 		class="flex cursor-pointer items-center gap-1.5 rounded-sm border px-3 py-1 text-sm transition-colors duration-100 {$qecMode
-			? 'text-white shadow-sm shadow-orange-700'
+			? 'bg-qec-1 border-qec-1 text-qec-fg shadow-sm shadow-qec-1'
 			: 'bg-surface text-text border-ternary-1 shadow'}"
-		style={$qecMode
-			? 'background: var(--color-orange-700); border-color: var(--color-orange-700)'
-			: ''}
 	>
 		<Icon icon="ph:shield-check-bold" width="15" height="15" />
 		QEC

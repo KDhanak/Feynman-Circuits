@@ -29,6 +29,23 @@
 	--color-probability: #2563eb;
 	--color-muted: #000000;
 	--color-branding: #7e22ce;
+
+	/* QEC — Emerald. Mode chrome only (the toggle, the QEC panel frame): the
+	   lattice keeps its own data colours, where purple means X-check, blue means
+	   Z-check and orange means injected error. Emerald is the one major hue none
+	   of those already claim, so QEC mode cannot be mistaken for a measurement
+	   or an error. `qec-fg` is the text colour that sits ON `qec-1`, which is
+	   why it flips between themes: the fill goes dark-on-light to light-on-dark. */
+	--color-qec-1: #047857;
+	--color-qec-2: #065f46;
+	--color-qec-fg: #ffffff;
+
+	/* Panel tint base. Fixed across themes and used at /20, exactly as
+	   --color-secondary-3 is for every other panel: at that strength it lands on
+	   the same luminance as its purple siblings in BOTH themes, so the QEC panel
+	   reads as a different colour rather than a different brightness. Do not use
+	   qec-1 here — it inverts, so it would be far too bright on dark. */
+	--color-qec-surface: #065f46;
 }
 
 html.dark {
@@ -42,6 +59,13 @@ html.dark {
 	--color-measured: #fb923c;
 	--color-probability: #06b6d4;
 	--color-branding: #e9d5ff;
+
+	/* Emerald inverts for dark: a deep fill would disappear into the surface, so
+	   the accent becomes the bright shade and the text on it becomes the dark
+	   one. Same pattern as --color-measured above. */
+	--color-qec-1: #34d399;
+	--color-qec-2: #6ee7b7;
+	--color-qec-fg: #052e16;
 
 	/* Accents — Cyan for dark mode */
 	--color-ternary-0: #cffafe;
