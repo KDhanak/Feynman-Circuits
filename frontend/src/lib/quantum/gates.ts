@@ -119,6 +119,11 @@ export interface GateSpec {
 	arity: number; // number of target qubits (swap = 2)
 	numParams: number; // 0, or 1 for rotations
 	qasmName: string; // base OpenQASM name
+	// Whether the gate is in the Clifford group. Stabiliser simulators (Stim)
+	// can only run Clifford circuits, so QEC mode blocks everything else.
+	// The parametric gates (P, RX, RY, RZ) ARE Clifford at multiples of π/2,
+	// but the user can dial any angle, so they count as non-Clifford here.
+	clifford: boolean;
 	controlledQasm?: Record<number, string>; // special controlled spellings, e.g. { 1: 'cx', 2: 'ccx' }
 	matrix?: (params: number[]) => Complex[][]; // omitted for swap (simulator special-cases it)
 	// Palette tooltip copy — `quick` is the bold title, `detail` the description.
@@ -128,6 +133,7 @@ export interface GateSpec {
 export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	x: {
 		id: 'x',
+		clifford: true,
 		label: 'X',
 		category: 'pauli',
 		arity: 1,
@@ -142,6 +148,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	y: {
 		id: 'y',
+		clifford: true,
 		label: 'Y',
 		category: 'pauli',
 		arity: 1,
@@ -156,6 +163,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	z: {
 		id: 'z',
+		clifford: true,
 		label: 'Z',
 		category: 'pauli',
 		arity: 1,
@@ -170,6 +178,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	h: {
 		id: 'h',
+		clifford: true,
 		label: 'H',
 		category: 'hadamard',
 		arity: 1,
@@ -184,6 +193,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	s: {
 		id: 's',
+		clifford: true,
 		label: 'S',
 		category: 'phase',
 		arity: 1,
@@ -194,6 +204,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	t: {
 		id: 't',
+		clifford: false,
 		label: 'T',
 		category: 'phase',
 		arity: 1,
@@ -207,6 +218,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	p: {
 		id: 'p',
+		clifford: false,
 		label: 'P',
 		category: 'phase',
 		arity: 1,
@@ -221,6 +233,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	rx: {
 		id: 'rx',
+		clifford: false,
 		label: 'RX',
 		category: 'rotation',
 		arity: 1,
@@ -235,6 +248,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	ry: {
 		id: 'ry',
+		clifford: false,
 		label: 'RY',
 		category: 'rotation',
 		arity: 1,
@@ -249,6 +263,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	rz: {
 		id: 'rz',
+		clifford: false,
 		label: 'RZ',
 		category: 'rotation',
 		arity: 1,
@@ -263,6 +278,7 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	},
 	swap: {
 		id: 'swap',
+		clifford: true,
 		label: 'SWAP',
 		category: 'multi',
 		arity: 2,
@@ -292,6 +308,12 @@ export const PARAMETRIC_GATE_IDS = UNITARY_GATE_IDS.filter((g) => GATE_REGISTRY[
 export function isGateId(value: string): value is CanonicalUnitaryGate {
 	return value in GATE_REGISTRY;
 }
+
+export function isCliffordGate(value: string): boolean {
+	return isGateId(value) && GATE_REGISTRY[value].clifford;
+}
+
+export const NON_CLIFFORD_GATE_IDS = UNITARY_GATE_IDS.filter((g) => !GATE_REGISTRY[g].clifford);
 
 export function isParametricGate(value: string): boolean {
 	return isGateId(value) && GATE_REGISTRY[value].numParams > 0;

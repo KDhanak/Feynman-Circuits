@@ -39,6 +39,14 @@ export const currentSnapshot = derived(
 	}
 );
 
+/**
+ * QEC mode. While on, the editor restricts the circuit to Clifford operations,
+ * because the QEC path is simulated by Stim and stabiliser simulators cannot
+ * represent anything else. A view mode rather than a saved preference, so it
+ * lives here and not in settingsStore.
+ */
+export const qecMode = writable<boolean>(false);
+
 export function resetQec() {
 	qecResult.set(null);
 	currentStep.set(0);

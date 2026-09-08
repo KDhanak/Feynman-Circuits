@@ -3,17 +3,12 @@
 	import { handlePaletteDrop, handleDoubleClick } from '$lib/circuit/dragDropUtils';
 	import { isDragging, armedGate } from '$lib/stores/uiStores';
 	import { clearSelection } from '$lib/circuit/selection';
-	import { showNotification } from '$lib/utils/notificationUtils';
-	import { manualSave, isCircuitSaved } from '$lib/circuit/autoSave';
-	import { currentCircuitName } from '$lib/IR/stores';
-	import NameDialog from './NameDialog.svelte';
 	import Icon from '@iconify/svelte';
-	import { session } from '$lib/auth/session';
-	import { get } from 'svelte/store';
 	import { applyBellPairPreset, compactCircuit } from '$lib/circuit/circuitActions';
 	import Tooltip from './Tooltip.svelte';
 	import { isMobile } from '$lib/stores/isMobile';
 	import { GATE_REGISTRY, UNITARY_GATE_IDS, paletteCategory } from '$lib/quantum/gates';
+	import { qecMode } from '$lib/qec/stores';
 
 	type PaletteTile = {
 		type: string;
@@ -21,6 +16,9 @@
 		category: string;
 		quick: string;
 		detail: string;
+		// Usable while QEC mode is on. Non-Clifford gates are blocked there
+		// because Stim, which runs the QEC path, cannot simulate them at all.
+		clifford: boolean;
 	};
 
 	// Editor primitives — not gates, so they don't live in the registry.
@@ -28,6 +26,7 @@
 		type: 'CONTROL',
 		name: 'CONTROL',
 		category: 'multi',
+		clifford: true,
 		quick: 'Control',
 		detail:
 			'Makes the next gate conditional — it only fires if this qubit is |1⟩. Drop it on the same column as a gate.'
@@ -36,6 +35,7 @@
 		type: 'ANTI_CONTROL',
 		name: 'ANTI_CONTROL',
 		category: 'multi',
+		clifford: true,
 		quick: 'Anti-Control',
 		detail: 'Like Control, but fires when the qubit is |0⟩ instead of |1⟩.'
 	};
@@ -43,6 +43,7 @@
 		type: 'MEASURE',
 		name: 'MEASURE',
 		category: 'single',
+		clifford: true,
 		quick: 'Measure',
 		detail:
 			"Collapses the qubit to a definite |0⟩ or |1⟩ using Born's rule. The outcome is random, weighted by probability. (In reality, its pseudo-random for a web simulator)"
@@ -56,6 +57,7 @@
 			type: id.toUpperCase(),
 			name: spec.label,
 			category: paletteCategory(spec),
+			clifford: spec.clifford,
 			quick: spec.tooltip.quick,
 			detail: spec.tooltip.detail
 		};
@@ -88,32 +90,6 @@
 				: { source: 'palette', gateType }
 		);
 	}
-
-	let showNameDialog = false;
-
-	function openNameDialog() {
-		if (get(session).status !== 'authenticated') {
-			showNotification('Please sign in to save your circuit.', 'error');
-			return;
-		}
-		showNameDialog = true;
-	}
-
-	async function saveCircuit(newName: string) {
-		showNameDialog = false;
-		const wasSaved = get(isCircuitSaved);
-		const previousName = $currentCircuitName;
-		currentCircuitName.set(newName);
-		try {
-			await manualSave();
-			showNotification(wasSaved ? 'Circuit renamed!' : 'Circuit saved!', 'success');
-		} catch (err: unknown) {
-			currentCircuitName.set(previousName);
-			const apiMessage = (err as { response?: { data?: { name?: string[] } } })?.response?.data
-				?.name?.[0];
-			showNotification(apiMessage ?? 'Failed to save circuit. Please try again.', 'error');
-		}
-	}
 </script>
 
 <div
@@ -137,6 +113,9 @@
 	data-tour="palette"
 >
 	{#each gates as gate (gate.name)}
+		<!-- Blocked, not hidden: a greyed tile teaches why the gate is unavailable,
+		     where a missing one just looks broken. -->
+		{@const blocked = $qecMode && !gate.clifford}
 		<!-- Separator before multi-qubit gates -->
 		{#if (gate.category === 'multi' || gate.category === 'two-qubit') && (gate.type === 'CONTROL' || gate.type === 'RZZ' || gate.type === 'SWAP')}
 			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
@@ -144,31 +123,48 @@
 		{#if gate.category === 'parametric' && gate.type === 'RX'}
 			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
 		{/if}
-		<Tooltip quick={gate.quick} detail={gate.detail}>
+		<Tooltip
+			quick={gate.quick}
+			detail={blocked
+				? `${gate.detail}
+
+Unavailable in QEC mode: ${gate.name} is not a Clifford gate, and the stabiliser simulator behind the QEC path cannot represent it.`
+				: gate.detail}
+		>
 			<div
-				title={gate.name}
+				title={blocked ? `${gate.name} — not available in QEC mode (non-Clifford)` : gate.name}
 				role="button"
-				tabindex="0"
-				draggable="true"
+				aria-disabled={blocked}
+				tabindex={blocked ? -1 : 0}
+				draggable={!blocked}
 				on:keydown={(e) => {
+					if (blocked) return;
 					if ($isMobile && (e.key === 'Enter' || e.key === ' ')) {
 						e.preventDefault();
 						toggleArm(gate.type);
 					}
 				}}
 				on:dragstart={(e) => {
+					if (blocked) {
+						e.preventDefault();
+						return;
+					}
 					const dragData: GateData = { source: 'palette', gateType: gate.type };
 					e.dataTransfer?.setData('application/json', JSON.stringify(dragData));
 					isDragging.set(true);
 				}}
 				on:dragend={() => isDragging.set(false)}
 				on:dblclick={() =>
-					!$isMobile && handleDoubleClick({ source: 'palette', gateType: gate.type })}
-				on:click={() => $isMobile && toggleArm(gate.type)}
-				class={`cursor-grab select-none ${$isMobile ? 'h-9 w-9' : 'h-11 w-11'} rounded-sm border text-text bg-surface active:bg-ternary-1 active:text-white active:border-white flex items-center justify-center transition-colors duration-100 ${
-					$armedGate?.gateType === gate.type
-						? 'border-measured ring-2 ring-measured'
-						: 'border-ternary-1'
+					!blocked && !$isMobile && handleDoubleClick({ source: 'palette', gateType: gate.type })}
+				on:click={() => !blocked && $isMobile && toggleArm(gate.type)}
+				class={`select-none ${$isMobile ? 'h-9 w-9' : 'h-11 w-11'} rounded-sm border text-text bg-surface flex items-center justify-center transition-colors duration-100 ${
+					blocked
+						? 'cursor-not-allowed opacity-35 border-ternary-1 line-through'
+						: `cursor-grab active:bg-ternary-1 active:text-white active:border-white ${
+								$armedGate?.gateType === gate.type
+									? 'border-measured ring-2 ring-measured'
+									: 'border-ternary-1'
+							}`
 				}`}
 			>
 				{#if gate.type === 'CONTROL'}
@@ -202,11 +198,6 @@
 	{/each}
 	<button
 		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
-		data-tour="save"
-		on:click={openNameDialog}>{$isCircuitSaved ? 'Rename Circuit' : 'Save Circuit'}</button
-	>
-	<button
-		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
 		on:click={applyBellPairPreset}>Bell Pair</button
 	>
 	<button
@@ -214,15 +205,6 @@
 		on:click={compactCircuit}>Compact</button
 	>
 </div>
-
-<NameDialog
-	open={showNameDialog}
-	title={$isCircuitSaved ? 'Rename Circuit' : 'Save Circuit'}
-	value={$currentCircuitName}
-	confirmLabel="Save"
-	onConfirm={saveCircuit}
-	onCancel={() => (showNameDialog = false)}
-/>
 
 <style>
 </style>

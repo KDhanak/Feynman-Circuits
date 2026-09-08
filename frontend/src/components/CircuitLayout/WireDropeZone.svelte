@@ -19,12 +19,13 @@
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 	import { copyToClipboard } from '$lib/circuit/circuitActions';
 	import { buildInlineLink } from '$lib/circuit/handoff';
-	import { isCircuitSaved } from '$lib/circuit/autoSave';
+	import { isCircuitSaved, manualSave } from '$lib/circuit/autoSave';
 	import { currentCircuitId, currentCircuitIsPublic } from '$lib/IR/stores';
 	import { setCircuitPublic } from '$lib/api/circuitApi';
 	import { setPublicInCircuitListCache } from '$lib/stores/circuitListCache';
 	import { showNotification } from '$lib/utils/notificationUtils';
 	import ShareDialog from '../ShareDialog.svelte';
+	import NameDialog from '../NameDialog.svelte';
 	import Icon from '@iconify/svelte';
 	import WireBloch from '../BlochSphere/WireBloch.svelte';
 	import ConnectorLayer from './ConnectorLayer.svelte';
@@ -358,6 +359,35 @@
 	// Anything else — signed out, or never saved — gets an inline link carrying
 	// the circuit in the URL, so sharing never requires an account.
 	let shareOpen = false;
+
+	// Save/rename lives with the board's other circuit-level actions rather than
+	// in the gate palette: it acts on the circuit, not on a gate, and the palette
+	// needs its width for gates.
+	let showNameDialog = false;
+
+	function openNameDialog() {
+		if (get(session).status !== 'authenticated') {
+			showNotification('Please sign in to save your circuit.', 'error');
+			return;
+		}
+		showNameDialog = true;
+	}
+
+	async function saveCircuit(newName: string) {
+		showNameDialog = false;
+		const wasSaved = get(isCircuitSaved);
+		const previousName = $currentCircuitName;
+		currentCircuitName.set(newName);
+		try {
+			await manualSave();
+			showNotification(wasSaved ? 'Circuit renamed!' : 'Circuit saved!', 'success');
+		} catch (err: unknown) {
+			currentCircuitName.set(previousName);
+			const apiMessage = (err as { response?: { data?: { name?: string[] } } })?.response?.data
+				?.name?.[0];
+			showNotification(apiMessage ?? 'Failed to save circuit. Please try again.', 'error');
+		}
+	}
 	let shareLink = '';
 	let shareKind: 'public' | 'inline' = 'inline';
 	let sharing = false;
@@ -505,8 +535,9 @@
 	     and the copy/reset buttons on the right. Width-capped to the gap between
 	     those two clusters (~7rem each plus breathing room) so a long name
 	     truncates instead of running underneath them — which is what keeps this
-	     readable at phone widths. Non-interactive so it never swallows a tap
-	     meant for the board. -->
+	     readable at phone widths. The strip is click-through by default; only the
+	     name itself and the save/rename button opt back in, so the rest never
+	     swallows a tap meant for the board. -->
 	<div
 		class="absolute p-1 top-2 left-1/2 z-200 flex max-w-[calc(100%-14rem)] -translate-x-1/2 items-center gap-1.5 pointer-events-none"
 		style="color: var(--color-muted);"
@@ -532,6 +563,25 @@
 			class="truncate text-sm py-1.5 px-4 font-semibold pointer-events-auto backdrop-blur-lg rounded-sm shadow-sm"
 			title={$currentCircuitName}>{$currentCircuitName}</span
 		>
+		<!-- Right of the name rather than left: the left already carries the
+		     circuit glyph and the save-status dot, and an action reads better
+		     next to the thing it acts on. Floppy while unsaved, pencil once the
+		     circuit exists and the action becomes a rename — the icon names the
+		     action, not the state. -->
+		<button
+			type="button"
+			class="pointer-events-auto shrink-0 flex cursor-pointer items-center justify-center rounded-sm p-1.5 backdrop-blur-lg shadow-sm transition-colors active:text-green-500"
+			on:click|stopPropagation={openNameDialog}
+			data-tour="save"
+			aria-label={$isCircuitSaved ? 'Rename circuit' : 'Save circuit'}
+			title={$isCircuitSaved ? 'Rename circuit' : 'Save circuit'}
+		>
+			<Icon
+				icon={$isCircuitSaved ? 'ph:pencil-simple-bold' : 'ph:floppy-disk-bold'}
+				width="15"
+				height="15"
+			/>
+		</button>
 		{#if $session.status === 'authenticated' && $currentCircuitIsPublic}
 			<span
 				class="shrink-0 flex items-center pointer-events-auto text-sky-500"
@@ -831,6 +881,15 @@
 	link={shareLink}
 	onCopy={copyShareLink}
 	onClose={() => (shareOpen = false)}
+/>
+
+<NameDialog
+	open={showNameDialog}
+	title={$isCircuitSaved ? 'Rename Circuit' : 'Save Circuit'}
+	value={$currentCircuitName}
+	confirmLabel="Save"
+	onConfirm={saveCircuit}
+	onCancel={() => (showNameDialog = false)}
 />
 
 <style>

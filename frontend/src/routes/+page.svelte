@@ -12,7 +12,10 @@
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 	import CircuitDataPanel from '../components/CircuitDataPanel.svelte';
 	import Icon from '@iconify/svelte';
-	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
+	import { circuitIR, currentCircuitId, currentCircuitName } from '$lib/IR/stores';
+	import type { UnitaryOperation } from '$lib/IR/schema';
+	import { GATE_REGISTRY, isCliffordGate } from '$lib/quantum/gates';
+	import { qecMode } from '$lib/qec/stores';
 	import { notification } from '$lib/stores/uiStores';
 	import '$lib/circuit/autoSave';
 	import { get } from 'svelte/store';
@@ -31,6 +34,32 @@
 	import { showNotification } from '$lib/utils/notificationUtils';
 
 	let feedbackOpen = false;
+
+	// Entering QEC mode restricts the palette to Clifford gates, because the QEC
+	// path is simulated by Stim and a stabiliser simulator cannot represent
+	// anything else. Non-Clifford gates already on the board are left alone —
+	// deleting the user's work silently would be worse — but they are told, since
+	// that circuit will not run under Stim.
+	function toggleQecMode() {
+		const next = !get(qecMode);
+		qecMode.set(next);
+		if (!next) return;
+		const offenders = [
+			...new Set(
+				get(circuitIR)
+					.operations.filter(
+						(op): op is UnitaryOperation => op.kind === 'unitary' && !isCliffordGate(op.gate)
+					)
+					.map((op) => GATE_REGISTRY[op.gate].label)
+			)
+		];
+		if (offenders.length) {
+			showNotification(
+				`QEC mode on. The circuit still contains non-Clifford gates (${offenders.join(', ')}) — a stabiliser simulator cannot run these.`,
+				'error'
+			);
+		}
+	}
 
 	// The Bloch sphere is optional; when it's hidden the results row reflows so
 	// SimulationResult expands into the space it would have occupied.
@@ -239,6 +268,22 @@
 		     (WireDropeZone), centred between its two button clusters, so they show
 		     at phone widths too — this header copy was hidden below `sm`. -->
 		<div class="flex items-center gap-2">
+			<button
+				on:click={toggleQecMode}
+				aria-pressed={$qecMode}
+				aria-label="Toggle QEC mode"
+				title={$qecMode
+					? 'QEC mode is on — only Clifford gates are available'
+					: 'QEC mode — restricts the palette to Clifford gates'}
+				class="shrink-0 flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"
+				style={$qecMode
+					? 'color: #ffffff; background: var(--color-ternary-1); border-color: var(--color-ternary-1)'
+					: 'color: var(--color-text); background: var(--color-surface); border-color: var(--color-border)'}
+			>
+				<Icon icon="ph:shield-check-bold" width="14" height="14" />
+				QEC
+			</button>
+
 			<button
 				on:click={openWelcome}
 				aria-label="Open the guided tour"
