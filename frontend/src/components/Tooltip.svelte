@@ -5,6 +5,12 @@
 	export let quick: string;
 	export let detail: string = '';
 
+	// Extra classes for the wrapper. Needed where the tooltip's root IS a layout
+	// child (a grid item, say) and the caller has to place it. Renamed because
+	// `class` is reserved in a script block.
+	let className = '';
+	export { className as class };
+
 	let visible = false;
 	let triggerEl: HTMLButtonElement;
 	let tooltipEl: HTMLDivElement;
@@ -34,7 +40,7 @@
 
 <svelte:window on:click={close} on:scroll={close} on:resize={() => visible && position()} />
 
-<div role="group" class="relative inline-flex">
+<div role="group" class="relative inline-flex {className}">
 	<slot />
 
 	<!-- Info icon -->

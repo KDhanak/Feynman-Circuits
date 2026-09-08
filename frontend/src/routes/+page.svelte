@@ -9,12 +9,11 @@
 	import { settings, updateSettings } from '$lib/stores/settingsStore';
 	import { isMobile } from '$lib/stores/isMobile';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
+	import LatticePanel from '../components/Qec/LatticePanel.svelte';
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 	import CircuitDataPanel from '../components/CircuitDataPanel.svelte';
 	import Icon from '@iconify/svelte';
-	import { circuitIR, currentCircuitId, currentCircuitName } from '$lib/IR/stores';
-	import type { UnitaryOperation } from '$lib/IR/schema';
-	import { GATE_REGISTRY, isCliffordGate } from '$lib/quantum/gates';
+	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
 	import { qecMode } from '$lib/qec/stores';
 	import { notification } from '$lib/stores/uiStores';
 	import '$lib/circuit/autoSave';
@@ -35,35 +34,26 @@
 
 	let feedbackOpen = false;
 
-	// Entering QEC mode restricts the palette to Clifford gates, because the QEC
-	// path is simulated by Stim and a stabiliser simulator cannot represent
-	// anything else. Non-Clifford gates already on the board are left alone —
-	// deleting the user's work silently would be worse — but they are told, since
-	// that circuit will not run under Stim.
-	function toggleQecMode() {
-		const next = !get(qecMode);
-		qecMode.set(next);
-		if (!next) return;
-		const offenders = [
-			...new Set(
-				get(circuitIR)
-					.operations.filter(
-						(op): op is UnitaryOperation => op.kind === 'unitary' && !isCliffordGate(op.gate)
-					)
-					.map((op) => GATE_REGISTRY[op.gate].label)
-			)
-		];
-		if (offenders.length) {
-			showNotification(
-				`QEC mode on. The circuit still contains non-Clifford gates (${offenders.join(', ')}) — a stabiliser simulator cannot run these.`,
-				'error'
-			);
-		}
-	}
+	// Grip dots for the two resize handles. Three is the conventional grip mark
+	// and reads as "draggable" at a size where a bar just looks like a divider.
+	const GRIP_DOTS = [0, 1, 2];
+
+	// Panel explanations. Held here rather than inline because they are long and
+	// contain apostrophes, which template attributes handle badly.
+	const BLOCH_TIP = `Each qubit's state reduces to a vector r = (⟨X⟩, ⟨Y⟩, ⟨Z⟩): the north pole is |0⟩, the south pole is |1⟩, and the equator is superposition. This sphere plots the average of those vectors across the register, so it is exact for one qubit and only a summary for more — |01⟩ and a Bell pair both average to the centre. |r| = 1 means a pure state; |r| < 1 means mixed, which for a single qubit signals entanglement with the others.`;
+
+	const QEC_TIP = `A rotated distance-3 surface code, shown as a reference picture. Nine data qubits hold ONE logical qubit, and eight ancillas repeatedly measure the stabilisers around them — never the data itself, which would collapse the state. That is what protecting a single qubit costs: 17 physical qubits to keep one alive. Your circuit above is not encoded into this code yet; the panel is here to show what such protection looks like.`;
 
 	// The Bloch sphere is optional; when it's hidden the results row reflows so
 	// SimulationResult expands into the space it would have occupied.
 	$: showBloch = $settings.showBlochSphere && !$isMobile;
+
+	// QEC mode takes the results row over. The simulation results and the third
+	// panel both describe a state vector, which is not what is being reasoned
+	// about here, so they give up their space to one wide surface code panel —
+	// the surface it will eventually draw syndrome history on needs the width.
+	// Left off mobile, where the row is a single narrow column already.
+	$: qecTakeover = $qecMode && !$isMobile;
 
 	// The code panel can be docked to a tall left column, but only where there's
 	// horizontal room for it (≥1024px). Below that it stays in the bottom slot.
@@ -79,11 +69,13 @@
 
 	// Results-grid column template. In left-dock mode the code panel is elsewhere,
 	// so the grid only lays out Sim (+ Bloch) inside the narrower right column.
+	// In QEC mode there is one panel instead of two, so the third column goes
+	// away and the QEC panel absorbs it.
 	$: resultsGridCols = leftMode
-		? showBloch
+		? showBloch && !qecTakeover
 			? 'lg:grid-cols-2'
 			: 'lg:grid-cols-1'
-		: showBloch
+		: showBloch && !qecTakeover
 			? 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)_auto]'
 			: 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]';
 	// In the bottom layout with no Bloch, Sim spans the full width; not needed
@@ -267,44 +259,33 @@
 		<!-- The circuit name and save status now live on the board itself
 		     (WireDropeZone), centred between its two button clusters, so they show
 		     at phone widths too — this header copy was hidden below `sm`. -->
-		<div class="flex items-center gap-2">
-			<button
-				on:click={toggleQecMode}
-				aria-pressed={$qecMode}
-				aria-label="Toggle QEC mode"
-				title={$qecMode
-					? 'QEC mode is on — only Clifford gates are available'
-					: 'QEC mode — restricts the palette to Clifford gates'}
-				class="shrink-0 flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"
-				style={$qecMode
-					? 'color: #ffffff; background: var(--color-ternary-1); border-color: var(--color-ternary-1)'
-					: 'color: var(--color-text); background: var(--color-surface); border-color: var(--color-border)'}
-			>
-				<Icon icon="ph:shield-check-bold" width="14" height="14" />
-				QEC
-			</button>
-
+		<!-- Header utilities. One height and one radius across all three, so the
+		     row shares a baseline; the account button is set off by a rule because
+		     it is identity, not a utility, and should not read as a third peer. -->
+		<div class="flex items-center gap-1">
 			<button
 				on:click={openWelcome}
 				aria-label="Open the guided tour"
 				data-tour="help"
-				class="shrink-0 p-2 rounded-full cursor-pointer transition-colors"
+				class="shrink-0 flex h-9 w-9 items-center justify-center rounded-sm cursor-pointer transition-colors hover:bg-secondary-3/30"
 			>
-				<Icon icon="ph:question-bold" width="22" height="22" style="color: var(--color-text)" />
+				<Icon icon="ph:question-bold" width="20" height="20" style="color: var(--color-text)" />
 			</button>
 
 			<button
 				on:click={toggleTheme}
 				aria-label="Toggle theme"
-				class="shrink-0 p-2 rounded-full cursor-pointer transition-colors"
+				class="shrink-0 flex h-9 w-9 items-center justify-center rounded-sm cursor-pointer transition-colors hover:bg-secondary-3/30"
 			>
 				<Icon
 					icon={$resolvedTheme === 'dark' ? 'ph:sun-bold' : 'ph:moon-bold'}
-					width="22"
-					height="22"
+					width="20"
+					height="20"
 					style="color: var(--color-text)"
 				/>
 			</button>
+
+			<span class="mx-1.5 h-5 w-px shrink-0" style="background: var(--color-border)"></span>
 
 			<div class="shrink-0">
 				<SignUp_In />
@@ -334,7 +315,7 @@
 				aria-valuemax={Math.round(vMaxHeight === Number.POSITIVE_INFINITY ? 1200 : vMaxHeight)}
 				aria-valuenow={Math.round(resultsHeight)}
 				tabindex="0"
-				class="group flex h-2.5 shrink-0 cursor-row-resize items-center justify-center {contentWidth} {vDragging
+				class="group flex h-2 shrink-0 cursor-row-resize items-center justify-center {contentWidth} {vDragging
 					? 'select-none'
 					: ''}"
 				on:pointerdown={startVDrag}
@@ -344,10 +325,14 @@
 				on:keydown={onVHandleKey}
 			>
 				<span
-					class="h-1 w-10 rounded-full bg-secondary-2/40 transition-colors group-hover:bg-secondary-2 {vDragging
-						? 'bg-secondary-2'
+					class="flex items-center gap-1 text-secondary-2/40 transition-colors group-hover:text-secondary-2 {vDragging
+						? 'text-secondary-2'
 						: ''}"
-				></span>
+				>
+					{#each GRIP_DOTS as i (i)}
+						<span class="h-0.75 w-0.75 rounded-full bg-current"></span>
+					{/each}
+				</span>
 			</div>
 		{/if}
 		<!--
@@ -367,18 +352,20 @@
 		-->
 		<div
 			class="{contentWidth} {isWideScreen
-				? 'mt-1'
-				: 'mt-2.5'} mb-1 grid grid-cols-1 sm:grid-cols-2 sm:grid-flow-row-dense sm:auto-rows-[20.625rem] gap-2.5 shrink-0 {resultsGridCols}"
+				? 'mt-0'
+				: 'mt-2'} mb-1 grid grid-cols-1 sm:grid-cols-2 sm:grid-flow-row-dense sm:auto-rows-[20.625rem] gap-2 shrink-0 {resultsGridCols}"
 			style={isWideScreen
 				? `grid-auto-rows: clamp(${MIN_RESULTS}px, ${resultsHeight}px, 60vh)`
 				: ''}
 		>
-			<div
-				data-tour="results"
-				class="shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-y-auto min-w-0 min-h-0 {simSpan}"
-			>
-				<SimulationResult />
-			</div>
+			{#if !qecTakeover}
+				<div
+					data-tour="results"
+					class="shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-y-auto min-w-0 min-h-0 {simSpan}"
+				>
+					<SimulationResult />
+				</div>
+			{/if}
 			{#if !$isMobile && !leftMode}
 				<div
 					data-tour="code"
@@ -387,11 +374,29 @@
 					<CircuitDataPanel />
 				</div>
 			{/if}
-			{#if showBloch}
+			{#if qecTakeover}
+				<!--
+					QEC mode: one wide panel standing in for both the simulation results
+					and the third panel. It holds only the reference lattice for now; the
+					syndrome history it is sized for comes later, which is why it claims
+					the width up front rather than growing into it.
+					`sm:col-span-2` matters below 1024px, where the row is a plain 2-up
+					grid and a single item would otherwise sit in half of it.
+				-->
 				<Tooltip
-					quick="Bloch Sphere"
-					detail="Each qubit's state reduces to a vector r = (⟨X⟩, ⟨Y⟩, ⟨Z⟩): the north pole is |0⟩, the south pole is |1⟩, and the equator is superposition. This sphere plots the average of those vectors across the register, so it is exact for one qubit and only a summary for more — |01⟩ and a Bell pair both average to the centre. |r| = 1 means a pure state; |r| < 1 means mixed, which for a single qubit signals entanglement with the others."
+					class="sm:col-span-2 lg:col-span-1 min-w-0 min-h-0"
+					quick="Surface Code (distance 3)"
+					detail={QEC_TIP}
 				>
+					<div
+						data-tour="results"
+						class="w-full h-full shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
+					>
+						<LatticePanel />
+					</div>
+				</Tooltip>
+			{:else if showBloch}
+				<Tooltip quick="Bloch Sphere" detail={BLOCH_TIP}>
 					<div
 						class="w-full h-full shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
 					>
@@ -419,7 +424,7 @@
 		{#if leftMode}
 			<aside
 				data-tour="code"
-				class="shrink-0 flex flex-col min-h-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
+				class="shrink-0 mb-1 flex flex-col min-h-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
 				style="width: clamp({MIN_LEFT}px, {codePanelWidth}px, 65%)"
 			>
 				<CircuitDataPanel />
@@ -432,7 +437,7 @@
 				aria-valuemax={1200}
 				aria-valuenow={Math.round(codePanelWidth)}
 				tabindex="0"
-				class="group mx-1 flex w-2 shrink-0 cursor-col-resize items-center justify-center self-stretch"
+				class="group flex w-2 shrink-0 cursor-col-resize items-center justify-center self-stretch"
 				on:pointerdown={startDrag}
 				on:pointermove={onDrag}
 				on:pointerup={endDrag}
@@ -440,10 +445,14 @@
 				on:keydown={onHandleKey}
 			>
 				<span
-					class="h-10 w-1 rounded-full bg-secondary-2/40 transition-colors group-hover:bg-secondary-2 {dragging
-						? 'bg-secondary-2'
+					class="flex flex-col items-center gap-1 text-secondary-2/40 transition-colors group-hover:text-secondary-2 {dragging
+						? 'text-secondary-2'
 						: ''}"
-				></span>
+				>
+					{#each GRIP_DOTS as i (i)}
+						<span class="h-0.75 w-0.75 rounded-full bg-current"></span>
+					{/each}
+				</span>
 			</div>
 		{/if}
 		<div class={leftMode ? 'flex-1 min-w-0 min-h-0 flex flex-col items-center' : 'contents'}>

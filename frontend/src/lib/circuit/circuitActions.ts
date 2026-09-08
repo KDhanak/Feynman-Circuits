@@ -18,6 +18,37 @@ import { showNotification } from '../utils/notificationUtils';
 import { circuitIR } from '$lib/IR/stores';
 import { setNumQubitsIR } from '$lib/IR/operations';
 import { get } from 'svelte/store';
+import { qecMode } from '$lib/qec/stores';
+import { GATE_REGISTRY, isCliffordGate } from '$lib/quantum/gates';
+import type { UnitaryOperation } from '../IR/schema';
+
+/**
+ * Entering QEC mode restricts the palette to Clifford gates, because the QEC
+ * path is simulated by Stim and a stabiliser simulator cannot represent
+ * anything else. Non-Clifford gates already on the board are left alone —
+ * deleting the user's work silently would be worse — but they are told, since
+ * that circuit will not run under Stim.
+ */
+export function toggleQecMode(): void {
+	const next = !get(qecMode);
+	qecMode.set(next);
+	if (!next) return;
+	const offenders = [
+		...new Set(
+			get(circuitIR)
+				.operations.filter(
+					(op): op is UnitaryOperation => op.kind === 'unitary' && !isCliffordGate(op.gate)
+				)
+				.map((op) => GATE_REGISTRY[op.gate].label)
+		)
+	];
+	if (offenders.length) {
+		showNotification(
+			`QEC mode on. The circuit still contains non-Clifford gates (${offenders.join(', ')}) — a stabiliser simulator cannot run these.`,
+			'error'
+		);
+	}
+}
 
 export async function copyToClipboard(content: string): Promise<void> {
 	try {

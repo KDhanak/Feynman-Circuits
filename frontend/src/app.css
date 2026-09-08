@@ -32,8 +32,8 @@
 }
 
 html.dark {
-	--color-background: #0f1428;
-	--color-surface: #152238;
+	--color-background: #070913;
+	--color-surface: #0a111d;
 	--color-text: #e0e7ff;
 	--color-border: #1e293b;
 	--color-muted: #ffffff;
@@ -117,7 +117,9 @@ html.dark .logo-dark {
 		@apply w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 font-extralight text-black outline-none focus:border-secondary-3;
 	}
 	.btn-highlight {
-		@apply cursor-pointer rounded-sm bg-transparent shadow-sm shadow-measured px-4 py-2 min-w-28  active:bg-measured active:text-white active:border active:border-white transition-colors duration-200 outline-none;
+		/* h-9 + text-sm to match the signed-in button and the header's icon
+		   buttons: all four account states share one baseline. */
+		@apply flex h-9 cursor-pointer items-center justify-center rounded-sm bg-transparent shadow-sm shadow-measured px-4 text-sm min-w-28 active:bg-measured active:text-white active:border active:border-white transition-colors duration-200 outline-none;
 		color: var(--color-text);
 	}
 	.btn-highlight-item {

@@ -3,6 +3,12 @@
 	import { currentSnapshot, highlightedCheck, visibleLayers } from '$lib/qec/stores';
 	import type { Check } from '$lib/qec/schema';
 
+	// Counts, derived rather than written out, so the caption cannot drift from
+	// the layout it is describing. This is the panel's whole point while it is
+	// only guidance: one logical qubit is not free, and this is the price.
+	const DATA_COUNT = D3_LAYOUT.dataQubits.length;
+	const CHECK_COUNT = D3_LAYOUT.checks.length;
+
 	// Coordinate units -> pixels. The layout grid runs 0..6 in both axes, so the
 	// viewBox is derived rather than hard-coded and stays correct if the extent
 	// ever changes (d=5 would run 0..10).
@@ -170,6 +176,20 @@
 			</g>
 		{/each}
 	</svg>
+
+	<!-- Count caption. Always shown: the arithmetic IS the lesson — nine data
+	     qubits plus eight ancillas buy exactly one protected qubit. -->
+	<p class="text-center text-[0.7rem] leading-tight text-muted">
+		<span class="font-semibold" style="color: var(--color-text)">{DATA_COUNT}</span> data
+		<span class="opacity-50">+</span>
+		<span class="font-semibold" style="color: var(--color-text)">{CHECK_COUNT}</span> ancilla
+		<span class="opacity-50">=</span>
+		<span class="font-semibold" style="color: var(--color-text)"
+			>{DATA_COUNT + CHECK_COUNT} physical</span
+		>
+		<span class="opacity-50">&rarr;</span>
+		<span class="font-semibold" style="color: var(--color-text)">1 logical qubit</span>
+	</p>
 
 	<!-- Legend. Present from the start even while only some layers have data:
 	     the three-way distinction is the thing being taught, so it is labelled

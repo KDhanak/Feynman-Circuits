@@ -4,7 +4,7 @@
 	import { isDragging, armedGate } from '$lib/stores/uiStores';
 	import { clearSelection } from '$lib/circuit/selection';
 	import Icon from '@iconify/svelte';
-	import { applyBellPairPreset, compactCircuit } from '$lib/circuit/circuitActions';
+	import { applyBellPairPreset, compactCircuit, toggleQecMode } from '$lib/circuit/circuitActions';
 	import Tooltip from './Tooltip.svelte';
 	import { isMobile } from '$lib/stores/isMobile';
 	import { GATE_REGISTRY, UNITARY_GATE_IDS, paletteCategory } from '$lib/quantum/gates';
@@ -109,7 +109,7 @@
 		dragEnterCount--;
 		if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active');
 	}}
-	class="relative mb-2.5 max-w-420 mx-auto w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm shadow-sm shadow-secondary-2 bg-secondary-3/20"
+	class="relative mb-2 max-w-420 mx-auto w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm shadow-sm shadow-secondary-2 bg-secondary-3/20"
 	data-tour="palette"
 >
 	{#each gates as gate (gate.name)}
@@ -204,6 +204,30 @@ Unavailable in QEC mode: ${gate.name} is not a Clifford gate, and the stabiliser
 		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
 		on:click={compactCircuit}>Compact</button
 	>
+
+	<!--
+		QEC mode lives with the palette rather than in the header: it changes what
+		this bar offers, so it belongs beside the thing it changes. The rule marks
+		it as a different kind of control — Bell Pair and Compact are one-shot
+		actions, this is a mode that stays on.
+	-->
+	<span class="w-px self-stretch" style="background: var(--color-border)"></span>
+	<button
+		on:click={toggleQecMode}
+		aria-pressed={$qecMode}
+		title={$qecMode
+			? 'QEC mode is on — only Clifford gates are available'
+			: 'QEC mode — restricts the palette to Clifford gates'}
+		class="flex cursor-pointer items-center gap-1.5 rounded-sm border px-3 py-1 text-sm transition-colors duration-100 {$qecMode
+			? 'text-white shadow-sm shadow-orange-700'
+			: 'bg-surface text-text border-ternary-1 shadow'}"
+		style={$qecMode
+			? 'background: var(--color-orange-700); border-color: var(--color-orange-700)'
+			: ''}
+	>
+		<Icon icon="ph:shield-check-bold" width="15" height="15" />
+		QEC
+	</button>
 </div>
 
 <style>

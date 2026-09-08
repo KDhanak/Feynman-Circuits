@@ -112,7 +112,7 @@
 	>
 		<button
 			style="color: var(--color-text);"
-			class="flex items-center justify-center gap-1 p-2 rounded-sm cursor-pointer min-w-28 active:bg-measured active:text-white active:border active:border-white transition-colors duration-200 outline-none"
+			class="flex h-9 items-center justify-center gap-1 px-2 rounded-sm cursor-pointer min-w-28 active:bg-measured active:text-white active:border active:border-white transition-colors duration-200 outline-none"
 			on:click={() => (dropdownOpen = !dropdownOpen)}
 		>
 			<span class="font-semibold text-sm truncate">{$session.user?.first_name}</span>
