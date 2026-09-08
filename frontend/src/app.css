@@ -46,6 +46,10 @@
 	   reads as a different colour rather than a different brightness. Do not use
 	   qec-1 here — it inverts, so it would be far too bright on dark. */
 	--color-qec-surface: #065f46;
+
+	/* Destructive actions. Inverts like the rest: the deep red is unreadable on
+	   the dark surface, so dark mode takes the light one. */
+	--color-danger: #b91c1c;
 }
 
 html.dark {
@@ -66,6 +70,7 @@ html.dark {
 	--color-qec-1: #34d399;
 	--color-qec-2: #6ee7b7;
 	--color-qec-fg: #052e16;
+	--color-danger: #f87171;
 
 	/* Accents — Cyan for dark mode */
 	--color-ternary-0: #cffafe;
@@ -154,16 +159,45 @@ html.dark .logo-dark {
 		@apply cursor-pointer w-full px-3 py-2 text-sm text-left bg-transparent text-red-700 active:text-red-500 active:font-bold transition-colors duration-200;
 	}
 
-	/* ── Unified context menu ─────────────────────────────────── */
+	/* ── Unified context menu ─────────────────────────────────────
+	   Themed off the surface/text/border tokens rather than fixed greys, so the
+	   menu follows the theme instead of staying white on a dark page. The
+	   highlight is a translucent wash of the text colour, which inverts with the
+	   theme for free — a fixed grey would vanish on one side or the other.
+	   max-height keeps a long menu scrollable rather than running off-screen. */
 	.ctx-menu {
-		@apply fixed border border-gray-200 rounded-sm shadow-lg w-40 bg-white;
+		@apply fixed border rounded-sm shadow-lg w-40 overflow-y-auto;
+		max-height: calc(100vh - 1rem);
+		background: var(--color-surface);
+		border-color: var(--color-border);
 		animation: ctx-menu-fadein 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 	.ctx-menu-item {
-		@apply w-full text-left px-4 py-2.5 text-sm text-gray-700 cursor-pointer transition-colors flex items-center gap-2 border-b border-gray-100 active:bg-gray-100 active:shadow-inner;
+		@apply w-full text-left px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center gap-2 border-b;
+		color: var(--color-text);
+		border-color: var(--color-border);
 	}
 	.ctx-menu-item-danger {
-		@apply w-full text-left px-4 py-2.5 text-sm text-red-700 cursor-pointer transition-colors flex items-center gap-2 active:bg-red-100 active:shadow-inner;
+		@apply w-full text-left px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center gap-2;
+		color: var(--color-danger);
+	}
+	/* Hover as well as active: a context menu that only reacts on mouse-down
+	   gives no feedback about which row you are about to hit. */
+	.ctx-menu-item:hover,
+	.ctx-menu-item:focus-visible {
+		background: color-mix(in srgb, var(--color-text) 10%, transparent);
+	}
+	.ctx-menu-item:active {
+		@apply shadow-inner;
+		background: color-mix(in srgb, var(--color-text) 16%, transparent);
+	}
+	.ctx-menu-item-danger:hover,
+	.ctx-menu-item-danger:focus-visible {
+		background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+	}
+	.ctx-menu-item-danger:active {
+		@apply shadow-inner;
+		background: color-mix(in srgb, var(--color-danger) 22%, transparent);
 	}
 }
 

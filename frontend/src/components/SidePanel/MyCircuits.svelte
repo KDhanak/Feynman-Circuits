@@ -47,6 +47,7 @@
 	let contextMenuX = 0;
 	let contextMenuY = 0;
 	let contextMenuCircuit: CircuitSummary | null = null;
+	let contextMenuEl: HTMLElement | null = null;
 
 	// Multi-select for bulk delete. Reassigned (not mutated) so the list re-renders.
 	let selectedIds = new Set<string>();
@@ -167,12 +168,35 @@
 		return () => document.removeEventListener('click', handleClickOutside);
 	});
 
-	function handleContextMenu(circuit: CircuitSummary, e: MouseEvent) {
+	async function handleContextMenu(circuit: CircuitSummary, e: MouseEvent) {
 		e.preventDefault();
 		contextMenuCircuit = circuit;
 		contextMenuX = e.clientX;
 		contextMenuY = e.clientY;
 		contextMenuVisible = true;
+
+		// Place it once it exists, because its height depends on which items the
+		// circuit gets (public circuits have two extra rows). Flip to the other
+		// side of the cursor when that side has no room, then clamp, so it can
+		// never end up half off-screen near an edge.
+		//
+		// offsetWidth/Height rather than getBoundingClientRect: the open
+		// animation starts at scale(0.95), and a measured rect would inherit that
+		// and place the menu a few pixels out.
+		await tick();
+		if (!contextMenuEl) return;
+		const MARGIN = 8;
+		const w = contextMenuEl.offsetWidth;
+		const h = contextMenuEl.offsetHeight;
+		const vw = window.innerWidth;
+		const vh = window.innerHeight;
+
+		const flippedX = e.clientX + w + MARGIN > vw ? e.clientX - w : e.clientX;
+		const flippedY = e.clientY + h + MARGIN > vh ? e.clientY - h : e.clientY;
+		// Clamp after flipping: flipping alone is not enough when the menu is
+		// wider or taller than the space on either side.
+		contextMenuX = Math.max(MARGIN, Math.min(flippedX, vw - w - MARGIN));
+		contextMenuY = Math.max(MARGIN, Math.min(flippedY, vh - h - MARGIN));
 	}
 
 	function closeContextMenu() {
@@ -556,6 +580,7 @@
 <!-- Context menu rendered at root level so it's never clipped by the aside -->
 {#if contextMenuVisible && contextMenuCircuit}
 	<div
+		bind:this={contextMenuEl}
 		class="circuit-context-menu ctx-menu z-200"
 		style="left: {contextMenuX}px; top: {contextMenuY}px;"
 		role="menu"

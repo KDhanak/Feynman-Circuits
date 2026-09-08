@@ -105,7 +105,10 @@
 		if (e.key === 'Escape') dispatch('close');
 	}}
 >
-	<div class="px-4 py-2 text-xs font-semibold border-b border-gray-100 uppercase tracking-wide">
+	<div
+		class="px-4 py-2 text-xs font-semibold border-b uppercase tracking-wide"
+		style="border-color: var(--color-border)"
+	>
 		Edit {gate.gate.toUpperCase()} Gate
 	</div>
 
@@ -155,7 +158,7 @@
 		</div>
 	{/if}
 
-	<div class="flex gap-2 px-4 py-2.5 border-t border-gray-100">
+	<div class="flex gap-2 px-4 py-2.5 border-t" style="border-color: var(--color-border)">
 		<button class="btn-primary {buttonClass}" on:click={apply}>Apply</button>
 		<button class="btn-secondary {buttonClass}" on:click={() => dispatch('close')}>Cancel</button>
 	</div>
