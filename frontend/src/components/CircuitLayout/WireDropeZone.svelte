@@ -854,7 +854,10 @@
 				</div>
 				<!-- RIGHT: Bloch sphere (fixed, does not scroll) -->
 				{#if !$isMobile}
-					<div class="flex flex-col">
+					<!-- gap-1 must match the label and wire columns: all three are
+					     independent stacks, so a different row pitch here makes the
+					     spheres drift 4px further from their wire on every row. -->
+					<div class="flex flex-col gap-1">
 						{#each wires as wire (wire.id)}
 							<div class="flex h-14 items-center justify-start">
 								<WireBloch qubit={wire.qubit} />
