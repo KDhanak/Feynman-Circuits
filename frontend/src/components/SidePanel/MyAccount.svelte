@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { session, updateProfile, changePassword } from '$lib/auth/session';
+	import { session, updateProfile, changePassword, deleteAccount } from '$lib/auth/session';
 	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import {
 		validateRequired,
@@ -7,6 +7,38 @@
 		validatePasswordsMatch
 	} from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
+	import ConfirmDialog from '../ConfirmDialog.svelte';
+
+	// ── Delete Account ────────────────────────────────────────────────
+	let deletePassword = '';
+	let deletePasswordError: string | undefined;
+	let deleteGeneralError = '';
+	let deleteLoading = false;
+	let confirmDeleteOpen = false;
+
+	// Check the password box first, then ask "are you sure?" before deleting.
+	function askDeleteAccount() {
+		deleteGeneralError = '';
+		deletePasswordError = validateRequired(deletePassword, 'Password');
+		if (deletePasswordError) return;
+		confirmDeleteOpen = true;
+	}
+
+	async function handleDeleteAccount() {
+		confirmDeleteOpen = false;
+		deleteLoading = true;
+		try {
+			// On success the session becomes signed out, so this panel closes by itself.
+			await deleteAccount(deletePassword);
+			deletePassword = '';
+		} catch (err) {
+			const errors = normalizeBackendErrors(extractResponseData(err));
+			deletePasswordError = errors.password;
+			if (!deletePasswordError) deleteGeneralError = errors.detail || 'Could not delete account.';
+		} finally {
+			deleteLoading = false;
+		}
+	}
 
 	export let onResetPassword: () => void = () => {};
 
@@ -251,4 +283,53 @@
 			</button>
 		</p>
 	</section>
+
+	<!-- Divider -->
+	<div style="border-top: 1px solid var(--color-border);"></div>
+
+	<!-- Delete Account -->
+	<section>
+		<p class="mb-2 text-xs font-semibold uppercase tracking-widest text-red-500">Delete Account</p>
+		<p class="mb-4 text-sm" style="color: var(--color-muted);">
+			This deletes your account and all your saved circuits for good. Share links to your public
+			circuits will stop working. This cannot be undone. We will email you a confirmation.
+		</p>
+
+		<form class="space-y-4" on:submit|preventDefault={askDeleteAccount}>
+			<FormField
+				id="account-delete-password"
+				label="Type your password to confirm"
+				type="password"
+				placeholder="********"
+				bind:value={deletePassword}
+				error={deletePasswordError}
+				onInput={() => {
+					deletePasswordError = undefined;
+					deleteGeneralError = '';
+				}}
+			/>
+
+			<button
+				type="submit"
+				class="w-full cursor-pointer rounded-sm bg-red-500 px-4 py-2 font-semibold text-white shadow active:bg-red-600 disabled:opacity-60"
+				disabled={deleteLoading}
+			>
+				{deleteLoading ? 'Deleting...' : 'Delete my account'}
+			</button>
+
+			{#if deleteGeneralError}
+				<p class="mt-2 text-sm font-bold text-red-500">{deleteGeneralError}</p>
+			{/if}
+		</form>
+	</section>
 </div>
+
+<ConfirmDialog
+	open={confirmDeleteOpen}
+	title="Delete your account?"
+	message="Your account and all your saved circuits will be deleted for good. This cannot be undone."
+	confirmLabel="Delete for good"
+	danger
+	onConfirm={handleDeleteAccount}
+	onCancel={() => (confirmDeleteOpen = false)}
+/>

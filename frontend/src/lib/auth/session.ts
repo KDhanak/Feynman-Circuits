@@ -88,6 +88,14 @@ export async function changePassword(data: {
 	await api.post('/accounts/api/auth/change-password/', data);
 }
 
+// Deletes the account and all its saved circuits on the server, then signs the
+// user out here. Throws if the password is wrong, and nothing is deleted then.
+export async function deleteAccount(password: string) {
+	await api.post('/accounts/api/auth/delete-account/', { password });
+	clearCircuitListCache();
+	session.set({ status: 'anonymous', user: null });
+}
+
 export async function requestPasswordReset(email: string) {
 	return api.post('/accounts/api/auth/password-reset/', { email });
 }

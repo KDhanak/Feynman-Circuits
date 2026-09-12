@@ -11,6 +11,7 @@ from .views import (
     UpdateProfileView,
     ChangePasswordView,
     FeedbackView,
+    DeleteAccountView,
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -25,6 +26,7 @@ urlpatterns = [
     path("api/auth/password-reset/", PasswordResetRequestView.as_view()),
     path("api/auth/password-reset/verify-otp/", PasswordResetOTPVerifyView.as_view()),
     path("api/auth/password-reset/confirm/", PasswordResetConfirmView.as_view()),
+    path("api/auth/delete-account/", DeleteAccountView.as_view()),
     path("api/feedback/", FeedbackView.as_view()),
 ]
 

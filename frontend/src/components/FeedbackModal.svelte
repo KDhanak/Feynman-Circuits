@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { fly, fade } from 'svelte/transition';
 	import Icon from '@iconify/svelte';
 	import { submitFeedback, type FeedbackPayload } from '$lib/api/feedbackApi';
@@ -384,6 +385,15 @@
 							placeholder="you@example.com"
 							bind:value={senderEmail}
 						/>
+						<p class="mt-1 text-xs" style="color: var(--color-muted);">
+							Your feedback is sent to us by email and is not stored in the app. See our
+							<a
+								href={resolve('/privacy')}
+								target="_blank"
+								rel="noopener"
+								class="underline underline-offset-2">Privacy Policy</a
+							>.
+						</p>
 					</div>
 
 					{#if errorMsg}

@@ -461,17 +461,27 @@
 		</div>
 	</div>
 
-	<!-- Feedback link: small and quiet, at the very bottom centre -->
-	<button
-		type="button"
-		on:click={() => (feedbackOpen = true)}
-		class="mb-1.5 flex shrink-0 items-center gap-1 text-xs cursor-pointer transition-colors"
-		style="color: var(--color-muted);"
-		aria-label="Open feedback form"
-	>
-		<Icon icon="ph:chat-circle-text-bold" class="text-green-600" width="13" height="13" />
-		<span class="underline underline-offset-2 font-bold text-green-600">Feedback</span>
-	</button>
+	<!-- Feedback and Privacy links: small and quiet, at the very bottom centre.
+	     Privacy opens in a new tab so the circuit on the board is not lost. -->
+	<div class="mb-1.5 flex shrink-0 items-center gap-3 text-xs">
+		<button
+			type="button"
+			on:click={() => (feedbackOpen = true)}
+			class="flex items-center gap-1 cursor-pointer transition-colors"
+			style="color: var(--color-muted);"
+			aria-label="Open feedback form"
+		>
+			<Icon icon="ph:chat-circle-text-bold" class="text-green-600" width="13" height="13" />
+			<span class="underline underline-offset-2 font-bold text-green-600">Feedback</span>
+		</button>
+		<a
+			href={resolve('/privacy')}
+			target="_blank"
+			rel="noopener"
+			class="underline underline-offset-2"
+			style="color: var(--color-muted);">Privacy</a
+		>
+	</div>
 </main>
 
 <OnboardingHost />

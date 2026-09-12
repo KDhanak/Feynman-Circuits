@@ -8,6 +8,7 @@ confirmation emails go into `mail.outbox` instead of being really sent.
 """
 
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core import mail
@@ -17,6 +18,8 @@ from rest_framework import status
 from rest_framework.settings import api_settings
 from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from circuits.models import Circuit
 
 from .models import PasswordResetOTP
 
@@ -336,3 +339,79 @@ class PasswordResetFlowTests(APITestCase):
             },
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteAccountTests(APITestCase):
+    """The privacy policy promises users can delete their own data, so these
+    tests check that deleting really removes it and really signs them out."""
+
+    url = "/accounts/api/auth/delete-account/"
+
+    def setUp(self):
+        self.user = make_user()
+        self.refresh = RefreshToken.for_user(self.user)
+        self.client.cookies["access_token"] = str(self.refresh.access_token)
+        self.client.cookies["refresh_token"] = str(self.refresh)
+
+    def test_requires_authentication(self):
+        self.client.cookies.clear()
+        resp = self.client.post(self.url, {"password": STRONG_PASSWORD})
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_wrong_password_keeps_the_account(self):
+        resp = self.client.post(self.url, {"password": "not-my-password"})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+        # No "your account was deleted" email for an account that still exists.
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_delete_sends_a_receipt_email(self):
+        Circuit.objects.create(user=self.user, name="One", ir={"version": "1.0"})
+        Circuit.objects.create(user=self.user, name="Two", ir={"version": "1.0"})
+
+        self.client.post(self.url, {"password": STRONG_PASSWORD})
+
+        self.assertEqual(len(mail.outbox), 1)
+        receipt = mail.outbox[0]
+        self.assertEqual(receipt.to, [self.user.email])
+        self.assertIn("deleted", receipt.subject)
+        self.assertIn("Alice", receipt.body)
+        self.assertIn("2 saved circuits", receipt.body)
+
+    @patch("accounts.views.send_account_deleted_email", side_effect=Exception("email down"))
+    def test_delete_still_works_if_the_email_fails(self, _send):
+        resp = self.client.post(self.url, {"password": STRONG_PASSWORD})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_missing_password_keeps_the_account(self):
+        resp = self.client.post(self.url, {})
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(User.objects.filter(pk=self.user.pk).exists())
+
+    def test_delete_removes_user_circuits_and_otps_only_for_that_user(self):
+        other = make_user(email="bob@example.com")
+        Circuit.objects.create(user=self.user, name="Mine", ir={"version": "1.0"})
+        Circuit.objects.create(user=other, name="Bob's", ir={"version": "1.0"})
+        PasswordResetOTP.objects.create(
+            user=self.user, otp="123456", expires_at=PasswordResetOTP.get_expiry_time()
+        )
+
+        resp = self.client.post(self.url, {"password": STRONG_PASSWORD})
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertFalse(User.objects.filter(pk=self.user.pk).exists())
+        self.assertFalse(Circuit.objects.filter(name="Mine").exists())
+        self.assertEqual(PasswordResetOTP.objects.count(), 0)
+        # Other users' data is not touched.
+        self.assertTrue(Circuit.objects.filter(user=other, name="Bob's").exists())
+        # Both login cookies are cleared, like sign-out.
+        self.assertEqual(resp.cookies["access_token"].value, "")
+        self.assertEqual(resp.cookies["refresh_token"].value, "")
+
+    def test_old_refresh_token_stops_working_after_delete(self):
+        self.client.post(self.url, {"password": STRONG_PASSWORD})
+        self.client.cookies["refresh_token"] = str(self.refresh)
+        resp = self.client.post("/accounts/api/auth/refresh/")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)

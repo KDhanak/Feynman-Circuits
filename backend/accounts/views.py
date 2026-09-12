@@ -16,10 +16,19 @@ from .serializers import (
     PasswordResetOTPVerifySerializer,
     PasswordResetConfirmSerializer,
 )
+import logging
 import secrets
-from .services import send_password_reset_otp_email, send_password_reset_confirmation_email, send_password_change_notification_email, send_feedback_email
+from django.utils import timezone
+from .services import (
+    send_password_reset_otp_email,
+    send_password_reset_confirmation_email,
+    send_password_change_notification_email,
+    send_feedback_email,
+    send_account_deleted_email,
+)
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 ACCESS_COOKIE = "access_token"
 REFRESH_COOKIE = "refresh_token"
@@ -362,3 +371,53 @@ class FeedbackView(APIView):
 
         send_feedback_email(context)
         return Response({"detail": "Feedback received. Thank you!"}, status=status.HTTP_200_OK)
+
+
+class DeleteAccountView(APIView):
+    """Deletes the signed-in user's account and everything linked to it.
+
+    The user must type their password again, so nobody can delete the account
+    just by using a browser that is already signed in. Saved circuits and
+    password-reset codes are deleted too, because they are linked to the user
+    with on_delete=CASCADE.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        password = request.data.get("password", "")
+        if not password or not request.user.check_password(password):
+            return Response(
+                {"password": "Password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cancel this browser's refresh token, the same way sign-out does.
+        # Refresh tokens on other devices stop working too, because
+        # RefreshView can no longer find the user.
+        token = request.COOKIES.get(REFRESH_COOKIE)
+        if token:
+            try:
+                RefreshToken(token).blacklist()
+            except Exception:
+                pass
+
+        # Read these before deleting, because the user row is gone afterwards.
+        email = request.user.email
+        first_name = request.user.first_name
+        circuit_count = request.user.circuits.count()
+
+        request.user.delete()
+
+        # Send the receipt only after the delete worked, so we never tell someone
+        # their account is gone when it isn't. If the email fails, the account is
+        # still deleted, so we log the problem instead of returning an error.
+        try:
+            send_account_deleted_email(email, first_name, circuit_count, timezone.now())
+        except Exception:
+            logger.exception("Could not send the account deleted email")
+
+        resp = Response({"detail": "Account deleted."}, status=status.HTTP_200_OK)
+        clear_token_cookie(resp, ACCESS_COOKIE)
+        clear_token_cookie(resp, REFRESH_COOKIE)
+        return resp

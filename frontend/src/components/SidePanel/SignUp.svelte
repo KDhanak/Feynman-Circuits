@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { signUp } from '$lib/auth/session';
 	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import {
@@ -144,6 +145,16 @@
 			error={signupErrors.password2}
 			onInput={() => clearError('password2')}
 		/>
+		<p class="text-xs" style="color: var(--color-muted);">
+			By creating an account, you confirm you have read our
+			<a
+				href={resolve('/privacy')}
+				target="_blank"
+				rel="noopener"
+				class="font-bold underline underline-offset-2"
+				style="color: var(--color-ternary-1);">Privacy Policy</a
+			>.
+		</p>
 		<button type="submit" class="btn-primary w-full">
 			{loading ? 'Creating...' : 'Create Account'}
 		</button>

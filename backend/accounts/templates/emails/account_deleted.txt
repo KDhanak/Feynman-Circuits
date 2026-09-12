@@ -1,0 +1,22 @@
+Hello {% if first_name %}{{ first_name }}{% else %}there{% endif %},
+
+Your Feynman Circuits account has been deleted.
+
+Email: {{ email }}
+Deleted on: {{ deleted_at }}
+
+WHAT WE DELETED
+- Your account (name, email address and password)
+- {{ circuit_count }} saved circuit{{ circuit_count|pluralize }}
+- Any password reset codes
+
+Share links to your public circuits no longer work.
+
+This is the last email we will send to this address. Our hosting providers may keep server logs and backups for a limited time before they are removed automatically.
+
+If you did not delete your account, someone else may know your password. Change it on any other site where you use the same password, and tell us through the Feedback link on feynmancircuits.com.
+
+You are welcome back any time.
+
+---
+This is an automated message from Feynman Circuits. Please do not reply to this email.
