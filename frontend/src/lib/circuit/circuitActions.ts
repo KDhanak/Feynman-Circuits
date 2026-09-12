@@ -23,11 +23,11 @@ import { GATE_REGISTRY, isCliffordGate } from '$lib/quantum/gates';
 import type { UnitaryOperation } from '../IR/schema';
 
 /**
- * Entering QEC mode restricts the palette to Clifford gates, because the QEC
- * path is simulated by Stim and a stabiliser simulator cannot represent
- * anything else. Non-Clifford gates already on the board are left alone —
- * deleting the user's work silently would be worse — but they are told, since
- * that circuit will not run under Stim.
+ * Turning on QEC mode limits the palette to Clifford gates, because QEC runs
+ * are simulated by Stim, and a stabiliser simulator cannot handle anything
+ * else. Non-Clifford gates already on the board are left where they are
+ * (quietly deleting the user's work would be worse), but the user is told,
+ * because that circuit will not run in Stim.
  */
 export function toggleQecMode(): void {
 	const next = !get(qecMode);
@@ -149,14 +149,16 @@ export function applyBellPairPreset(): void {
 }
 
 /**
- * Left-packs the circuit by removing empty column gaps (ASAP scheduling).
+ * Pushes the circuit to the left by removing empty columns (ASAP scheduling:
+ * every gate goes as early as possible).
  *
- * Each operation is moved to the earliest column where its full vertical span is
- * free. A multi-qubit gate (controls, SWAP) paints a connector line across every
- * row between its topmost and bottommost qubit, so we reserve that whole span —
- * not just the endpoints — otherwise a gate on a pass-through qubit in the same
- * column would visually collide with the connector. Processing in column order
- * preserves each qubit's gate sequence, so the simulation result is unchanged.
+ * Each operation moves to the first column where its whole vertical range is
+ * free. A multi-qubit gate (controls, SWAP) draws a connector line across every
+ * row between its top qubit and its bottom qubit, so we keep that whole range
+ * free, not just the two ends. Otherwise a gate on a qubit in the middle of the
+ * same column would be drawn on top of the connector line. We go through the
+ * operations in column order, so each qubit keeps its gates in the same order
+ * and the simulation result does not change.
  */
 export function compactCircuit(): void {
 	if (get(circuitIR).operations.length === 0) {
@@ -171,8 +173,8 @@ export function compactCircuit(): void {
 				? (op.targets as number[])
 				: [];
 
-	// The contiguous range of rows a gate occupies visually: every qubit between
-	// its lowest and highest involved qubit (inclusive), covering connector lines.
+	// The rows a gate takes up on screen: every qubit from its lowest to its
+	// highest qubit (both included), so the connector lines are covered too.
 	const spanOf = (op: CircuitOperation): number[] => {
 		const qs = qubitsOf(op);
 		if (qs.length === 0) return [];
@@ -182,8 +184,8 @@ export function compactCircuit(): void {
 	};
 
 	circuitIR.update((ir) => {
-		// Process operations left-to-right by their current column (stable sort
-		// keeps same-column ops in their existing relative order).
+		// Go through the operations from left to right by their current column (the
+		// sort is stable, so ops in the same column keep their current order).
 		const sorted = [...ir.operations].sort((a, b) => a.column - b.column);
 
 		const freeCol = new Array(ir.registers.q).fill(0);
@@ -199,8 +201,9 @@ export function compactCircuit(): void {
 		return next;
 	});
 
-	// Uncommitted control dots are keyed by column, which we just remapped — drop
-	// them so they don't linger at stale positions.
+	// Control dots that are not attached to a gate yet are stored by column number,
+	// and we just changed the column numbers. So remove them, or they would stay at
+	// the wrong positions.
 	pendingControls.set(new Map());
 	pendingAntiControls.set(new Map());
 

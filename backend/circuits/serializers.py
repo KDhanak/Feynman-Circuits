@@ -32,5 +32,5 @@ class CircuitDetailSerializer(serializers.ModelSerializer):
         return value
 
     def validate_ir(self, value):
-        # Shared with the public handoff API — see circuits/validation.py.
+        # Also used by the public handoff API. See circuits/validation.py.
         return validate_circuit_ir(value)

@@ -80,7 +80,7 @@ export function createRYGate(theta: number): QuantumGate {
 	};
 }
 
-// Phase gate P(θ) = diag(1, e^{iθ}). Generalizes Z = P(π), S = P(π/2), T = P(π/4).
+// Phase gate P(θ) = diag(1, e^{iθ}). Z, S and T are special cases of it: Z = P(π), S = P(π/2), T = P(π/4).
 export function createPGate(theta: number): QuantumGate {
 	return {
 		type: 'p',
@@ -103,30 +103,30 @@ export function createRZGate(theta: number): QuantumGate {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Gate registry — single source of truth for gate identity.
+// Gate registry: the one main list of all gates.
 //
-// Every consumer (IR validator, gate palette, drag-drop, OpenQASM
-// converter, and the backend manifest) should derive its gate list,
-// parametric check, and QASM names from here instead of hard-coding
-// its own copy. The matrix factory wraps the math above so this is
-// the one place a new gate has to be declared.
+// Every part of the app that needs gates (IR validator, gate palette,
+// drag-drop, OpenQASM converter, and the backend gate list) should get
+// its gate list, its "does this gate take an angle?" check, and its QASM
+// names from here, instead of keeping its own copy. The matrix function
+// uses the math above, so this is the only place a new gate needs to be added.
 // ─────────────────────────────────────────────────────────────
 
 export interface GateSpec {
 	id: CanonicalUnitaryGate;
-	label: string; // palette display, e.g. "RX"
+	label: string; // name shown in the palette, e.g. "RX"
 	category: 'pauli' | 'phase' | 'hadamard' | 'rotation' | 'multi';
 	arity: number; // number of target qubits (swap = 2)
 	numParams: number; // 0, or 1 for rotations
-	qasmName: string; // base OpenQASM name
+	qasmName: string; // basic OpenQASM name
 	// Whether the gate is in the Clifford group. Stabiliser simulators (Stim)
-	// can only run Clifford circuits, so QEC mode blocks everything else.
-	// The parametric gates (P, RX, RY, RZ) ARE Clifford at multiples of π/2,
-	// but the user can dial any angle, so they count as non-Clifford here.
+	// can only run Clifford circuits, so QEC mode blocks every other gate.
+	// The angle gates (P, RX, RY, RZ) ARE Clifford when the angle is a multiple
+	// of π/2, but the user can pick any angle, so here we treat them as non-Clifford.
 	clifford: boolean;
-	controlledQasm?: Record<number, string>; // special controlled spellings, e.g. { 1: 'cx', 2: 'ccx' }
-	matrix?: (params: number[]) => Complex[][]; // omitted for swap (simulator special-cases it)
-	// Palette tooltip copy — `quick` is the bold title, `detail` the description.
+	controlledQasm?: Record<number, string>; // special names for the controlled version, e.g. { 1: 'cx', 2: 'ccx' }
+	matrix?: (params: number[]) => Complex[][]; // left out for swap (the simulator handles swap on its own)
+	// Tooltip text for the palette: `quick` is the bold title, `detail` is the description.
 	tooltip: { quick: string; detail: string };
 }
 
@@ -291,9 +291,10 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 	}
 };
 
-// Palette display category derived from the registry — keeps GatePalette from
-// re-listing gates. Parametric gates get their own group; 2-target gates (swap)
-// are 'two-qubit'; everything else is a plain single-qubit tile.
+// Which palette group each gate goes in, worked out from the registry, so
+// GatePalette doesn't need its own list of gates. Gates with an angle get their
+// own group, gates with 2 targets (swap) are 'two-qubit', and every other gate
+// is a normal single-qubit tile.
 export type PaletteCategory = 'single' | 'parametric' | 'multi' | 'two-qubit';
 export function paletteCategory(spec: GateSpec): PaletteCategory {
 	if (spec.numParams > 0) return 'parametric';
@@ -301,7 +302,7 @@ export function paletteCategory(spec: GateSpec): PaletteCategory {
 	return 'single';
 }
 
-// Derived lookups — use these instead of re-listing gate ids anywhere else.
+// Ready-made lookups built from the registry. Use these instead of listing gate ids again somewhere else.
 export const UNITARY_GATE_IDS = Object.keys(GATE_REGISTRY) as CanonicalUnitaryGate[];
 export const PARAMETRIC_GATE_IDS = UNITARY_GATE_IDS.filter((g) => GATE_REGISTRY[g].numParams > 0);
 
@@ -320,7 +321,7 @@ export function isParametricGate(value: string): boolean {
 }
 
 // Returns the special controlled OpenQASM name (e.g. cx, ccx, cz) or undefined
-// if the gate uses the generic `ctrl @` form.
+// if the gate uses the normal `ctrl @` form.
 export function controlledQasmName(
 	gate: CanonicalUnitaryGate,
 	numControls: number

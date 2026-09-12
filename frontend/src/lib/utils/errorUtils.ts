@@ -1,7 +1,7 @@
 /**
- * Safely pull `err.response.data` off an unknown thrown value (typically an
- * Axios error) without asserting `any`. Returns `undefined` when the shape
- * doesn't match, so callers can pass the result straight to
+ * Safely gets `err.response.data` from an unknown error (usually an Axios
+ * error) without using `any`. Returns `undefined` when the error doesn't have
+ * that shape, so callers can pass the result straight to
  * `normalizeBackendErrors`.
  */
 export function extractResponseData(err: unknown): unknown {

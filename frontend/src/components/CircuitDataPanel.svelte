@@ -193,10 +193,10 @@
 	let qasmVersion: OpenQasmVersion = '3.0';
 	let showVersionMenu = false;
 
-	// When the panel itself is narrow (≤440px — e.g. docked to a slim left
-	// column, or on a small viewport) the side-by-side view buttons don't fit
-	// next to the action icons, so they collapse into a hamburger dropdown.
-	// Measured on the panel's own width (not the viewport) via ResizeObserver.
+	// When the panel itself is narrow (≤440px, e.g. in a slim left column, or on a
+	// small screen), the side-by-side view buttons don't fit next to the action
+	// icons, so they turn into a hamburger dropdown. We measure the panel's own
+	// width (not the screen's) with ResizeObserver.
 	const NARROW_THRESHOLD = 440;
 	let isNarrow = false;
 	let showViewMenu = false;
@@ -213,21 +213,21 @@
 	let container: HTMLDivElement;
 	let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
 	let monacoPromise: Promise<typeof import('monaco-editor') | null> | null = null;
-	// Monaco is a heavy async import; show a spinner over the editor until it mounts.
+	// Monaco is big and loads in the background, so show a spinner over the editor until it is ready.
 	let editorReady = false;
 
-	// Follow the app theme so the editor restyles live when it's toggled (the
-	// panel is always mounted, so we can't rely on a one-time detection).
+	// Follow the app theme so the editor changes style right away when the theme is
+	// switched (the panel is always on the page, so checking once at the start isn't enough).
 	$: isDarkMode = $resolvedTheme === 'dark';
 	const editorTheme = (dark: boolean) => (dark ? 'feynman-dark' : 'feynman-light');
 
-	// Re-apply the theme whenever the app theme flips.
+	// Apply the theme again whenever the app theme changes.
 	$: if (editor && monaco) monaco.editor.setTheme(editorTheme(isDarkMode));
 
-	// Live view: the editor content is regenerated from the circuit whenever the
-	// circuit, active tab, or QASM version changes. Manual edits are a scratch
-	// buffer applied to the circuit only via Import; they're replaced the next
-	// time the circuit itself changes (e.g. dragging a gate).
+	// Live view: the editor text is rebuilt from the circuit whenever the circuit,
+	// the open tab, or the QASM version changes. Edits you type are only a draft.
+	// They change the circuit only when you click Import, and they are replaced the
+	// next time the circuit itself changes (e.g. dragging a gate).
 	$: derived =
 		activeView === 'qasm'
 			? buildQASMString($circuitIR, qasmVersion)
@@ -238,8 +238,8 @@
 	const editorLanguage = (view: DataViewMode) =>
 		view === 'qasm' ? 'openqasm' : view === 'qiskit' ? 'python' : 'json';
 
-	// Push derived content into the editor. `editor` is a dependency so the first
-	// sync fires once the instance mounts.
+	// Put the generated text into the editor. `editor` is listed as a dependency so
+	// the first update runs once the editor is ready.
 	$: syncEditor(derived, editor);
 
 	if (typeof window !== 'undefined') {
@@ -516,7 +516,7 @@
 		{/if}
 
 		<div class="flex items-center gap-2">
-			<!-- Dock toggle: only meaningful on wide screens where the left panel fits -->
+			<!-- Dock toggle: only useful on wide screens where the left panel fits -->
 			<button
 				type="button"
 				on:click={toggleDock}

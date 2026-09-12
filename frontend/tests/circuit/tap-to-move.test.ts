@@ -83,7 +83,7 @@ describe('tap-to-move (mobile gate relocation)', () => {
 
 		const moved = opById('s1') as UnitaryOperation;
 		expect(moved.column).toBe(4);
-		expect(moved.targets).toEqual([0, 1]); // targets travel together, unchanged
+		expect(moved.targets).toEqual([0, 1]); // both targets move together and stay the same
 	});
 
 	it('moves every gate sharing a control dot when the dot itself is armed', () => {

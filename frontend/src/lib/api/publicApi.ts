@@ -3,12 +3,12 @@ import type { CircuitIR } from '../IR/schema';
 /**
  * Client for the public /api/v1/ namespace.
  *
- * Uses bare `fetch` rather than the shared axios instance on purpose. That
- * instance sets `withCredentials: true` and installs a 401 -> token-refresh
- * interceptor; pointing it at these cookie-free endpoints would attach
- * credentials the API explicitly refuses (it answers `Access-Control-Allow-
- * Origin: *`, which the browser will not honour alongside credentials) and
- * could kick off a spurious session refresh for a signed-out visitor.
+ * Uses plain `fetch` instead of the shared axios instance, on purpose. That
+ * instance sets `withCredentials: true` and has a hook that refreshes the
+ * login token after a 401. Using it for these cookie-free endpoints would send
+ * login cookies that the API refuses (it replies with `Access-Control-Allow-
+ * Origin: *`, which the browser will not accept together with cookies), and it
+ * could start an unneeded login refresh for a visitor who is signed out.
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -33,8 +33,8 @@ async function getJson<T>(path: string): Promise<T> {
 	return (await response.json()) as T;
 }
 
-/** Fetch a circuit its owner has marked public. Rejects on 404 — which is also
- *  what a private circuit returns, deliberately. */
+/** Fetches a circuit that its owner has made public. Fails on 404, which is
+ *  also what a private circuit returns, on purpose. */
 export function fetchPublicCircuit(circuitId: string): Promise<PublicCircuit> {
 	return getJson<PublicCircuit>(`/api/v1/circuits/${circuitId}/`);
 }

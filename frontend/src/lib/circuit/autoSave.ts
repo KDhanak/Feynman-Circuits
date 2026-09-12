@@ -13,9 +13,9 @@ import { settings } from '../stores/settingsStore';
 
 const MAX_FAILURES = 3;
 
-// Internal auto-save state. Grouped into a single store instead of loose
-// module-level `let`s so it lives in one place and can be reset between tests
-// via resetAutoSaveState().
+// Auto-save's own state. It is kept together in one store, instead of in many
+// separate `let` variables, so it is all in one place and tests can reset it
+// with resetAutoSaveState().
 type AutoSaveState = {
 	isDirty: boolean;
 	isReset: boolean;
@@ -37,10 +37,10 @@ const INITIAL_STATE: AutoSaveState = {
 const autoSaveState = writable<AutoSaveState>({ ...INITIAL_STATE });
 
 // Whether the current circuit exists on the server (saved at least once, or
-// loaded from the user's saved circuits). Drives the Save/Rename button label.
+// loaded from the user's saved circuits). Decides whether the button says Save or Rename.
 export const isCircuitSaved = writable<boolean>(false);
 
-// Exposed for tests: restore a clean slate between cases.
+// Used by tests: reset everything back to the start between tests.
 export function resetAutoSaveState() {
 	autoSaveState.set({ ...INITIAL_STATE });
 }
@@ -50,11 +50,11 @@ circuitIR.subscribe(() => {
 		autoSaveState.update((st) => ({ ...st, initialized: true }));
 		return;
 	}
-	// Any store change after a reset means the user is editing again. Tracked
-	// regardless of session state: someone who builds a circuit — or opens one
-	// shared with them — while signed out, then signs in, should not have to
-	// touch the board again before it can be saved. The auth gate lives in
-	// attemptAutoSave, which is the thing that actually talks to the server.
+	// Any change to the store after a reset means the user is editing again. We
+	// track this even when the user is signed out: if someone builds a circuit (or
+	// opens one shared with them) while signed out and then signs in, they should
+	// not have to touch the board again before it can be saved. The sign-in check
+	// is in attemptAutoSave, because that is the part that really talks to the server.
 	autoSaveState.update((st) => ({ ...st, isReset: false, isDirty: true }));
 	if (get(session).status !== 'authenticated') return;
 	if (get(settings).autoSaveEnabled) saveStatus.set('saving');
@@ -71,8 +71,8 @@ function startAutoSaveTimer(intervalMs: number) {
 	}, intervalMs);
 }
 
-// Restart the timer whenever the configured interval changes; the initial
-// subscription call also kicks off the timer on module load.
+// Restart the timer whenever the auto-save interval setting changes. The first
+// subscribe call also starts the timer when this file first loads.
 let currentInterval: number | null = null;
 settings.subscribe((s) => {
 	if (s.autoSaveIntervalMs !== currentInterval) {
@@ -106,13 +106,13 @@ async function attemptAutoSave(): Promise<boolean> {
 		saveStatus.set('saving');
 		const stored = await upsertCircuit(circuit_id, name, get(circuitIR));
 
-		// The server may have stored this somewhere other than where we asked.
-		// Saving a circuit that was shared with us creates our own copy under a
-		// fresh id — adopt it, or every later save repeats the same collision and
-		// we keep writing to a circuit that is not ours.
+		// The server may have saved this under a different id than the one we asked for.
+		// Saving a circuit that was shared with us creates our own copy with a new
+		// id. We must switch to that id, or every later save would hit the same
+		// clash and we would keep trying to write to a circuit that is not ours.
 		if (stored.circuit_id && stored.circuit_id !== circuit_id) {
 			currentCircuitId.set(stored.circuit_id);
-			// A copy is never born published, whatever the original was.
+			// A copy always starts private, even if the original was public.
 			currentCircuitIsPublic.set(false);
 		}
 		if (stored.name && stored.name !== name) currentCircuitName.set(stored.name);
@@ -140,11 +140,11 @@ async function attemptAutoSave(): Promise<boolean> {
 }
 
 export async function manualSave(): Promise<void> {
-	// Clearing isReset is what separates an explicit save from an automatic one.
-	// `isReset` exists to stop auto-save writing a circuit the user has not
-	// touched; clicking Save Circuit is unambiguous intent, so it must go
-	// through even for an untouched circuit — such as one just opened from a
-	// share link and saved as-is.
+	// Clearing isReset is what makes a manual save different from an automatic one.
+	// `isReset` is there to stop auto-save from saving a circuit the user has not
+	// touched. But clicking Save Circuit clearly means "save this", so it must work
+	// even for an untouched circuit, such as one just opened from a share link and
+	// saved without changes.
 	autoSaveState.update((st) => ({
 		...st,
 		consecutiveFailures: 0,
@@ -156,10 +156,10 @@ export async function manualSave(): Promise<void> {
 	if (!success) throw get(autoSaveState).lastSaveError ?? new Error('Save failed');
 }
 
-// HMR guard: without this, editing this file in dev leaves the previous module's
-// setInterval running while the fresh module starts another one, stacking up
-// duplicate auto-save loops across reloads. dispose() runs right before the old
-// module is replaced, giving us a chance to clear the timer.
+// HMR (hot reload) guard: without this, editing this file during development
+// leaves the old copy's setInterval running while the new copy starts another
+// one, so we end up with many auto-save loops running at once. dispose() runs
+// just before the old copy is replaced, so we can stop its timer there.
 if (import.meta.hot) {
 	import.meta.hot.dispose(() => {
 		if (autoSaveTimer) clearInterval(autoSaveTimer);

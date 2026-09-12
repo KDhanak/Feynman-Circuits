@@ -43,11 +43,11 @@ export function deleteSelectedGates() {
 
 export function handleBoardMouseDown(e: MouseEvent) {
 	const target = e.target as HTMLElement;
-	// Only start a selection on empty board space — never when the press begins on
-	// a gate, a wire, or a qubit label. Using closest('.gate') (rather than a
-	// classList check) also covers gates whose event target is an inner element —
-	// the X-gate <svg>, the swap <span>, the control/anti-control dot — which used
-	// to slip through and spawn a phantom selection box while the gate was dragged.
+	// Only start a selection on empty board space, never when the press starts on
+	// a gate, a wire, or a qubit label. We use closest('.gate') (instead of checking
+	// classList) so it also works when the press lands on something inside a gate:
+	// the X-gate <svg>, the swap <span>, or the control/anti-control dot. Those used
+	// to get through and create a fake selection box while the gate was being dragged.
 	if (
 		target.closest('.gate') ||
 		target.classList.contains('wire-container') ||
@@ -65,10 +65,10 @@ export function handleBoardMouseDown(e: MouseEvent) {
 		if (gateId) _gateRectCache.set(gateId, (gate as HTMLElement).getBoundingClientRect());
 	});
 
-	// Track the drag on the window, not the board: the box then keeps following the
-	// pointer even when it leaves the board (e.g. dragging down into the results
-	// panel). The board-scoped listener stopped firing there, freezing the box
-	// until the pointer returned — the "laggy vertical catch-up".
+	// Listen for the drag on the whole window, not just the board. That way the box
+	// keeps following the pointer even when it leaves the board (e.g. dragging down
+	// into the results panel). A listener on the board stopped firing there, so the
+	// box froze until the pointer came back (the "laggy vertical catch-up" bug).
 	window.addEventListener('mousemove', handleBoardMouseMove);
 	window.addEventListener('mouseup', handleBoardMouseUp);
 }

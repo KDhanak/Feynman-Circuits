@@ -252,8 +252,8 @@ describe('round trip', () => {
 		expect(roundTripped).not.toBeNull();
 		expect(roundTripped!.registers).toEqual(ir.registers);
 
-		// The importer re-packs columns (ASAP scheduling, like the QASM importer),
-		// so compare everything except id and column.
+		// The importer moves gates to new columns (ASAP scheduling, like the QASM
+		// importer), so compare everything except id and column.
 		const stripped = (ops: CircuitOperation[]) =>
 			ops.map(({ id: _id, column: _column, ...rest }) => rest);
 		expect(stripped(roundTripped!.operations)).toEqual(stripped(ir.operations));

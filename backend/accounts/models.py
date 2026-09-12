@@ -7,13 +7,13 @@ import secrets
 
 
 class UserManager(BaseUserManager):
-    """Custom manager for creating and managing User instances."""
+    """Our own manager for creating users."""
 
     def create_user(self, email: str, password: str | None = None, **extra_fields):
 
         if not email:
             raise ValueError("Email is required")
-        # Normalize email to ensure consistency (lowercase domain)
+        # Clean up the email so it is always stored the same way (domain in lowercase)
         email = self.normalize_email(email)
 
         # Create user instance with email and any additional fields
@@ -31,19 +31,19 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
 
-        # Validate that required admin flags are set
+        # Make sure the needed admin flags are set
         if extra_fields.get("is_staff") is not True:
             raise ValueError("Superuser must have is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Superuser must have is_superuser=True.")
 
-        # Delegate to create_user with admin flags already set
+        # Let create_user do the rest, with the admin flags already set
         return self.create_user(email=email, password=password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
 
-    # Email field - unique identifier for login
+    # Email field. Every user has a different email, and it is used to log in
     email = models.EmailField(unique=True)
     # Optional user name fields
     first_name = models.CharField(max_length=150)
@@ -57,12 +57,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)  # Set once at creation
     updated_at = models.DateTimeField(auto_now=True)  # Auto-updates on every save
 
-    # Use custom UserManager for user creation
+    # Use our own UserManager to create users
     objects = UserManager()
 
     # Use email field instead of username for authentication
     USERNAME_FIELD = "email"
-    # Fields required when creating a superuser via manage.py
+    # Fields asked for when creating a superuser with manage.py
     REQUIRED_FIELDS: list[str] = []
 
     def __str__(self):

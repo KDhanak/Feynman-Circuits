@@ -4,7 +4,7 @@
 @theme {
 	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 
-	/* Brand — Purple quantum aesthetic */
+	/* Brand — purple quantum look */
 	--color-secondary-1: #e9d5ff;
 	--color-secondary-2: #a855f7;
 	--color-secondary-3: #7e22ce;
@@ -30,25 +30,26 @@
 	--color-muted: #000000;
 	--color-branding: #7e22ce;
 
-	/* QEC — Emerald. Mode chrome only (the toggle, the QEC panel frame): the
-	   lattice keeps its own data colours, where purple means X-check, blue means
-	   Z-check and orange means injected error. Emerald is the one major hue none
-	   of those already claim, so QEC mode cannot be mistaken for a measurement
-	   or an error. `qec-fg` is the text colour that sits ON `qec-1`, which is
-	   why it flips between themes: the fill goes dark-on-light to light-on-dark. */
+	/* QEC — Emerald. Only for the QEC mode frame and buttons (the toggle, the QEC
+	   panel border). The lattice keeps its own data colours, where purple means
+	   X-check, blue means Z-check and orange means injected error. Emerald is the
+	   one main colour none of those use, so QEC mode can't be confused with a
+	   measurement or an error. `qec-fg` is the text colour used ON `qec-1`, which
+	   is why it changes between themes: dark-on-light becomes light-on-dark. */
 	--color-qec-1: #047857;
 	--color-qec-2: #065f46;
 	--color-qec-fg: #ffffff;
 
-	/* Panel tint base. Fixed across themes and used at /20, exactly as
-	   --color-secondary-3 is for every other panel: at that strength it lands on
-	   the same luminance as its purple siblings in BOTH themes, so the QEC panel
-	   reads as a different colour rather than a different brightness. Do not use
-	   qec-1 here — it inverts, so it would be far too bright on dark. */
+	/* Base colour for the panel tint. It is the same in both themes and used at
+	   /20, exactly like --color-secondary-3 for every other panel. At that
+	   strength it has the same brightness as the purple panels in BOTH themes, so
+	   the QEC panel looks like a different colour, not a different brightness. Do
+	   not use qec-1 here: it flips between themes, so it would be far too bright
+	   in dark mode. */
 	--color-qec-surface: #065f46;
 
-	/* Destructive actions. Inverts like the rest: the deep red is unreadable on
-	   the dark surface, so dark mode takes the light one. */
+	/* Actions that delete or destroy things. It flips like the rest: the deep red is
+	   hard to read on the dark background, so dark mode uses the light one. */
 	--color-danger: #b91c1c;
 }
 
@@ -64,9 +65,9 @@ html.dark {
 	--color-probability: #06b6d4;
 	--color-branding: #e9d5ff;
 
-	/* Emerald inverts for dark: a deep fill would disappear into the surface, so
-	   the accent becomes the bright shade and the text on it becomes the dark
-	   one. Same pattern as --color-measured above. */
+	/* Emerald flips for dark mode: a deep fill would disappear into the background,
+	   so the accent becomes the bright shade and the text on it becomes the dark
+	   one. Same idea as --color-measured above. */
 	--color-qec-1: #34d399;
 	--color-qec-2: #6ee7b7;
 	--color-qec-fg: #052e16;
@@ -111,7 +112,7 @@ html.dark {
 	background: var(--color-secondary-1);
 }
 
-/* ── Theme-aware logo swap (CSS-only, avoids SSR hydration mismatch) ── */
+/* ── Theme-aware logo swap (CSS only, so the server and browser HTML always match) ── */
 .logo-light {
 	display: block;
 }
@@ -147,7 +148,7 @@ html.dark .logo-dark {
 	}
 	.btn-highlight {
 		/* h-9 + text-sm to match the signed-in button and the header's icon
-		   buttons: all four account states share one baseline. */
+		   buttons, so all four account states line up. */
 		@apply flex h-9 cursor-pointer items-center justify-center rounded-sm bg-transparent shadow-sm shadow-measured px-4 text-sm min-w-28 active:bg-measured active:text-white active:border active:border-white transition-colors duration-200 outline-none;
 		color: var(--color-text);
 	}
@@ -160,11 +161,11 @@ html.dark .logo-dark {
 	}
 
 	/* ── Unified context menu ─────────────────────────────────────
-	   Themed off the surface/text/border tokens rather than fixed greys, so the
+	   Uses the surface/text/border colour tokens instead of fixed greys, so the
 	   menu follows the theme instead of staying white on a dark page. The
-	   highlight is a translucent wash of the text colour, which inverts with the
-	   theme for free — a fixed grey would vanish on one side or the other.
-	   max-height keeps a long menu scrollable rather than running off-screen. */
+	   highlight is a see-through layer of the text colour, which flips with the
+	   theme by itself. A fixed grey would disappear in one of the two themes.
+	   max-height lets a long menu scroll instead of running off-screen. */
 	.ctx-menu {
 		@apply fixed border rounded-sm shadow-lg w-40 overflow-y-auto;
 		max-height: calc(100vh - 1rem);
@@ -182,7 +183,7 @@ html.dark .logo-dark {
 		color: var(--color-danger);
 	}
 	/* Hover as well as active: a context menu that only reacts on mouse-down
-	   gives no feedback about which row you are about to hit. */
+	   doesn't show which row you are about to click. */
 	.ctx-menu-item:hover,
 	.ctx-menu-item:focus-visible {
 		background: color-mix(in srgb, var(--color-text) 10%, transparent);

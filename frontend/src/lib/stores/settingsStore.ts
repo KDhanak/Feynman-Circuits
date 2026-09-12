@@ -3,17 +3,18 @@ import { browser } from '$app/environment';
 
 export type ResultView = 'list' | 'histogram';
 
-// How basis-state labels are printed in the results panel. The engine always
-// runs little-endian internally (q0 = LSB); this only reverses the label string
-// before rendering — it never affects the simulation or the wire layout.
-//   'q0-right' — Qiskit/OpenQASM convention, q0 is the right-most bit (default)
-//   'q0-left'  — textbook convention, q0 is the left-most bit
+// How basis-state labels are written in the results panel. Inside, the simulator
+// always uses the same bit order (q0 is the smallest bit). This setting only
+// flips the label text before showing it. It never changes the simulation or
+// the wire layout.
+//   'q0-right' — Qiskit/OpenQASM style, q0 is the rightmost bit (default)
+//   'q0-left'  — textbook style, q0 is the leftmost bit
 export type BitOrder = 'q0-right' | 'q0-left';
 
 // Where the code (CircuitDataPanel) sits on wide screens (≥1024px):
 //   'bottom' — in the results row beneath the circuit board (default)
 //   'left'   — a tall full-height panel on the left, better for reading code
-// Ignored below 1024px, where it always falls back to the bottom slot.
+// Ignored below 1024px, where the panel is always at the bottom.
 export type CodePanelPosition = 'bottom' | 'left';
 
 export type Settings = {
@@ -26,10 +27,10 @@ export type Settings = {
 	showBlochSphere: boolean;
 	bitOrder: BitOrder;
 	codePanelPosition: CodePanelPosition;
-	// Desired width (px) of the left-docked code panel; CSS clamps it responsively.
+	// Wanted width (px) of the code panel when it is on the left. CSS keeps it within limits for each screen size.
 	codePanelWidthPx: number;
-	// Desired height (px) of the results row beneath the board. Only applied on
-	// wide screens (≥1024px), where the board flexes to absorb the difference.
+	// Wanted height (px) of the results row below the board. Only used on
+	// wide screens (≥1024px), where the board grows or shrinks to fill the rest.
 	resultsRowHeightPx: number;
 };
 
@@ -42,7 +43,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	bitOrder: 'q0-right',
 	codePanelPosition: 'bottom',
 	codePanelWidthPx: 480,
-	// 330px === the 20.625rem the row used to be hard-coded to.
+	// 330px is the same as the fixed 20.625rem the row used to have.
 	resultsRowHeightPx: 330
 };
 
@@ -62,7 +63,7 @@ function getInitial(): Settings {
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return { ...DEFAULT_SETTINGS };
-		// Merge so newly-added settings fall back to defaults.
+		// Merge, so any newly added settings get their default values.
 		return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
 	} catch {
 		return { ...DEFAULT_SETTINGS };

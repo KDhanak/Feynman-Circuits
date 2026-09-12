@@ -1,8 +1,10 @@
-"""API tests for the circuits app: cloud save/load, ownership isolation, the
-client-UUID upsert path (PUT), IR validation, and the next-name helper.
+"""API tests for the circuits app: saving and loading from the cloud, making
+sure users only see their own circuits, the create-or-update path (PUT with a
+UUID made by the client), IR validation, and the next-name helper.
 
-Auth is via the `access_token` cookie that CookieJWTAuthentication reads, so we
-mint a token per user and drop it on the test client's cookie jar.
+Login works through the `access_token` cookie that CookieJWTAuthentication
+reads, so we create a token for each user and put it in the test client's
+cookies.
 """
 
 import uuid
@@ -16,11 +18,11 @@ from .models import Circuit
 
 User = get_user_model()
 
-# Minimal circuit IR the serializer's validate_ir accepts: version 1.0, a valid
-# qubit register (1–8), and one operation using a registered gate id in range.
-# The operation field is `targets` — an earlier version of this fixture said
-# `qubits`, which the schema has never had; validation was loose enough to let
-# a target-less operation through until circuits/validation.py tightened it.
+# The smallest circuit IR that the serializer's validate_ir accepts: version
+# 1.0, a valid qubit count (1 to 8), and one operation using a real gate id.
+# The operation field is `targets`. An earlier version of this test data used
+# `qubits`, which the schema never had. Validation was loose enough to let an
+# operation with no targets through, until circuits/validation.py made it stricter.
 VALID_IR = {
     "version": "1.0",
     "registers": {"q": 2, "c": 0},
@@ -111,7 +113,7 @@ class CircuitAPITests(APITestCase):
         resp = self.client.get(self._detail_url(circuit.id))
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
 
-    # --- update / upsert (PUT with a client-generated UUID) -----------------
+    # --- update / create-or-update (PUT with a UUID made by the client) -----
 
     def test_put_creates_circuit_with_client_uuid(self):
         pk = uuid.uuid4()
@@ -137,7 +139,7 @@ class CircuitAPITests(APITestCase):
     # --- saving a circuit that was shared with you --------------------------
 
     def test_saving_a_shared_circuit_creates_your_own_copy(self):
-        """The recipient of a share link keeps the sender's circuit id on their
+        """The person who opens a share link keeps the sender's circuit id on their
         board, so their first save arrives as a PUT to an id they do not own."""
         shared = Circuit.objects.create(user=self.other, name="Bell", ir=VALID_IR)
 
@@ -195,8 +197,8 @@ class CircuitAPITests(APITestCase):
         self.assertFalse(Circuit.objects.get(id=resp.data["circuit_id"]).is_public)
 
     def test_patching_a_circuit_you_do_not_own_is_404(self):
-        """PATCH cannot copy — it carries only the changed fields — and editing
-        someone else's circuit is not a thing this endpoint should invent."""
+        """PATCH cannot make a copy, because it only sends the changed fields. And
+        editing someone else's circuit is not something this endpoint should allow."""
         shared = Circuit.objects.create(user=self.other, name="Bell", ir=VALID_IR)
 
         resp = self.client.patch(

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
-// required for svelte5 + jsdom as jsdom does not support matchMedia
+// needed for svelte5 + jsdom, because jsdom does not support matchMedia
 Object.defineProperty(window, 'matchMedia', {
 	writable: true,
 	enumerable: true,
@@ -15,7 +15,7 @@ Object.defineProperty(window, 'matchMedia', {
 	}))
 });
 
-// required for svelte5 + jsdom as jsdom does not support ResizeObserver
+// needed for svelte5 + jsdom, because jsdom does not support ResizeObserver
 class ResizeObserverMock {
 	observe = vi.fn();
 	unobserve = vi.fn();
@@ -27,7 +27,7 @@ Object.defineProperty(window, 'ResizeObserver', {
 	value: ResizeObserverMock
 });
 
-// required for svelte5 + jsdom as jsdom does not provide localStorage
+// needed for svelte5 + jsdom, because jsdom does not have localStorage
 class LocalStorageMock {
 	private store = new Map<string, string>();
 	getItem = vi.fn((key: string) => this.store.get(key) ?? null);
@@ -41,9 +41,9 @@ Object.defineProperty(window, 'localStorage', {
 	value: new LocalStorageMock()
 });
 
-// required for svelte5 + jsdom as jsdom does not implement the Web Animations
-// API, which Svelte's `transition:` directives drive. Any component rendering a
-// transition on mount (e.g. the onboarding welcome modal) throws without it.
+// needed for svelte5 + jsdom, because jsdom does not have the Web Animations
+// API, which Svelte's `transition:` animations use. Any component that plays a
+// transition when it first appears (e.g. the onboarding welcome modal) crashes without it.
 class AnimationMock {
 	onfinish: (() => void) | null = null;
 	oncancel: (() => void) | null = null;

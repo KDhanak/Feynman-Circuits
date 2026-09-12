@@ -1,16 +1,16 @@
 """
-URL configuration for config project.
+URL settings for the config project.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
+The `urlpatterns` list connects each URL to the view that handles it. To learn more, see:
     https://docs.djangoproject.com/en/6.0/topics/http/urls/
 Examples:
 Function views
-    1. Add an import:  from my_app import views
+    1. Import the view:  from my_app import views
     2. Add a URL to urlpatterns:  path('', views.home, name='home')
 Class-based views
-    1. Add an import:  from other_app.views import Home
+    1. Import the view:  from other_app.views import Home
     2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
+Including another URLconf (another urls.py file)
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
@@ -22,8 +22,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("accounts.urls")),
     path("circuits/", include("circuits.urls")),
-    # Public, unauthenticated read endpoint for share links. Versioned and mounted at the
-    # root because it is a published contract with third parties, unlike the
-    # routes above, which are internal to this app and its own frontend.
+    path("qec/", include("qec.urls")),
+    # Public endpoint for share links. Anyone can read it without logging in.
+    # It has a version number and sits at the root because other people rely on it,
+    # so it must not change. The routes above are only used by this app and its own frontend.
     path("api/v1/", include("circuits.public_urls")),
 ]

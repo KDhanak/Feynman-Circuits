@@ -13,10 +13,10 @@
 
 	const dispatch = createEventDispatcher<{ close: void }>();
 
-	// The menu is fixed-positioned at the anchor it's handed, which pushes it off
-	// screen for a gate near the right or bottom edge — cramped desktop windows,
-	// and almost any gate on a phone. Clamp it into the viewport once it's been
-	// measured. Falls back to the raw anchor for the first paint.
+	// The menu is placed (position: fixed) at the anchor it is given, which pushes it
+	// off screen for a gate near the right or bottom edge: in small desktop windows,
+	// and for almost any gate on a phone. Once it has been measured, move it back
+	// inside the screen. For the very first draw, it just uses the anchor as it is.
 	const MARGIN = 8;
 	let menuEl: HTMLDivElement | undefined;
 	let posStyle = '';
@@ -38,8 +38,8 @@
 	let target1 = 1;
 	let error = '';
 
-	// Roomier hit areas on touch — the desktop sizes are well under a comfortable
-	// tap target.
+	// Bigger buttons on touch screens. The desktop sizes are too small to tap
+	// easily.
 	$: fieldClass = `input-field text-sm ${$isMobile ? 'py-2.5' : 'py-1.5'}`;
 	$: buttonClass = `flex-1 text-sm ${$isMobile ? 'py-2.5' : 'py-1.5'}`;
 
@@ -83,7 +83,7 @@
 		dispatch('close');
 	}
 
-	// Enter inside any field commits the edit, mirroring the Apply button.
+	// Pressing Enter in any field saves the edit, just like the Apply button.
 	function onFieldKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter') {
 			e.preventDefault();

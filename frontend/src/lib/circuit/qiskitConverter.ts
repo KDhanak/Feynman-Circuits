@@ -14,13 +14,13 @@ export interface QiskitExportOptions {
 	includeComments?: boolean;
 }
 
-// Variable name for the circuit object in emitted code. Matches IBM Quantum
-// Composer's convention (`circuit = ...`) rather than the terser `qc` many
-// tutorials use. The importer accepts any variable name, so this is cosmetic.
+// Variable name for the circuit in the code we generate. We use the same name as
+// IBM Quantum Composer (`circuit = ...`) instead of the shorter `qc` that many
+// tutorials use. The importer accepts any variable name, so this only changes how it looks.
 const CIRCUIT_VAR = 'circuit';
 
-// Qiskit QuantumCircuit method names for controlled gates. Combinations not
-// listed here fall back to the append form: circuit.append(XGate().control(n), [...]).
+// Qiskit QuantumCircuit method names for controlled gates. Any combination not
+// listed here uses the append form instead: circuit.append(XGate().control(n), [...]).
 const CONTROLLED_METHOD: Partial<Record<CanonicalUnitaryGate, Record<number, string>>> = {
 	x: { 1: 'cx', 2: 'ccx' },
 	y: { 1: 'cy' },
@@ -34,7 +34,7 @@ const CONTROLLED_METHOD: Partial<Record<CanonicalUnitaryGate, Record<number, str
 	swap: { 1: 'cswap' }
 };
 
-// qiskit.circuit.library class per gate, for the append form.
+// The qiskit.circuit.library class for each gate, used by the append form.
 const GATE_CLASS: Record<CanonicalUnitaryGate, string> = {
 	x: 'XGate',
 	y: 'YGate',
@@ -52,7 +52,7 @@ const GATE_CLASS: Record<CanonicalUnitaryGate, string> = {
 export function circuitToQiskit(ir: CircuitIR, options: QiskitExportOptions = {}): string {
 	const { includeComments = true } = options;
 
-	// Emit the body first so we know which library classes need importing.
+	// Write the main code first, so we know which library classes need to be imported.
 	const usedClasses = new Set<string>();
 	const body: string[] = [];
 
@@ -121,9 +121,9 @@ function unitaryToQiskit(op: UnitaryOperation, usedClasses: Set<string>): string
 	return `${CIRCUIT_VAR}.${gate}(${op.targets[0]})`;
 }
 
-// Anti-controls aren't expressible through the named c*/cc* methods, so they're
-// implemented via an X-sandwich (same approach as the OpenQASM exporter): flip
-// the anti-control qubit, apply the gate with it as a positive control, flip back.
+// The named c*/cc* methods can't do anti-controls, so we build them with an
+// "X-sandwich" (the same way as the OpenQASM exporter): flip the anti-control
+// qubit, apply the gate with it as a normal control, then flip it back.
 function controlledToQiskit(op: UnitaryOperation, usedClasses: Set<string>): string {
 	const gate = op.gate;
 	const allControls = [...op.controls, ...op.antiControls];
@@ -161,15 +161,15 @@ function controlledInstruction(
 		return `${CIRCUIT_VAR}.${method}(${qubits})`;
 	}
 
-	// No named method (e.g. controlled-T, doubly-controlled rotations) — use the
-	// generic append form with a library gate class.
+	// There is no named method (e.g. controlled-T, rotations with two controls), so
+	// use the general append form with a library gate class.
 	const cls = GATE_CLASS[gate];
 	usedClasses.add(cls);
 	const ctor = isParametricGate(gate) ? `${cls}(${params[0] ?? 0})` : `${cls}()`;
 	return `${CIRCUIT_VAR}.append(${ctor}.control(${controls.length}), [${qubits}])`;
 }
 
-// Parse Qiskit Python code back to CircuitIR
+// Read Qiskit Python code and turn it back into CircuitIR
 export function qiskitToCircuit(pythonCode: string): CircuitIR | null {
 	try {
 		const lines = pythonCode
@@ -181,10 +181,10 @@ export function qiskitToCircuit(pythonCode: string): CircuitIR | null {
 		let numClassicalBits = 0;
 		let circuitVar: string | null = null;
 
-		// IBM Quantum Composer builds circuits from named register objects
+		// IBM Quantum Composer builds circuits from named registers
 		// (`qreg_q = QuantumRegister(2, 'q')`, then `circuit = QuantumCircuit(qreg_q)`)
-		// and addresses qubits as `qreg_q[0]`. Collect those declarations so we can
-		// size the circuit and resolve register-indexed args to flat indices.
+		// and refers to qubits as `qreg_q[0]`. We collect those registers so we know how
+		// many qubits the circuit has, and can turn `qreg_q[0]` into a plain qubit number.
 		const quantumRegs: { name: string; size: number }[] = [];
 		const classicalRegs: { name: string; size: number }[] = [];
 		for (const line of lines) {
@@ -203,8 +203,8 @@ export function qiskitToCircuit(pythonCode: string): CircuitIR | null {
 			}
 		}
 
-		// Flat offset of each register within its space (quantum vs classical),
-		// in declaration order — so a gate on `qreg_b[0]` maps past `qreg_a`'s qubits.
+		// Where each register starts in the full list of qubits (or classical bits), in
+		// the order they were declared. So a gate on `qreg_b[0]` comes after all of `qreg_a`'s qubits.
 		const offsets = new Map<string, number>();
 		let qAcc = 0;
 		for (const r of quantumRegs) {
@@ -243,8 +243,8 @@ export function qiskitToCircuit(pythonCode: string): CircuitIR | null {
 		if (!circuitVar || numQubits === 0) return null;
 
 		const operations: CircuitOperation[] = [];
-		// Track the next free column for each qubit so multi-qubit gates
-		// don't collide with later single-qubit gates on the same qubit.
+		// Remember the next free column for each qubit, so multi-qubit gates
+		// don't clash with later single-qubit gates on the same qubit.
 		const qubitNextColumn = new Array<number>(numQubits).fill(0);
 
 		const placeOp = (op: CircuitOperation) => {
@@ -462,9 +462,9 @@ function splitArgs(argsStr: string): string[] {
 	return trimmed.split(',').map((a) => a.trim());
 }
 
-// Resolves a qubit/clbit argument to a flat index. Accepts a bare integer
-// (`0`) or a register-indexed reference (`qreg_q[0]`), mapping the latter to
-// its flat position via the register's offset.
+// Turns a qubit/classical bit argument into a plain number. Accepts a plain
+// number (`0`) or a register reference (`qreg_q[0]`). For a register reference,
+// it adds the register's starting position to get the plain number.
 function parseIndex(arg: string, offsets: Map<string, number>): number | null {
 	if (/^\d+$/.test(arg)) return parseInt(arg, 10);
 	const regMatch = arg.match(/^(\w+)\[\s*(\d+)\s*\]$/);
@@ -475,7 +475,7 @@ function parseIndex(arg: string, offsets: Map<string, number>): number | null {
 	return null;
 }
 
-// Accepts plain numbers plus pi expressions with optional numpy/math prefixes:
+// Accepts plain numbers, and pi expressions with or without a numpy/math prefix:
 // pi/2, np.pi/2, math.pi, 2*pi, -pi/4, ...
 function parsePythonAngle(arg: string): number | null {
 	const normalized = arg.replace(/\b(?:np|numpy|math)\./g, '').trim();

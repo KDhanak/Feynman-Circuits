@@ -1,26 +1,27 @@
 /**
- * Places a floating panel next to an anchor element, clamped into the viewport.
+ * Places a floating panel next to an anchor element, and keeps it inside the screen.
  *
- * Extracted from Tooltip so the onboarding coach marks reuse exactly the same
- * flip-and-clamp behaviour — a tooltip near the bottom of the board and a coach
- * mark on the same element should land in the same place.
+ * This was moved out of Tooltip so the onboarding coach marks use exactly the
+ * same logic for flipping sides and staying on screen. A tooltip near the
+ * bottom of the board and a coach mark on the same element should end up in
+ * the same place.
  *
- * Coordinates are viewport-relative, so the caller applies them with
- * `position: fixed`.
+ * The coordinates are measured from the top-left of the screen, so the caller
+ * uses them with `position: fixed`.
  */
 
 export type PopoverGeometry = {
 	left: number;
 	top: number;
 	width: number;
-	/** Which side of the anchor we ended up on — callers use it to point an arrow. */
+	/** Which side of the anchor the panel ended up on. Callers use it to point an arrow. */
 	side: 'below' | 'above';
 };
 
 export type PopoverOptions = {
-	/** Upper bound on width; always shrinks to fit narrow viewports. */
+	/** Largest allowed width. It always shrinks to fit narrow screens. */
 	maxWidth?: number;
-	/** Minimum gap kept from every viewport edge. */
+	/** Smallest gap kept from every edge of the screen. */
 	margin?: number;
 	/** Gap between the anchor and the panel. */
 	gap?: number;
@@ -38,12 +39,12 @@ export function positionPopover(
 
 	const width = Math.min(maxWidth, vw - margin * 2);
 
-	// Horizontal: centre on the anchor, then clamp so neither side spills
-	// off-screen — effectively flips to whichever side has room.
+	// Horizontal: centre it on the anchor, then push it back so neither side goes
+	// off-screen. In effect, it moves to whichever side has room.
 	let left = anchor.left + anchor.width / 2 - width / 2;
 	left = Math.max(margin, Math.min(left, vw - width - margin));
 
-	// Vertical: prefer below the anchor; flip above when there isn't room.
+	// Vertical: put it below the anchor if possible, or above if there isn't room.
 	let top: number;
 	let side: 'below' | 'above';
 	if (anchor.bottom + gap + panelHeight + margin <= vh) {
@@ -53,8 +54,8 @@ export function positionPopover(
 		top = anchor.top - gap - panelHeight;
 		side = 'above';
 	} else {
-		// Doesn't fully fit either side — clamp into view. Happens when the anchor
-		// is nearly as tall as the viewport, e.g. the circuit board on a laptop.
+		// It doesn't fully fit on either side, so just keep it on screen. This happens
+		// when the anchor is almost as tall as the screen, e.g. the circuit board on a laptop.
 		top = Math.max(margin, Math.min(vh - panelHeight - margin, anchor.bottom + gap));
 		side = 'below';
 	}

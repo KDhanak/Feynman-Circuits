@@ -32,8 +32,8 @@ export function collapseQubit(
 	numQubits: number
 ): { newState: QuantumState; outcome: number } {
 	const dim = 1 << numQubits;
-	// Little-endian (Qiskit/OpenQASM) convention: qubit q maps directly to
-	// statevector bit position q (q0 = least-significant bit / rightmost label).
+	// We number the bits the same way as Qiskit/OpenQASM: qubit q is bit number q
+	// in the state (q0 is the smallest bit, the rightmost one in the label).
 	const pos = qubit;
 
 	let prob0 = 0;
@@ -62,14 +62,14 @@ export function collapseQubit(
 }
 
 /**
- * Builds the full-system matrix for a single unitary op, applying any controls/anti-controls.
- * `swap` is handled directly on the state (it isn't matrix-based), so it is not covered here.
+ * Builds the matrix for the whole system for one unitary op, including any controls/anti-controls.
+ * `swap` is done directly on the state (it doesn't use a matrix), so it is not handled here.
  * Returns null for an unknown gate so the caller can skip it.
  */
 function getGateMatrix(op: UnitaryOperation, numQubits: number): Complex[][] | null {
-	// Single source of truth: the registry's matrix factory handles both static
-	// gates and parametric rotations. `swap` (and any unknown gate) has no matrix
-	// factory and returns null — the caller special-cases swap on the state.
+	// The gate registry builds the matrix for every gate, both fixed gates and
+	// rotation gates with an angle. `swap` (and any unknown gate) has no matrix,
+	// so this returns null. The caller then does the swap directly on the state.
 	const build = GATE_REGISTRY[op.gate]?.matrix;
 	if (!build) return null;
 	const baseMatrix = build(op.params);
@@ -90,7 +90,7 @@ function getGateMatrix(op: UnitaryOperation, numQubits: number): Complex[][] | n
 }
 
 // ─────────────────────────────────────────────────────────────
-// Unified simulator (works for 1 qubit AND multi-qubit)
+// One simulator for everything (works for 1 qubit AND many qubits)
 // ─────────────────────────────────────────────────────────────
 export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 	const numQubits = ir.registers.q;

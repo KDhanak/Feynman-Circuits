@@ -1,5 +1,5 @@
-// This file is responsible for validating whether an unknown input
-// actually matches our Canonical Circuit IR structure.
+// This file checks whether some unknown input really matches our
+// standard (canonical) Circuit IR structure.
 
 // It does NOT modify data.
 // It only checks correctness and reports errors.
@@ -18,10 +18,10 @@ const VALID_KINDS = [
 	'barrier'
 ] as const satisfies readonly OperationKind[];
 
-// Return type of validator
+// What the validator returns
 export interface ValidationResult {
 	valid: boolean; // true if no errors
-	errors: string[]; // list of all validation issues
+	errors: string[]; // list of all the problems found
 }
 
 // -----------------------------
@@ -48,7 +48,7 @@ function isNumberArray(value: unknown): value is number[] {
 	return Array.isArray(value) && value.every((item) => isNonNegativeInteger(item));
 }
 
-// Detect duplicate values in array
+// Find repeated values in an array
 function hasDuplicates(values: number[]): boolean {
 	return new Set(values).size !== values.length;
 }
@@ -125,7 +125,7 @@ function validateBaseOperationShape(
 		errors.push(`${opLabel}: missing or invalid "column".`);
 	}
 
-	// If any critical fields are invalid, stop further validation
+	// If any important field is wrong, stop checking here
 	if (
 		typeof op.id !== 'string' ||
 		typeof op.kind !== 'string' ||
@@ -367,7 +367,7 @@ export function validateCanonicalIR(input: unknown): ValidationResult {
 				ids.add(base.id);
 			}
 
-			// Dispatch validation by kind
+			// Run the right check for each kind of operation
 			switch (base.kind) {
 				case 'unitary':
 					validateUnitaryOperation(op, index, numQubits, errors);

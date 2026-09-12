@@ -4,8 +4,8 @@
 	import type { ResolvedHandoff } from '$lib/circuit/handoff';
 
 	// The circuit another platform is offering, or null when there is nothing to
-	// confirm. Held until the user accepts — opening it unprompted would discard
-	// whatever is already on their board.
+	// confirm. We wait until the user accepts, because opening it without asking
+	// would throw away whatever is already on their board.
 	export let handoff: ResolvedHandoff | null = null;
 	export let error: string | null = null;
 	export let onConfirm: () => void;

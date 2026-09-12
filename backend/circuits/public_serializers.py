@@ -1,7 +1,7 @@
 """Serializer for the public circuit endpoint.
 
-Kept apart from serializers.py because this shapes what an unauthenticated
-visitor sees when they follow a share link, rather than what the owner sees in
+Kept separate from serializers.py because this decides what a visitor who is
+not logged in sees when they open a share link, not what the owner sees in
 their own library.
 """
 
@@ -9,19 +9,19 @@ from rest_framework import serializers
 
 
 class PublicCircuitSerializer(serializers.Serializer):
-    """A circuit its owner has marked public.
+    """A circuit that its owner has made public.
 
-    Note what is absent: no `user`, no email, no `is_public` flag. The owner is
-    never disclosed, and echoing the flag back would only invite clients to
-    treat it as a filter they can set.
+    Notice what is missing: no `user`, no email, no `is_public` flag. The owner
+    is never shown. And sending the flag back would only tempt clients to treat
+    it as a filter they can set.
 
-    Deliberately a plain Serializer rather than a ModelSerializer. A
-    ModelSerializer is bound to Circuit, which carries a foreign key to the user
-    — so it is always one `fields = '__all__'`, or one well-meant "let's also
-    return the author", away from disclosing account data. With no model
-    attached, this class cannot reach the owner however it is edited later.
-    PublicCircuitDetailView pairs this with a matching `.only()` so the owner is
-    never even loaded from the database on this path.
+    This is a plain Serializer, not a ModelSerializer, on purpose. A
+    ModelSerializer is linked to Circuit, which has a foreign key to the user.
+    So it would take just one `fields = '__all__'`, or one friendly "let's also
+    show the author", to leak account data. With no model attached, this class
+    cannot reach the owner, no matter how it is changed later.
+    PublicCircuitDetailView also uses a matching `.only()`, so the owner is
+    never even loaded from the database here.
     """
 
     circuit_id = serializers.UUIDField(source='id', read_only=True)

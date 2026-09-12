@@ -43,19 +43,20 @@ class Circuit(models.Model):
 
     @classmethod
     def available_name(cls, user, desired):
-        """`desired`, or the nearest free variant of it, for this user.
+        """Returns `desired`, or the closest free version of that name, for this user.
 
-        Names are unique per user, so saving a circuit someone shared with you
-        must not fail just because you already have one called "Bell" — it
-        becomes "Bell (copy)", then "Bell (copy 2)", and so on.
+        Each user's circuit names must all be different. But saving a circuit
+        someone shared with you should not fail just because you already have one
+        called "Bell". Instead it becomes "Bell (copy)", then "Bell (copy 2)", and
+        so on.
         """
         desired = (desired or '').strip() or 'Untitled Circuit'
         taken = set(cls.objects.filter(user=user).values_list('name', flat=True))
         if desired not in taken:
             return desired
 
-        # Leave room for the longest suffix this loop can append, so a name at
-        # the 255-char limit still yields a storable variant.
+        # Leave room for the longest ending this loop can add, so that even a
+        # name at the 255-character limit still gives a name we can save.
         stem = desired[:200]
         n = 1
         while True:

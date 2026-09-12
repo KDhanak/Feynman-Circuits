@@ -116,7 +116,7 @@
 			return;
 		}
 
-		// if multiple digits somehow entered, keep last typed digit for normal input
+		// if more than one digit gets in somehow, keep the last typed digit
 		otp[index] = value.slice(-1);
 
 		if (index < 5) {

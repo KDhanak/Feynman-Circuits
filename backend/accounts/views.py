@@ -26,7 +26,7 @@ REFRESH_COOKIE = "refresh_token"
 COOKIE_SECURE = False if settings.DEBUG else True
 COOKIE_SAMESITE = "Lax" if settings.DEBUG else "None"
 COOKIE_PATH = "/"
-COOKIE_DOMAIN = None  # set this only if you actually need a shared domain cookie
+COOKIE_DOMAIN = None  # only set this if you really need one cookie shared across several domains
 
 
 def set_token_cookie(response, key, value, max_age):
@@ -205,7 +205,7 @@ class PasswordResetRequestView(APIView):
         if not user:
             return Response(success_response, status=status.HTTP_200_OK)
 
-        # Invalidate previous unused OTP records for this user
+        # Cancel any older OTPs for this user that were never used
         PasswordResetOTP.objects.filter(user=user, is_used=False).update(is_used=True)
 
         otp = f"{secrets.randbelow(1_000_000):06d}"

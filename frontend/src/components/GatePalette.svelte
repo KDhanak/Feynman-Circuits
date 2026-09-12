@@ -16,12 +16,12 @@
 		category: string;
 		quick: string;
 		detail: string;
-		// Usable while QEC mode is on. Non-Clifford gates are blocked there
-		// because Stim, which runs the QEC path, cannot simulate them at all.
+		// Can be used while QEC mode is on. Non-Clifford gates are blocked there
+		// because Stim, which runs QEC, cannot simulate them at all.
 		clifford: boolean;
 	};
 
-	// Editor primitives — not gates, so they don't live in the registry.
+	// Basic editor items. They are not gates, so they are not in the registry.
 	const CONTROL_TILE: PaletteTile = {
 		type: 'CONTROL',
 		name: 'CONTROL',
@@ -49,7 +49,7 @@
 			"Collapses the qubit to a definite |0⟩ or |1⟩ using Born's rule. The outcome is random, weighted by probability. (In reality, its pseudo-random for a web simulator)"
 	};
 
-	// Gate tiles are derived from the registry so a new gate shows up here
+	// Gate tiles are built from the registry, so a new gate shows up here
 	// automatically. Palette drag/drop uses uppercase type strings.
 	const toTile = (id: (typeof UNITARY_GATE_IDS)[number]): PaletteTile => {
 		const spec = GATE_REGISTRY[id];
@@ -67,7 +67,7 @@
 	);
 	const twoQubit = UNITARY_GATE_IDS.filter((id) => GATE_REGISTRY[id].arity >= 2).map(toTile);
 
-	// Order preserved from the original hand-written list: single/parametric gates,
+	// Same order as the original hand-written list: single/angle gates,
 	// then the control primitives, then two-qubit gates, then measure.
 	const gates: PaletteTile[] = [
 		...singleAndParametric,
@@ -79,9 +79,9 @@
 
 	let dragEnterCount = 0;
 
-	// Mobile tap-to-place: tapping a gate arms it (tapping the armed gate disarms).
-	// Clears any board selection, which would otherwise leave a gate ringed as
-	// picked-up while the palette gate is the one actually armed.
+	// Mobile tap-to-place: tapping a gate selects it (tapping it again unselects it).
+	// This clears any selection on the board. Otherwise a board gate would still be
+	// shown as picked up, while the palette gate is the one really selected.
 	function toggleArm(gateType: string) {
 		clearSelection();
 		armedGate.update((cur) =>
@@ -113,8 +113,8 @@
 	data-tour="palette"
 >
 	{#each gates as gate (gate.name)}
-		<!-- Blocked, not hidden: a greyed tile teaches why the gate is unavailable,
-		     where a missing one just looks broken. -->
+		<!-- Blocked, not hidden: a greyed-out tile shows that the gate is not available
+		     right now, while a missing one would just look broken. -->
 		{@const blocked = $qecMode && !gate.clifford}
 		<!-- Separator before multi-qubit gates -->
 		{#if (gate.category === 'multi' || gate.category === 'two-qubit') && (gate.type === 'CONTROL' || gate.type === 'RZZ' || gate.type === 'SWAP')}
@@ -206,10 +206,10 @@ Unavailable in QEC mode: ${gate.name} is not a Clifford gate, and the stabiliser
 	>
 
 	<!--
-		QEC mode lives with the palette rather than in the header: it changes what
-		this bar offers, so it belongs beside the thing it changes. The rule marks
-		it as a different kind of control — Bell Pair and Compact are one-shot
-		actions, this is a mode that stays on.
+		The QEC mode button is next to the palette instead of in the header: it
+		changes what this bar offers, so it belongs beside the thing it changes. The
+		line before it shows it is a different kind of button. Bell Pair and Compact
+		do something once, while this is a mode that stays on.
 	-->
 	<span class="w-px self-stretch" style="background: var(--color-border)"></span>
 	<button

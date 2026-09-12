@@ -1,5 +1,5 @@
-// Defines a type for Complex numbers, imported from "./complex"
-// Also imports utility functions `add` and `multiply` for complex number operations
+// Imports the Complex number type from "./complex"
+// Also imports the helper functions `add` and `multiply` for complex number math
 import { type Complex } from './complex';
 
 // Defines a QuantumState as an array of Complex numbers, representing the amplitudes of a quantum state

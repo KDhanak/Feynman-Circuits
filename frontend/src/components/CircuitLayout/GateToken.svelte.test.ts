@@ -28,9 +28,9 @@ function touch(type: string, x: number, y: number) {
 
 function setup(gate: string, overrides: Partial<UnitaryOperation> = {}) {
 	const onMenu = vi.fn();
-	// Svelte 5 dropped `component.$on`; createEventDispatcher now reads its
-	// listeners from the `$$events` prop, which is how a legacy `on:` directive
-	// on the parent is passed down.
+	// Svelte 5 removed `component.$on`. createEventDispatcher now gets its
+	// listeners from the `$$events` prop, which is how an old-style `on:` on the
+	// parent is passed down.
 	const props = {
 		op: { ...makeGate(gate), ...overrides },
 		qubit: 0,
@@ -51,7 +51,7 @@ describe('GateToken parameter display', () => {
 		[(3 * Math.PI) / 4, '3π/4'],
 		[Math.PI, 'π'],
 		[0, '0'],
-		[1.234, '1.234'] // not a clean fraction of π — falls back to radians
+		[1.234, '1.234'] // not a simple fraction of π, so it shows radians
 	])('shows %f as %s on the token', (radians, shown) => {
 		const { el } = setup('rx', { params: [radians] });
 		expect(el.textContent).toContain('RX');
@@ -136,7 +136,7 @@ describe('GateToken long-press to edit', () => {
 
 	it('swallows the click that ends the long press, so the menu is not closed again', () => {
 		const { el, onMenu } = setup('rx');
-		const boardListener = vi.fn(); // stands in for the board's close-on-click-outside
+		const boardListener = vi.fn(); // pretends to be the board's "click outside to close" handler
 		document.addEventListener('click', boardListener);
 
 		el.dispatchEvent(touch('touchstart', 10, 10));
@@ -157,7 +157,7 @@ describe('GateToken long-press to edit', () => {
 		el.dispatchEvent(touch('touchstart', 10, 10));
 		vi.advanceTimersByTime(LONG_PRESS_MS);
 		el.dispatchEvent(touch('touchend', 10, 10));
-		el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); // swallowed
+		el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); // blocked
 		el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); // must pass
 
 		expect(boardListener).toHaveBeenCalledTimes(1);

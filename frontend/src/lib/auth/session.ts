@@ -68,7 +68,7 @@ export async function signOut() {
 	try {
 		await api.post('/accounts/api/auth/signout/');
 	} catch {
-		// ignore, session still needs clearing
+		// ignore the error, the session still needs to be cleared
 	}
 
 	clearCircuitListCache();

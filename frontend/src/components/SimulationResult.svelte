@@ -104,10 +104,10 @@
 	$: shouldShowPopupButton = $circuitIR.registers.q >= 4;
 
 	// ── Bit-order display (tasks 0.10–0.12) ──────────────────────────────
-	// The engine always produces little-endian labels (q0 = right-most bit).
-	// This layer optionally reverses the label string for display, and builds
-	// a legend + a display-char-index → qubit-index map used for highlighting
-	// measured qubits. Nothing here touches the simulation or the wire layout.
+	// The simulator always makes labels with q0 as the rightmost bit.
+	// This part can flip the label text for display, and builds a legend plus a
+	// map from each displayed character to its qubit, used to highlight
+	// measured qubits. Nothing here changes the simulation or the wire layout.
 	$: numQubits = $circuitIR.registers.q;
 	$: bitOrder = $settings.bitOrder;
 	// qubitOrder[i] = which qubit the i-th character of the *displayed* label is.
@@ -141,38 +141,37 @@
 		: probabilitiesArray;
 
 	// The chart used to draw into a fixed 300×215 viewBox, which `preserveAspect-
-	// Ratio` then letterboxed inside the (much wider) panel — the plot stayed
-	// small and the side margins were dead space. Binding the wrapper's real size
-	// and using it as the viewBox makes 1 unit === 1px, so the plot fills the
-	// panel and reflows when the results row is resized.
+	// Ratio` then shrank to fit inside the (much wider) panel, so the plot stayed
+	// small and the sides were empty. Now we read the wrapper's real size and use
+	// it as the viewBox, so 1 unit === 1px. The plot fills the panel and redraws
+	// when the results row is resized.
 	let chartBoxW = 0;
 	let chartBoxH = 0;
-	// "100%" is the widest tick label; at TICK_FONT it measures ~29px, and it is
-	// right-anchored 3px inside the axis gutter. 34px with a 13px font clipped the
-	// leading "1" off the left edge at every breakpoint.
+	// "100%" is the widest tick label. At TICK_FONT it is about 29px wide, and its
+	// right end sits 3px inside the axis margin. 34px with a 13px font cut off the
+	// first "1" at the left edge on every screen size.
 	const TICK_FONT = 11;
 	const TICK_GUTTER = 36; // room for the 0–100% tick labels
 	const CHART_TOP = 14; // room for the value label above a full-height bar
 	const AXIS_RIGHT = 6; // keeps the last bar off the panel edge
 	const LABEL_FONT = 13;
-	// A measured viewBox is circular wherever the wrapper has no definite height:
-	// the box would size to the SVG that is sizing to the box, and both settle at
-	// zero. The CSS gives the wrapper a real height at every breakpoint, but this
-	// keeps a collapsed measurement from blanking the chart outright — falling
-	// back to an aspect ratio still yields a viewBox, and an SVG with a viewBox
-	// and an auto height draws at its intrinsic ratio. Also covers first paint,
-	// before the ResizeObserver behind bind:clientHeight has reported.
+	// Measuring the viewBox goes in a circle when the wrapper has no fixed height:
+	// the box takes its size from the SVG, the SVG takes its size from the box, and
+	// both end up at zero. The CSS gives the wrapper a real height on every screen
+	// size, but this is a backup so a zero measurement doesn't make the chart blank.
+	// Using an aspect ratio instead still gives a viewBox, and an SVG with a viewBox
+	// and an auto height draws at its natural ratio. This also covers the very first
+	// draw, before the ResizeObserver behind bind:clientHeight has given a size.
 	$: boxH = chartBoxH > 0 ? chartBoxH : Math.round(chartBoxW * 0.62);
-	// State labels are rotated -45° about an end-anchored point, so the space they
-	// need below and to the left of that anchor has to be reserved or the SVG
-	// edge clips them.
+	// State labels are rotated -45° around their end point, so we must keep space
+	// free below and to the left of that point, or the edge of the SVG cuts them off.
 	//
-	// The advance width is measured rather than estimated from glyph count: a
-	// detached canvas with the same font stack returns exactly what the SVG's own
-	// getComputedTextLength does, with no DOM round-trip or second layout pass.
+	// The text width is measured, not guessed from the number of letters: a canvas
+	// (not on the page) with the same font gives exactly the same width as the SVG's
+	// own getComputedTextLength, without touching the page or laying it out twice.
 	let measureCtx: CanvasRenderingContext2D | null = null;
 	function measureLabel(text: string, font: number): number {
-		if (!browser) return text.length * font * 0.62; // SSR: estimate is fine, it is re-measured on mount
+		if (!browser) return text.length * font * 0.62; // SSR: a guess is fine here, it is measured again once the page loads
 		measureCtx ??= document.createElement('canvas').getContext('2d');
 		if (!measureCtx) return text.length * font * 0.62;
 		measureCtx.font = `${font}px ui-monospace, monospace`;
@@ -182,28 +181,28 @@
 	$: longestLabel = `|${'0'.repeat(Math.max(1, numQubits))}⟩`;
 	$: labelW = measureLabel(longestLabel, LABEL_FONT);
 
-	// Rotating a box turns BOTH its dimensions into reach along each axis, which
-	// is the part that is easy to get wrong: the text is not a line, it is a
-	// labelW × lineHeight box, and at -45° its leftmost corner is the one that is
-	// also highest. So the horizontal reach is (labelW + ascent)·sin45, not
-	// labelW·sin45 — omitting the ascent term under-reserves by exactly the 7px
-	// that clipped |00000000⟩ at 8 qubits. Downward, the corresponding corner is
-	// the lowest one, giving (labelW + descent)·sin45 plus the 7px the anchor
-	// already sits below the baseline.
+	// When you rotate a box, BOTH its width and height add to how far it reaches
+	// in each direction. This is easy to get wrong: the text is not a thin line, it
+	// is a labelW × lineHeight box, and at -45° its leftmost corner is also its
+	// highest one. So the reach to the left is (labelW + ascent)·sin45, not
+	// labelW·sin45. Leaving out the ascent keeps exactly 7px too little space,
+	// which is what cut off |00000000⟩ at 8 qubits. Going down, the matching corner
+	// is the lowest one, which gives (labelW + descent)·sin45 plus the 7px that the
+	// anchor already sits below the baseline.
 	const SIN45 = 0.7071;
-	const ASCENT = 0.95; // share of font size above the baseline, rounded up
+	const ASCENT = 0.95; // part of the font size that is above the baseline, rounded up
 	const DESCENT = 0.25;
 	$: labelReachX = (labelW + LABEL_FONT * ASCENT) * SIN45;
 	$: labelReachY = (labelW + LABEL_FONT * DESCENT) * SIN45 + 7;
 
-	// Capped so tall labels on wide registers can't squeeze the plot area away.
+	// Limited so long labels on many qubits can't squeeze the chart area to nothing.
 	$: labelGutter = Math.min(Math.ceil(labelReachY) + 2, Math.round(boxH * 0.45));
 
-	// The FIRST bar's label reaches left from its slot centre, so the axis gutter
-	// must cover `labelReachX − slotW/2`. That requirement depends on slotW, which
-	// depends on the gutter, so it is solved by iteration; the coupling is weak
-	// (the gutter is a small share of the width) and three passes converge well
-	// inside a pixel.
+	// The FIRST bar's label reaches left from the centre of its slot, so the axis
+	// margin must be at least `labelReachX − slotW/2`. But that depends on slotW,
+	// and slotW depends on the margin. So we just repeat the calculation a few
+	// times. The two affect each other only a little (the margin is a small part of
+	// the width), so after three rounds the answer is correct to well under a pixel.
 	$: barCount = histogramStates.length;
 	$: axisLeft = (() => {
 		let gutter = TICK_GUTTER;
@@ -378,8 +377,8 @@
 		popupWindow.document.close();
 	}
 
-	// Rebuilding the popup does a full document.write, so coalesce rapid store
-	// changes (e.g. dragging several gates) into a single rebuild once they settle.
+	// Rebuilding the popup rewrites the whole document, so when the store changes many
+	// times quickly (e.g. dragging several gates), wait until it stops and rebuild once.
 	function schedulePopupUpdate() {
 		if (!popupWindow || popupWindow.closed) return;
 		clearTimeout(popupRebuildTimer);
@@ -393,8 +392,8 @@
 		popupWindow = null;
 	}
 
-	// Refresh an open results popup when the bit-order preference changes (the
-	// popup isn't rebuilt by circuit/sim changes for a pure display-setting flip).
+	// Refresh an open results popup when the bit-order setting changes (changing
+	// only a display setting doesn't change the circuit, so nothing else would rebuild the popup).
 	$: if (bitOrder && popupWindow && !popupWindow.closed) schedulePopupUpdate();
 
 	onMount(() => {
@@ -437,10 +436,10 @@
 		{@const slotW = n > 0 ? plotW / n : plotW}
 		{@const barW = Math.min(slotW * 0.62, 72)}
 		{@const baseline = CHART_TOP + plotH}
-		<!-- Below `sm` the results grid drops its `auto-rows`, so this row is
-		     auto-height and a bare `flex-1 min-h-0` collapses to nothing. The
-		     min-height gives the chart a real box there; from `sm` up the row has a
-		     fixed (and drag-resizable) height, so it goes back to filling it. -->
+		<!-- Below `sm` the results grid has no `auto-rows`, so this row's height is
+		     automatic, and `flex-1 min-h-0` alone shrinks to nothing. The min-height
+		     gives the chart a real size there. From `sm` up, the row has a fixed (and
+		     drag-resizable) height, so the chart fills it again. -->
 		<div
 			class="flex-1 min-h-64 px-1 pb-1 sm:min-h-0"
 			bind:clientWidth={chartBoxW}
@@ -489,7 +488,7 @@
 							fill={item.prob > 0 ? barColor : 'var(--color-ternary-2)'}
 							rx="1.5"
 						/>
-						<!-- Value labels need ~34px of slot to sit side by side without colliding -->
+						<!-- Value labels need about 34px of space to sit side by side without overlapping -->
 						{#if item.prob > 0.015 && slotW >= 34}
 							<text
 								x={cx}

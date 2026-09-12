@@ -1,8 +1,8 @@
-"""Tests for the unauthenticated read endpoint behind FC share links, and for
-the IR validation that endpoint's data eventually reaches.
+"""Tests for the read endpoint behind FC share links (no login needed), and for
+the IR validation that this endpoint's data goes through.
 
-Share links are followed by visitors with no account, so this namespace answers
-without any credentials — which is what most of these tests are about.
+People who open share links may not have an account, so this endpoint answers
+without any login details. Most of these tests are about that.
 """
 
 import uuid
@@ -35,7 +35,7 @@ BELL_IR = {
 
 
 def clear_throttles():
-    """Throttle history lives in the default cache and leaks between tests."""
+    """Rate-limit history is kept in the default cache and carries over between tests."""
     from django.core.cache import cache
     cache.clear()
 
@@ -70,12 +70,12 @@ class PublicCircuitReadTests(APITestCase):
         self.assertNotIn("owner@example.com", str(resp.data))
 
     def test_response_exposes_exactly_the_published_fields(self):
-        """The contract, asserted positively.
+        """Checks the exact list of fields that are allowed.
 
-        The negative assertions above only catch leaks someone already thought
-        of; a field added to the serializer tomorrow would pass them all. This
-        pins the whole key set, so widening the public response has to be a
-        deliberate edit to this test.
+        The tests above only catch leaks that someone already thought of. A new
+        field added to the serializer tomorrow would pass all of them. This test
+        fixes the whole list of keys, so making the public response bigger has to
+        be done on purpose, by editing this test.
         """
         circuit = Circuit.objects.create(
             user=self.owner, name="Bell", ir=BELL_IR, is_public=True
@@ -87,11 +87,11 @@ class PublicCircuitReadTests(APITestCase):
         )
 
     def test_owner_is_never_loaded_from_the_database(self):
-        """The `.only()` projection, not just the serializer, keeps the owner out.
+        """The `.only()` query, not just the serializer, keeps the owner out.
 
-        Belt and braces: even if something downstream reached for `.user`, the
-        column was never selected, so it is not sitting in memory waiting to be
-        rendered into a response or a log line.
+        This is an extra safety layer. Even if some later code tried to use
+        `.user`, that column was never loaded, so it cannot end up in a response
+        or a log line by accident.
         """
         circuit = Circuit.objects.create(
             user=self.owner, name="Bell", ir=BELL_IR, is_public=True
@@ -100,7 +100,7 @@ class PublicCircuitReadTests(APITestCase):
         self.assertTrue({"user", "user_id"} & instance.get_deferred_fields())
 
     def test_private_circuit_is_404_not_403(self):
-        """403 would confirm the id exists, making this an enumeration oracle."""
+        """A 403 would tell people the id exists, which would let them guess ids to find circuits."""
         circuit = Circuit.objects.create(
             user=self.owner, name="Secret", ir=BELL_IR, is_public=False
         )
@@ -112,11 +112,12 @@ class PublicCircuitReadTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_stale_access_token_cookie_does_not_break_the_public_read(self):
-        """The regression that motivates `authentication_classes = []`.
+        """The bug that is the reason we set `authentication_classes = []`.
 
-        CookieJWTAuthentication is the project-wide default and raises on an
-        expired token, so a visitor still carrying a dead cookie would get a 401
-        from an endpoint that needs no account at all.
+        CookieJWTAuthentication is the default for the whole project, and it
+        raises an error when a token has expired. So a visitor who still has an
+        old, expired cookie would get a 401 from an endpoint that does not need
+        an account at all.
         """
         circuit = Circuit.objects.create(
             user=self.owner, name="Bell", ir=BELL_IR, is_public=True
@@ -136,8 +137,8 @@ class PublicCircuitReadTests(APITestCase):
 
 
 class IRValidationHardeningTests(APITestCase):
-    """validate_circuit_ir is shared by every path that accepts a circuit, so
-    these exercise it through the authenticated save endpoint."""
+    """validate_circuit_ir is used by every path that accepts a circuit, so
+    these tests call it through the save endpoint (which needs a login)."""
 
     def setUp(self):
         clear_throttles()
@@ -187,7 +188,7 @@ class IRValidationHardeningTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_rejects_operation_with_no_targets_at_all(self):
-        """The exact shape the old loose validator let through."""
+        """The exact shape that the old, less strict validator let through."""
         resp = self._post(self._with_op(
             {"kind": "unitary", "gate": "h", "column": 0}
         ))
@@ -217,8 +218,8 @@ class IRValidationHardeningTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_accepts_operations_without_ids(self):
-        """The handoff wire format drops per-op ids to keep links short; the
-        client regenerates them on import."""
+        """The handoff format leaves out each operation's id to keep links short.
+        The client makes new ids when it imports the circuit."""
         resp = self._post(BELL_IR)
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
 

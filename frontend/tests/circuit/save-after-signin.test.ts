@@ -3,12 +3,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 /**
  * Saving a circuit that was received while signed out.
  *
- * The sequence a recipient actually follows — open a share link with no
- * account, sign in from the side panel, then save — used to fail with
- * "Failed to save circuit" and never reach the network at all. `applyCircuit`
- * marks a received circuit as reset so auto-save leaves it alone, and nothing
- * cleared that flag while the user was signed out, so the save gave up before
- * making a request.
+ * The steps a person really follows (open a share link with no account, sign
+ * in from the side panel, then save) used to fail with "Failed to save
+ * circuit", without ever sending a request. `applyCircuit` marks a received
+ * circuit as reset so auto-save leaves it alone, and nothing cleared that flag
+ * while the user was signed out, so the save stopped before making a request.
  */
 
 const upsert = vi.fn(async (id: string, name: string, _ir: unknown) => ({
@@ -66,7 +65,7 @@ describe('saving a circuit received while signed out', () => {
 
 	it('saves an untouched shared circuit after the user signs in', async () => {
 		signOut();
-		// Arrives via /?circuit=<sender's id>, so the board carries their id.
+		// Opened with /?circuit=<sender's id>, so the board has the sender's id.
 		applyCircuit(ir(), { id: 'senders-id', name: 'Bell', saved: false });
 
 		signIn();
@@ -89,8 +88,8 @@ describe('saving a circuit received while signed out', () => {
 	});
 
 	it('adopts the id and name the server stored the copy under', async () => {
-		// The recipient already has a "Bell", so the backend copies under a fresh
-		// id and a deduped name; the board has to follow both.
+		// This user already has a "Bell", so the backend makes a copy with a new id
+		// and a new name. The board has to switch to both.
 		upsert.mockResolvedValueOnce({ circuit_id: 'my-own-copy', name: 'Bell (copy)' });
 
 		signOut();
@@ -112,8 +111,8 @@ describe('saving a circuit received while signed out', () => {
 	});
 
 	it('leaves an untouched circuit alone until something asks for a save', async () => {
-		// The signed-out edit tracking must not turn `applyCircuit` itself into an
-		// edit — merely opening a share link should store nothing.
+		// Tracking edits while signed out must not count `applyCircuit` itself as an
+		// edit. Just opening a share link should not save anything.
 		signIn();
 		applyCircuit(ir(), { id: 'senders-id', name: 'Bell', saved: false });
 

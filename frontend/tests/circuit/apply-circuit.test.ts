@@ -55,9 +55,9 @@ describe('applyCircuit', () => {
 	});
 
 	it('does not overwrite the circuit that was already open', () => {
-		// The regression this helper exists to prevent: auto-save writes to
-		// whatever currentCircuitId holds, so an import that leaves the previous
-		// id in place would persist itself over the user's saved circuit.
+		// The bug this helper exists to stop: auto-save writes to whatever id
+		// currentCircuitId holds, so an import that kept the old id would save
+		// itself over the user's saved circuit.
 		applyCircuit(ir('h'), { id: 'saved-circuit', name: 'My Work', saved: true });
 		expect(get(currentCircuitId)).toBe('saved-circuit');
 
@@ -88,8 +88,8 @@ describe('applyCircuit', () => {
 
 	it('treats anything without an explicit flag as not published', () => {
 		currentCircuitIsPublic.set(true);
-		// A file import or a handoff: not the visitor's published circuit, so the
-		// board must not keep claiming the previous circuit's public state.
+		// A file import or a handoff is not the visitor's own public circuit, so the
+		// board must not keep showing the old circuit's public setting.
 		applyCircuit(ir('x'), { name: 'Imported From Elsewhere' });
 
 		expect(get(currentCircuitIsPublic)).toBe(false);

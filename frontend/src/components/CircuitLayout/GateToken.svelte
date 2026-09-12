@@ -32,14 +32,14 @@
 	// Editable = anything with an angle (parametric) plus swap (target picker).
 	const editableGates = [...PARAMETRIC_GATE_IDS, 'swap'];
 
-	// The angle a parametric gate carries, shown on the token so the circuit can
-	// be read without opening each gate's editor. Rendered as a fraction of π
-	// ("π/2"), which is how the editor takes it too. Presentation only — the value
-	// already lives in the operation's `params`.
+	// The angle of an angle gate, shown on the token so you can read the circuit
+	// without opening each gate's edit box. Shown as a fraction of π ("π/2"),
+	// which is also how the edit box takes it. This is only for display. The real
+	// value is stored in the operation's `params`.
 	const isParametric = (g: string) => PARAMETRIC_GATE_IDS.includes(g as never);
 	const angleOf = (g: UnitaryOperation) => formatRadiansAsPi(g.params[0] ?? 0);
 
-	// Hover/long-press text spelling out what a tap-to-edit would change.
+	// Hover/long-press text that explains what tapping to edit would change.
 	function editableSummary(g: UnitaryOperation): string | undefined {
 		if (isParametric(g.gate)) return `${g.gate.toUpperCase()} angle ${angleOf(g)}`;
 		if (g.gate === 'swap') return `SWAP q${g.targets[0]} ↔ q${g.targets[1] ?? '?'}`;
@@ -50,17 +50,17 @@
 		if (!editableGates.includes(gate.gate)) return;
 		e.preventDefault();
 		e.stopPropagation();
-		// Android fires `contextmenu` partway through a long press. Swallow it and
-		// let the long-press timer open the menu, so touch takes exactly one path.
+		// Android fires `contextmenu` in the middle of a long press. Block it and let
+		// the long-press timer open the menu, so a touch opens the menu in only one way.
 		if (longPress.isTouchActive()) return;
 		dispatch('gatecontextmenu', { gate, x: e.clientX, y: e.clientY });
 	}
 
-	// Mobile: a tap both toggles the gate in the selection (which drives the
-	// delete button) and arms it for a tap-to-move — the two follow-up actions
-	// don't collide, since one is a tap on the trash button and the other a tap on
-	// the board. Arming only when the tapped gate is the whole selection keeps
-	// multi-select-to-delete working: adding a second gate drops back to delete-only.
+	// Mobile: a tap adds or removes the gate from the selection (which controls the
+	// delete button) and also picks it up for tap-to-move. These two don't clash,
+	// because one needs a tap on the trash button and the other a tap on the board.
+	// We only pick it up when the tapped gate is the only one selected, so selecting
+	// many gates to delete still works: adding a second gate goes back to delete-only.
 	function onMobileTap(gateId: string, gateType?: string, qubit?: number) {
 		toggleGateSelection(gateId);
 		const selected = get(selectedGateIds);
@@ -68,15 +68,15 @@
 		else disarmGate();
 	}
 
-	// Touch has no right-click, so hold an editable gate to open the same editor.
+	// Touch screens have no right-click, so holding an editable gate opens the same edit box.
 	$: editableOp = op.kind === 'unitary' && editableGates.includes(op.gate) ? op : null;
 
 	const longPress = createLongPress({
 		enabled: () => editableOp !== null,
 		onLongPress: (target) => {
 			if (!editableOp) return;
-			// Anchor under the gate rather than at the touch point, which is covered
-			// by the user's finger. Matches where a freshly dropped gate opens.
+			// Place it under the gate instead of at the touch point, which is hidden
+			// under the user's finger. This is the same place a newly dropped gate opens it.
 			const rect = target.getBoundingClientRect();
 			dispatch('gatecontextmenu', { gate: editableOp, x: rect.left, y: rect.bottom + 6 });
 		}
@@ -238,7 +238,7 @@
 		transform: translate(-50%, -50%);
 		z-index: 10;
 		white-space: nowrap;
-		/* Suppress iOS's own long-press callout so ours is the only thing a hold does. */
+		/* Turn off iOS's own long-press popup, so ours is the only thing a hold does. */
 		-webkit-touch-callout: none;
 	}
 
@@ -248,8 +248,8 @@
 		outline-offset: -1px;
 	}
 
-	/* The angle under a parametric gate's letter. Deliberately small and dimmed:
-	   it's secondary to the gate identity, and the column is only 58px wide. */
+	/* The angle under an angle gate's letter. Small and dimmed on purpose:
+	   it is less important than which gate it is, and the column is only 58px wide. */
 	.gate-angle {
 		font-size: 0.5rem;
 		margin-top: 1px;

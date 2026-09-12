@@ -1,9 +1,9 @@
-"""Unauthenticated route backing FC share links.
+"""Route behind FC share links. No login needed.
 
-Mounted at the project root rather than under /circuits/ so the published path
-reads as a product-level URL (/api/v1/circuits/<id>/) instead of leaking the
-Django app layout. The internal, cookie-authenticated routes in urls.py are
-untouched and keep their existing paths.
+It sits at the project root instead of under /circuits/, so the public path
+looks like a product URL (/api/v1/circuits/<id>/) and does not show how our
+Django apps are organised. The internal routes in urls.py (which use the
+login cookie) are not changed and keep their paths.
 """
 
 from django.urls import path

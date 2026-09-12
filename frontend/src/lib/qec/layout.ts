@@ -2,11 +2,11 @@ import type { SurfaceCodeLayout, Check, DataQubit } from './schema';
 
 // Rotated distance-3 surface code: 9 data qubits, 8 ancillas, 1 logical qubit.
 //
-// Coordinates follow Stim's convention — data qubits on odd-odd sites, checks
-// on even-even sites, y increasing downward — so the same numbers can be
-// handed straight to DETECTOR(x, y, r) annotations on the backend without a
-// translation step. `backend/qec/layout.py` mirrors this table exactly and a
-// golden test pins the two together.
+// Coordinates use the same rules as Stim: data qubits sit where x and y are
+// both odd, checks sit where x and y are both even, and y gets bigger going
+// down. This way the backend can pass the same numbers straight into
+// DETECTOR(x, y, r) lines without converting them. `backend/qec/layout.py` is
+// an exact copy of this table, and a test checks that the two stay the same.
 //
 //        x=0   1   2   3   4   5   6
 //  y=0             [X2]
@@ -29,8 +29,8 @@ const DATA_QUBITS: DataQubit[] = [
 	{ id: 8, x: 5, y: 5 }
 ];
 
-// Ancilla ordering here is the wire order used everywhere downstream: the
-// backend assigns ancilla qubit indices 9..16 in exactly this sequence.
+// The ancilla order here is the order used everywhere else in the app: the
+// backend gives the ancilla qubits the numbers 9 to 16 in exactly this order.
 const CHECKS: Check[] = [
 	{ id: 'X0', type: 'X', x: 2, y: 2, dataQubits: [0, 1, 3, 4] },
 	{ id: 'X1', type: 'X', x: 4, y: 4, dataQubits: [4, 5, 7, 8] },
@@ -46,13 +46,14 @@ export const D3_LAYOUT: SurfaceCodeLayout = {
 	distance: 3,
 	dataQubits: DATA_QUBITS,
 	checks: CHECKS,
-	// Weight-3 operator across the top row. Its weight IS the code distance:
-	// three simultaneous X errors on these qubits flip the logical qubit while
-	// firing no detectors at all.
+	// The logical Z operator acts on the 3 qubits of the top row, and that
+	// number (3) is the code distance. Note: the hidden failure is NOT on this
+	// row. It is a chain of three X errors down the left column (q0, q3, q6),
+	// which fires no detectors but still flips the logical qubit.
 	logicalZ: [0, 1, 2]
 };
 
-/** Extent of the coordinate grid, used to size the SVG viewBox. */
+/** Size of the coordinate grid, used to set the size of the SVG viewBox. */
 export const LATTICE_EXTENT = { minX: 0, minY: 0, maxX: 6, maxY: 6 };
 
 export function getCheck(id: string): Check | undefined {
@@ -64,12 +65,12 @@ export function getDataQubit(id: number): DataQubit | undefined {
 }
 
 /**
- * Checks whose stabiliser anticommutes with `pauli` on `qubit` — i.e. the
- * checks an error there would flip.
+ * Checks whose stabiliser anticommutes with `pauli` on `qubit`. In simple
+ * words: the checks that an error there would flip.
  *
- * X errors are caught by Z checks and vice versa; Y is both. This is used for
- * UI affordances only (previewing what an injection would light up). It is
- * never used to compute a syndrome: Stim is the sole source of that truth.
+ * Z checks catch X errors, X checks catch Z errors, and both kinds catch Y
+ * errors. We only use this in the UI (to preview what placing an error would
+ * light up). We never use it to work out the real syndrome. Only Stim does that.
  */
 export function checksAffectedBy(qubit: number, pauli: 'X' | 'Y' | 'Z'): string[] {
 	const detectedBy: CheckTypeFilter = pauli === 'X' ? 'Z' : pauli === 'Z' ? 'X' : 'both';

@@ -1,13 +1,14 @@
-"""Unauthenticated read endpoint backing FC share links.
+"""Read endpoint behind FC share links. No login needed.
 
-When someone follows `/?circuit=<id>`, the app fetches the circuit here. The
-visitor may have no account at all, which is the whole point of a share link, so
-this view carries no authentication.
+When someone opens `/?circuit=<id>`, the app loads the circuit from here. The
+visitor may have no account at all, which is the whole point of a share link,
+so this view has no authentication.
 
-`authentication_classes = []` is load-bearing, not tidiness: CookieJWTAuthentication
-is the project-wide default and it *raises* on an expired token, so leaving the
-default in place would 401 any visitor who happens to still be carrying a stale
-access_token cookie — on an endpoint that is supposed to need no account at all.
+`authentication_classes = []` is really needed here, it is not just for
+neatness. CookieJWTAuthentication is the default for the whole project and it
+*raises an error* on an expired token. If we kept the default, any visitor who
+still has an old access_token cookie would get a 401, on an endpoint that is
+meant to need no account at all.
 """
 
 from rest_framework.generics import RetrieveAPIView
@@ -25,12 +26,12 @@ class PublicCircuitDetailView(RetrieveAPIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'public_read'
 
-    # Exactly the fields PublicCircuitSerializer publishes. Anything outside this
-    # list — `user` above all — is never selected, so the owner is not merely
-    # left out of the response, it is never loaded into memory on this path.
+    # Only the fields that PublicCircuitSerializer shows. Anything not in this
+    # list, and most of all `user`, is never loaded. So the owner is not just
+    # left out of the response, it is never even loaded into memory here.
     PUBLIC_FIELDS = ('id', 'name', 'ir', 'created_at', 'updated_at')
 
     def get_queryset(self):
-        # 404 rather than 403 for private circuits: a 403 would confirm the id
-        # exists, turning this endpoint into an oracle for enumerating circuits.
+        # Return 404 instead of 403 for private circuits. A 403 would tell people
+        # the id exists, which would let them use this endpoint to guess ids and find circuits.
         return Circuit.objects.filter(is_public=True).only(*self.PUBLIC_FIELDS)

@@ -8,8 +8,8 @@ const overlap = (a: number[], b: number[]) => a.filter((q) => b.includes(q)).len
 
 describe('d=3 rotated surface code layout', () => {
 	it('has 9 data qubits, 8 checks, and encodes one logical qubit', () => {
-		// d^2 data, d^2 - 1 checks. The count is fixed by the code, not a choice:
-		// 9 - 8 = 1 logical qubit.
+		// d^2 data qubits, d^2 - 1 checks. These numbers come from the code itself,
+		// we did not choose them: 9 - 8 = 1 logical qubit.
 		expect(D3_LAYOUT.dataQubits).toHaveLength(9);
 		expect(D3_LAYOUT.checks).toHaveLength(8);
 		expect(D3_LAYOUT.distance).toBe(3);
@@ -33,8 +33,8 @@ describe('d=3 rotated surface code layout', () => {
 	});
 
 	it('places data on odd-odd sites and checks on even-even sites', () => {
-		// Stim's convention. The backend mirror depends on it, and so does the
-		// DETECTOR(x, y, r) annotation scheme.
+		// Stim's rule. The backend copy depends on it, and so do the
+		// DETECTOR(x, y, r) lines.
 		for (const q of D3_LAYOUT.dataQubits) {
 			expect(q.x % 2).toBe(1);
 			expect(q.y % 2).toBe(1);
@@ -51,10 +51,10 @@ describe('d=3 rotated surface code layout', () => {
 		}
 	});
 
-	// The defining property of a stabiliser code: all generators must commute.
-	// For Pauli products, two checks of opposite type commute iff they share an
-	// even number of data qubits. This is the test that catches a mistyped
-	// coordinate faster than any amount of staring at the picture.
+	// The main rule of a stabiliser code: all generators must commute.
+	// For Pauli products, an X check and a Z check commute only if they share an
+	// even number of data qubits. This test finds a wrongly typed coordinate much
+	// faster than staring at the picture ever could.
 	it('has mutually commuting stabilisers', () => {
 		for (const x of xChecks) {
 			for (const z of zChecks) {
@@ -76,8 +76,8 @@ describe('d=3 rotated surface code layout', () => {
 	});
 
 	it('has a logical Z whose weight is the code distance', () => {
-		// This is what "distance 3" means: three simultaneous errors is the
-		// smallest set that flips the logical qubit undetected.
+		// This is what "distance 3" means: three errors at the same time is the
+		// smallest number that can flip the logical qubit without being noticed.
 		expect(D3_LAYOUT.logicalZ).toHaveLength(D3_LAYOUT.distance);
 	});
 
@@ -90,8 +90,8 @@ describe('d=3 rotated surface code layout', () => {
 });
 
 describe('error-to-check anchors', () => {
-	// Hand-derived expectations. These are the same cases the backend goldens
-	// pin against Stim, so a disagreement localises immediately to one side.
+	// Expected results worked out by hand. The backend tests check the same cases
+	// against Stim, so if the two disagree we know right away which side is wrong.
 	const sorted = (ids: string[]) => [...ids].sort();
 
 	it('X on the centre qubit fires both adjacent Z checks', () => {
@@ -111,8 +111,8 @@ describe('error-to-check anchors', () => {
 	});
 
 	it('a logical Z error fires no X check at all', () => {
-		// Three Z errors along the logical operator are undetectable. The tool
-		// has to be able to show this, so the layout has to make it true.
+		// Three Z errors along the logical operator cannot be detected. The tool
+		// has to be able to show this, so the layout must make it true.
 		const firedX = D3_LAYOUT.logicalZ.flatMap((q) => checksAffectedBy(q, 'Z'));
 		const parity = new Map<string, number>();
 		for (const id of firedX) parity.set(id, (parity.get(id) ?? 0) + 1);

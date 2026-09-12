@@ -15,10 +15,10 @@ export interface UpsertResult {
 	name: string;
 }
 
-// Returns what the server actually stored, which is not always what was sent:
-// saving a circuit that was shared with you creates your own copy under a fresh
-// id, and renames it if you already have one by that name. Callers must adopt
-// the returned values or their next save will repeat the same collision.
+// Returns what the server really saved, which is not always what was sent.
+// Saving a circuit that was shared with you creates your own copy with a new
+// id, and renames it if you already have one with that name. Callers must use
+// the returned values, or their next save will hit the same clash again.
 export async function upsertCircuit(
 	circuit_id: string,
 	name: string,
@@ -49,8 +49,8 @@ export async function listCircuits(page = 1): Promise<PaginatedCircuits> {
 	return { results, next, count };
 }
 
-// Fetch every circuit id across all pages (used by "select all"). Requests the
-// server's max page size to minimise round-trips.
+// Gets every circuit id from all pages (used by "select all"). Asks for the
+// server's largest page size so fewer requests are needed.
 export async function fetchAllCircuitIds(): Promise<string[]> {
 	const ids: string[] = [];
 	let page = 1;
@@ -75,10 +75,9 @@ export async function renameCircuit(circuit_id: string, name: string): Promise<v
 	await api.patch(`/circuits/api/circuits/${circuit_id}/`, { name });
 }
 
-// Publishing a circuit makes it readable by anyone through the public API at
-// GET /api/v1/circuits/<id>/. Private circuits are
-// indistinguishable from circuits that do not exist, so unsetting this fully
-// revokes access.
+// Making a circuit public lets anyone read it through the public API at
+// GET /api/v1/circuits/<id>/. A private circuit looks exactly the same as a
+// circuit that does not exist, so turning this off fully removes access.
 export async function setCircuitPublic(circuit_id: string, is_public: boolean): Promise<void> {
 	await api.patch(`/circuits/api/circuits/${circuit_id}/`, { is_public });
 }

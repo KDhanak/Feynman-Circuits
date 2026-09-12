@@ -52,6 +52,6 @@ export function setTheme(pref: ThemePreference) {
 }
 
 export function toggleTheme() {
-	// Header button: flip the current appearance to an explicit choice.
+	// Header button: switch between light and dark, and save it as the user's choice.
 	theme.update((pref) => (resolve(pref) === 'dark' ? 'light' : 'dark'));
 }

@@ -15,7 +15,7 @@ class UserAdmin(DjangoUserAdmin):
     # Allow admins to search users by these fields
     search_fields = ("email", "first_name", "last_name")
 
-    # Organize fields into sections when viewing/editing an existing user
+    # Group the fields into sections when viewing or editing a user
     fieldsets = (
         # Basic authentication section
         (None, {"fields": ("email", "password")}),
@@ -38,15 +38,15 @@ class UserAdmin(DjangoUserAdmin):
         ("Important dates", {"fields": ("last_login",)}),
     )
 
-    # Organize fields into sections when creating a new user
+    # Group the fields into sections when creating a new user
     add_fieldsets = (
         (
             None,
             {
-                # Use wider form layout for better usability when adding users
+                # Use a wider form so it is easier to add users
                 "classes": ("wide",),
                 # Fields shown on the "Add User" form
-                # Note: password1 and password2 are for password confirmation
+                # Note: password1 and password2 are the "password" and "type it again" boxes
                 "fields": (
                     "email",
                     "first_name",
@@ -60,6 +60,6 @@ class UserAdmin(DjangoUserAdmin):
         ),
     )
 
-    # Use a side-by-side selection widget for many-to-many fields (groups and permissions)
-    # instead of a standard dropdown, making it easier to manage multiple selections
+    # Show groups and permissions as two side-by-side lists instead of a normal
+    # dropdown. This makes it easier to pick many of them at once.
     filter_horizontal = ("groups", "user_permissions")

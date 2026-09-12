@@ -11,7 +11,7 @@
 
 	let name = '';
 
-	// Seed the input with the incoming value each time the dialog opens.
+	// Fill the input with the given value each time the dialog opens.
 	$: if (open) name = value;
 
 	$: canConfirm = name.trim().length > 0;

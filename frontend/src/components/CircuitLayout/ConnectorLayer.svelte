@@ -10,11 +10,11 @@
 	let connectors: Connector[] = [];
 	let rafId: number | null = null;
 
-	// Connector <div>s are absolutely positioned inside boardEl, which is itself
-	// the horizontally-scrolling track. getBoundingClientRect gives *visual*
-	// coordinates, so we add the scroll offset to convert them into boardEl's
-	// content coordinate space — otherwise the lines drift by scrollLeft when the
-	// track is scrolled. (boardEl doesn't scroll vertically, so scrollTop is 0.)
+	// Connector <div>s are placed (position: absolute) inside boardEl, which is the
+	// track that scrolls sideways. getBoundingClientRect gives positions as seen on
+	// *screen*, so we add the scroll amount to turn them into positions inside
+	// boardEl. Otherwise the lines would be off by scrollLeft when the track is
+	// scrolled. (boardEl doesn't scroll up/down, so scrollTop is 0.)
 	function getCenter(el: Element, boardRect: DOMRect) {
 		const r = (el as HTMLElement).getBoundingClientRect();
 		const scrollLeft = boardEl?.scrollLeft ?? 0;
@@ -71,7 +71,7 @@
 			}
 		}
 
-		// SWAP connectors — line between the two × symbols
+		// SWAP connectors: a line between the two × symbols
 		for (const op of $circuitIR.operations) {
 			if (op.kind !== 'unitary') continue;
 			const unitOp = op as UnitaryOperation;
@@ -104,8 +104,8 @@
 		connectors = buildConnectors(boardEl.getBoundingClientRect());
 	}
 
-	// Exported so the parent's scroll handler can call it synchronously,
-	// avoiding a one-frame flicker when the board scrolls.
+	// Exported so the parent's scroll handler can call it straight away,
+	// which avoids a quick flicker when the board scrolls.
 	export function recomputeConnectorsSync() {
 		if (!boardEl) return;
 		connectors = buildConnectors(boardEl.getBoundingClientRect());

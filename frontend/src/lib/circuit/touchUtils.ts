@@ -1,20 +1,21 @@
 /*
  * Touch gesture helpers for the circuit board.
  *
- * Touch has no right-click, so a hold stands in for it. This is implemented by
- * hand rather than leaning on the browser's native long press because the gate
- * tokens are `draggable`, and browsers variously answer a hold with a drag lift,
- * a text-selection callout, or their own context menu.
+ * Touch screens have no right-click, so pressing and holding is used instead. We
+ * build this ourselves instead of using the browser's own long press, because
+ * the gate tokens are `draggable`, and different browsers react to a hold in
+ * different ways: starting a drag, showing a text-selection popup, or opening
+ * their own menu.
  */
 
 // How long a finger must stay down before the press counts as a long press.
 export const LONG_PRESS_MS = 500;
 
-// How far the finger may drift and still count as holding rather than scrolling.
+// How far the finger can move and still count as holding instead of scrolling.
 export const MOVE_TOLERANCE = 10;
 
-// How long to wait for the click that ends a long press before giving up on
-// swallowing it, so an unrelated click later is never eaten.
+// How long to wait for the click that ends a long press. After this we stop
+// waiting to block it, so a later, unrelated click is never blocked by mistake.
 const CLICK_SUPPRESS_WINDOW_MS = 800;
 
 export interface LongPressOptions {
@@ -32,16 +33,16 @@ export interface LongPressHandlers {
 	onTouchEnd: (e: TouchEvent) => void;
 	cancel: () => void;
 	/**
-	 * True between touchstart and touchend. Android fires `contextmenu` partway
-	 * through a long press; callers consult this to swallow it so touch takes
-	 * exactly one path to the menu.
+	 * True between touchstart and touchend. Android fires `contextmenu` in the
+	 * middle of a long press. Callers check this to block that event, so a touch
+	 * opens the menu in only one way.
 	 */
 	isTouchActive: () => boolean;
 }
 
 /**
- * Builds a set of touch handlers implementing press-and-hold. Each call owns its
- * own state, so one instance per component instance.
+ * Builds a set of touch handlers for press-and-hold. Each call keeps its own
+ * state, so use one per component.
  */
 export function createLongPress(options: LongPressOptions): LongPressHandlers {
 	const duration = options.durationMs ?? LONG_PRESS_MS;
@@ -90,7 +91,7 @@ export function createLongPress(options: LongPressOptions): LongPressHandlers {
 		touchActive = false;
 		if (fired) {
 			fired = false;
-			e.preventDefault(); // stop the emulated mouse events this tap would produce
+			e.preventDefault(); // stop the fake mouse events the browser would create for this tap
 		}
 	}
 
@@ -98,10 +99,11 @@ export function createLongPress(options: LongPressOptions): LongPressHandlers {
 }
 
 /**
- * Swallows the next click, once. The tap that ends a long press still produces a
- * click, which would otherwise reach both the element held (selecting it) and any
- * document-level close-on-click-outside handler — closing the very menu the press
- * just opened. Gives up after a short window so an unrelated click is never eaten.
+ * Blocks the next click, only once. The tap that ends a long press still
+ * creates a click. Without this, that click would reach the element being held
+ * (and select it) and also any "click outside to close" handler, which would
+ * close the menu the press just opened. Stops waiting after a short time, so a
+ * later, unrelated click is never blocked.
  */
 export function suppressNextClick() {
 	const swallow = (ev: MouseEvent) => {

@@ -15,9 +15,9 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
-    # DEBUG=True makes settings.py use SQLite + the console email backend (which
-    # Django's test runner swaps for an in-memory one), so no Postgres service
-    # or secrets are needed just to run the test suite.
+    # DEBUG=True makes settings.py use SQLite and the console email backend (which
+    # Django's test runner replaces with an in-memory one), so we don't need a
+    # Postgres service or any secrets just to run the tests.
     env:
       DEBUG: "True"
     steps:

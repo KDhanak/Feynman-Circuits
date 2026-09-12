@@ -84,8 +84,8 @@ function unitaryToOpenQasm(op: UnitaryOperation, version: QasmVersion): string {
 	return `${gate} q[${target}];`;
 }
 
-// Builds the controlled-gate instruction for `numControls` positive controls
-// (anti-controls are handled separately by an X-sandwich in generateControlledGate).
+// Builds the controlled-gate line for `numControls` normal controls
+// (anti-controls are handled separately, with an X-sandwich, in generateControlledGate).
 function controlledInstruction(
 	gate: UnitaryOperation['gate'],
 	controls: number[],
@@ -117,9 +117,9 @@ function controlledInstruction(
 	return `${prefix}${gate} ${qubits};`;
 }
 
-// Anti-controls aren't natively expressible in OpenQASM, so they're implemented
-// via an X-sandwich: flip the anti-control qubit, apply the gate with it as a
-// positive control, then flip it back.
+// OpenQASM has no built-in anti-controls, so we build them with an "X-sandwich":
+// flip the anti-control qubit, apply the gate with it as a normal control,
+// then flip it back.
 function generateControlledGate(op: UnitaryOperation, version: QasmVersion): string {
 	const target = op.targets[0];
 	const gate = op.gate;
@@ -156,7 +156,7 @@ function barrierToOpenQasm(op: BarrierOperation): string {
 	return `barrier ${qubits};`;
 }
 
-// Parse OpenQasm back to CircuitIR
+// Read OpenQASM code and turn it back into CircuitIR
 export function openQasmToCircuit(qasmCode: string): CircuitIR | null {
 	try {
 		const lines = qasmCode
@@ -192,8 +192,8 @@ export function openQasmToCircuit(qasmCode: string): CircuitIR | null {
 		if (numQubits === 0) return null;
 
 		// Parse gate operations
-		// Track the next free column for each qubit so multi-qubit gates
-		// don't collide with later single-qubit gates on the same qubit.
+		// Remember the next free column for each qubit, so multi-qubit gates
+		// don't clash with later single-qubit gates on the same qubit.
 		const qubitNextColumn = new Array<number>(numQubits).fill(0);
 		for (const line of lines) {
 			// Skip headers, imports, and declarations
@@ -244,8 +244,8 @@ export function openQasmToCircuit(qasmCode: string): CircuitIR | null {
 
 function parseGateLine(line: string, column: number): CircuitOperation | null {
 	// Single qubit gates: h q[0]; or H q[0];
-	// Regex is intentionally broad; isGateId + !isParametricGate narrows to
-	// non-parametric registry gates so adding a new gate here requires no regex change.
+	// The regex matches a lot on purpose. isGateId + !isParametricGate then keep only
+	// registry gates without an angle, so adding a new gate needs no regex change.
 	const singleQubitMatch = line.match(/^([a-z]+)\s+q\[(\d+)\];?$/i);
 	if (singleQubitMatch) {
 		const gate = singleQubitMatch[1].toLowerCase();

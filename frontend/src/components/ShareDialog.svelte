@@ -2,10 +2,10 @@
 	import Icon from '@iconify/svelte';
 	import { fade, scale } from 'svelte/transition';
 
-	// Which kind of link the parent produced. The two differ in ways the user has
-	// to understand before sending one, so the copy below is not shared:
-	//   'public' — points at a saved circuit; stays current and can be revoked.
-	//   'inline' — carries the circuit itself; a snapshot, and unrevocable once sent.
+	// Which kind of link the parent made. The user needs to understand how the two
+	// are different before sending one, so each has its own text below:
+	//   'public' — points to a saved circuit. It stays up to date and can be turned off.
+	//   'inline' — holds the circuit itself. It is a snapshot, and can't be taken back once sent.
 	export let kind: 'public' | 'inline' = 'inline';
 	export let link = '';
 	export let open = false;
@@ -14,7 +14,7 @@
 
 	let copied = false;
 
-	// Reset between openings so a reopened dialog does not start on "Copied".
+	// Reset each time it opens, so a reopened dialog does not start on "Copied".
 	$: if (!open) copied = false;
 
 	function handleCopy() {

@@ -1,12 +1,12 @@
 /**
- * The product tour: five coach marks covering where things are and what this
- * editor does that a notebook doesn't.
+ * The product tour: five coach marks that show where things are, and what this
+ * editor can do that a notebook can't.
  *
- * It has to land for two very different readers — someone who already knows what
+ * It has to work for two very different people: someone who already knows what
  * a Hadamard does and is asking "is this worth switching to?", and someone who
- * has never seen a circuit. So each step sells an affordance rather than
- * teaching a concept, and points at the `i` tooltips for the physics. That keeps
- * it honest for the newcomer without wasting the expert's time.
+ * has never seen a circuit. So each step shows off a feature instead of
+ * teaching a concept, and points to the `i` tooltips for the physics. That way
+ * it is fair to the beginner without wasting the expert's time.
  */
 
 export type TourStep = {
@@ -16,9 +16,9 @@ export type TourStep = {
 	title: string;
 	body: string;
 	/**
-	 * Skip silently when the anchor isn't in the DOM. The code panel is hidden on
-	 * mobile and in left-dock mode it moves, so steps must tolerate absence
-	 * rather than stranding the user on a step that can't render.
+	 * Skip this step quietly when the anchor isn't on the page. The code panel is
+	 * hidden on mobile, and it moves when docked on the left, so steps must handle
+	 * a missing anchor instead of leaving the user stuck on a step that can't show.
 	 */
 	optional?: boolean;
 };

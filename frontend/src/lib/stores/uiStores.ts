@@ -5,12 +5,12 @@ import type { GateData } from '../IR/schema';
 // UI drag state
 export const isDragging = writable<boolean>(false);
 
-// Mobile tap-to-place: the gate "armed" by tapping it in the palette. While set,
-// dropzones highlight and a tap on one places this gate. Null = nothing armed.
+// Mobile tap-to-place: the gate selected by tapping it in the palette. While it is
+// set, the drop zones light up and tapping one places this gate. Null = nothing selected.
 export const armedGate = writable<GateData | null>(null);
 
-// Layout configuration (not IR data, just UI geometry). Owned solely by
-// WireDropeZone, which fits the column width to the centre panel.
+// Layout settings (not IR data, just sizes for the UI). Only WireDropeZone
+// changes this. It sets the column width to fit the centre panel.
 export const circuitLayout = writable({
 	columnWidth: COLUMN_WIDTH,
 	// Full pixel width of the gate track (all columns). Used to give the wire

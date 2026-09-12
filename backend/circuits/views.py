@@ -13,9 +13,9 @@ from .serializers import CircuitListSerializer, CircuitDetailSerializer
 
 
 class CircuitPagination(PageNumberPagination):
-    """Paginate the circuits list so the payload stays bounded as users
-    accumulate circuits. Clients read `results`/`next`; `?page_size=` lets a
-    caller request a smaller page (capped at max_page_size)."""
+    """Split the circuits list into pages, so the response does not keep growing
+    as users save more circuits. Clients read `results`/`next`. A caller can ask
+    for a smaller page with `?page_size=` (up to max_page_size)."""
     page_size = 20
     page_size_query_param = 'page_size'
     max_page_size = 100
@@ -38,19 +38,19 @@ class CircuitViewSet(ModelViewSet):
         serializer.save(user=self.request.user)
 
     def update(self, request, *args, **kwargs):
-        """Upsert a circuit under a client-generated UUID.
+        """Create or update a circuit, using a UUID made by the client.
 
-        The client mints the id (`crypto.randomUUID()`), so a PUT to an id we do
-        not hold is the normal way circuits get created. That makes "no circuit
-        with this id belongs to you" ambiguous, and the two readings need
-        opposite handling:
+        The client makes the id itself (`crypto.randomUUID()`), so a PUT to an id
+        we don't have yet is the normal way new circuits get created. Because of
+        this, "none of your circuits has this id" can mean two different things,
+        and each one needs different handling:
 
-        * Nobody holds the id — a genuine first save. Create it as asked.
-        * Somebody else holds it — the user is saving a circuit that was shared
-          with them, whose id belongs to the sender. Inserting under that id
-          would collide with the sender's row, so they get their own copy under
-          a fresh id instead, and the response tells the client which id to use
-          from now on.
+        * Nobody has this id yet: this is a real first save. Create it as asked.
+        * Someone else has this id: the user is saving a circuit that was shared
+          with them, and the id belongs to the sender. Saving under that id would
+          clash with the sender's row, so instead the user gets their own copy
+          with a new id. The response tells the client which id to use from now
+          on.
         """
         partial = kwargs.pop('partial', False)
         pk = self.kwargs['pk']
@@ -59,17 +59,17 @@ class CircuitViewSet(ModelViewSet):
         owned_by_someone_else = instance is None and Circuit.objects.filter(pk=pk).exists()
 
         if owned_by_someone_else and partial:
-            # PATCH carries only the fields being changed, which is not enough to
-            # copy a circuit from — and a partial edit of a circuit you do not
-            # own is meaningless anyway. 404 rather than 403 so this matches the
-            # public endpoint and does not confirm the id exists.
+            # PATCH only sends the fields being changed, which is not enough to
+            # copy a circuit. And changing part of a circuit you don't own makes no
+            # sense anyway. We return 404 instead of 403 so this matches the public
+            # endpoint and does not reveal that the id exists.
             raise Http404
 
         data = request.data
         if owned_by_someone_else:
-            # Names are unique per user, so the copy cannot simply reuse the
-            # sender's. Resolve before validation, which would otherwise reject
-            # the duplicate.
+            # Each user's circuit names must all be different, so the copy cannot
+            # just use the sender's name. Pick a free name before validation,
+            # because validation would otherwise reject the repeated name.
             data = {
                 **data,
                 'name': Circuit.available_name(request.user, data.get('name')),
@@ -85,7 +85,7 @@ class CircuitViewSet(ModelViewSet):
                 name=serializer.validated_data.get('name', 'Untitled Circuit'),
                 ir=serializer.validated_data.get('ir'),
                 description=serializer.validated_data.get('description', ''),
-                # A copy is never born public; publishing is the new owner's call.
+                # A copy always starts private. Making it public is the new owner's choice.
                 is_public=False if owned_by_someone_else
                 else serializer.validated_data.get('is_public', False),
             )

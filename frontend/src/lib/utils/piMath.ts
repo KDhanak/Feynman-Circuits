@@ -1,9 +1,9 @@
 // ─────────────────────────────────────────────────────────────
 // Helpers for working with rotation angles as fractions of π,
 // which is how most people think about RX/RY/RZ angles
-// ("a quarter turn" / π/2) rather than raw radians (1.5708...).
-// Internally everything is still stored/computed in radians —
-// these only translate at the UI boundary.
+// ("a quarter turn" / π/2) instead of plain radians (1.5708...).
+// Inside the app everything is still stored and calculated in radians.
+// These helpers only convert when showing or reading values in the UI.
 // ─────────────────────────────────────────────────────────────
 
 const DENOMINATORS = [1, 2, 3, 4, 6, 8, 12];
@@ -11,7 +11,7 @@ const DENOMINATORS = [1, 2, 3, 4, 6, 8, 12];
 /**
  * Parses a user-entered angle string into radians.
  * Accepts: "pi", "-pi", "2pi", "pi/2", "-pi/4", "3pi/4", "0.5pi",
- * or a plain number (treated as radians). Returns null if unparseable.
+ * or a plain number (read as radians). Returns null if it can't be read.
  */
 export function parsePiInput(input: string): number | null {
 	if (input == null) return null;
@@ -40,9 +40,9 @@ export function parsePiInput(input: string): number | null {
 }
 
 /**
- * Formats a radian value as a fraction of π (e.g. "π/2", "-3π/4")
- * when it's a clean fraction with a small denominator, otherwise
- * falls back to a 3-decimal radian string.
+ * Shows a radian value as a fraction of π (e.g. "π/2", "-3π/4")
+ * when it is a simple fraction with a small number at the bottom.
+ * Otherwise it shows the radians with 3 decimal places.
  */
 export function formatRadiansAsPi(radians: number, tolerance = 1e-6): string {
 	if (Math.abs(radians) < tolerance) return '0';

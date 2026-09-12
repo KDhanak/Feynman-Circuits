@@ -17,18 +17,18 @@ import {
 import { simulateMultipleQubits } from './simulator';
 import { UNITARY_GATE_IDS, isGateId, isParametricGate } from '../quantum/gates';
 
-// UI-only: tracks controls placed in a column before any unitary op exists there
+// Only for the UI: remembers controls placed in a column before there is any unitary op in it
 export const pendingControls = writable<Map<number, number[]>>(new Map());
 
-// UI-only: tracks anti-controls placed in a column before any unitary op exists there
+// Only for the UI: remembers anti-controls placed in a column before there is any unitary op in it
 export const pendingAntiControls = writable<Map<number, number[]>>(new Map());
 
-// UI-only: after a parametric (RX/RY/RZ) or SWAP gate is dropped it's inserted
-// with a default, then its id is parked here so the board can pop the inline
-// editor for it — the same editor used for right-click edit. Null = nothing to open.
+// Only for the UI: when an angle gate (RX/RY/RZ) or a SWAP gate is dropped, it is
+// added with a default value, and its id is stored here so the board can open the
+// small edit box for it (the same one used for right-click edit). Null = nothing to open.
 export const editGateRequest = writable<string | null>(null);
 
-// Default rotation angle for a freshly dropped RX/RY/RZ gate (π/2).
+// Default rotation angle for a newly dropped RX/RY/RZ gate (π/2).
 const DEFAULT_ROTATION = Math.PI / 2;
 
 /*──────────────────────── simulation ────────────────────*/
@@ -60,7 +60,7 @@ function isCellOccupied(ir: CircuitIR, col: number, qubit: number, excludeId?: s
 	);
 }
 
-// Unions pending controls/anti-controls for a column with any already present
+// Joins the waiting controls/anti-controls for a column with the ones already
 // on other unitary ops in that column.
 function collectControlsInColumn(
 	ir: CircuitIR,
@@ -80,8 +80,8 @@ function collectControlsInColumn(
 	return { controls: [...controls], antiControls: [...antiControls] };
 }
 
-// Removes any pending controls/anti-controls for a column once they've been
-// consumed by a newly inserted operation.
+// Removes the waiting controls/anti-controls for a column once a newly added
+// operation has used them.
 function consumePendingControls(col: number, controls: number[], antiControls: number[]) {
 	if (controls.length > 0) {
 		pendingControls.update((map) => {
@@ -99,8 +99,8 @@ function consumePendingControls(col: number, controls: number[], antiControls: n
 	}
 }
 
-// Shared parametric-gate drop handler (RX/RY/RZ/P …) — inserts the gate with a
-// default angle, then requests the inline editor so the user can adjust it.
+// Shared drop handler for angle gates (RX/RY/RZ/P …). Adds the gate with a
+// default angle, then opens the small edit box so the user can change it.
 function dropParametricGate(
 	gate: UnitaryOperation['gate'],
 	col: number,
@@ -133,8 +133,8 @@ function dropParametricGate(
 	editGateRequest.set(unitaryOp.id);
 }
 
-// Pick a partner qubit for a freshly dropped SWAP: prefer the adjacent wire, then
-// any other free cell in the column. Returns null if the column has no room.
+// Picks the second qubit for a newly dropped SWAP: first try the wire next to it,
+// then any other free cell in the column. Returns null if the column has no room.
 function pickSwapPartner(ir: CircuitIR, col: number, qubit: number): number | null {
 	const q = ir.registers.q;
 	const preferred = qubit + 1 < q ? qubit + 1 : qubit - 1;
@@ -146,8 +146,8 @@ function pickSwapPartner(ir: CircuitIR, col: number, qubit: number): number | nu
 	return null;
 }
 
-// Shared CONTROL/ANTI_CONTROL drop handler — attaches to existing ops in the
-// column, or parks the qubit in the pending map if no op exists yet.
+// Shared drop handler for CONTROL/ANTI_CONTROL. Attaches to the ops already in
+// the column, or keeps the qubit in the waiting list if there is no op yet.
 function applyControlToColumn(
 	field: 'controls' | 'antiControls',
 	store: typeof pendingControls,
@@ -204,10 +204,11 @@ export function handleDragOver(e: DragEvent) {
 
 /*──────────────────────── tap-to-place ──────────────────*/
 
-// Arms a gate that is already on the board for a tap-to-move. Touch has no
-// usable HTML5 drag, so moving a placed gate mirrors the palette's tap-to-place:
-// tap the gate, then tap where it should go. `gateType`/`qubit` are set only for
-// control dots, whose move semantics differ (all siblings travel together).
+// Selects a gate that is already on the board so it can be moved by tapping.
+// Touch screens have no usable HTML5 drag, so moving a placed gate works like
+// the palette's tap-to-place: tap the gate, then tap where it should go.
+// `gateType`/`qubit` are only set for control dots, because they move
+// differently (all the dots that belong together move at once).
 export function armGateForMove(gateId: string, gateType?: string, qubit?: number) {
 	armedGate.set({ source: 'wire', gateId, gateType, qubit });
 }
@@ -216,14 +217,14 @@ export function disarmGate() {
 	armedGate.set(null);
 }
 
-// Mobile tap-to-place: drops the currently armed gate at (col, qubit) by reusing
-// the full handleDrop pipeline via a synthetic event — so ghost-wire expansion,
-// controls, SWAP and parametric gates all behave identically to a real
-// drag-drop (including popping the inline editor for RX/RY/RZ/SWAP).
+// Mobile tap-to-place: places the selected gate at (col, qubit). It does this by
+// sending a fake drop event through the normal handleDrop code, so adding a new
+// wire, controls, SWAP and angle gates all work exactly like a real drag-drop
+// (including opening the small edit box for RX/RY/RZ/SWAP).
 //
-// A palette gate stays armed so repeated taps place more of it; a gate moved
-// from the board disarms, since it has arrived and a second tap elsewhere should
-// not drag it along.
+// A gate from the palette stays selected, so you can keep tapping to place more
+// of it. A gate moved from the board is unselected, because it has reached its
+// spot and a second tap somewhere else should not move it again.
 export function placeArmedGate(col: number, qubit: number) {
 	const armed = get(armedGate);
 	if (!armed) return;
@@ -254,7 +255,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 	const pending = get(pendingControls);
 	const antiPending = get(pendingAntiControls);
 
-	/*─── Ghost wire drop: expand qubit count ───*/
+	/*─── Ghost wire drop: add more qubits ───*/
 	if (qubit === ir.registers.q && ir.registers.q < 8) {
 		setNumQubitsIR(ir.registers.q + 1);
 		const freshIR = get(circuitIR);
@@ -273,7 +274,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 
 	/*─── Move / copy existing gate ───*/
 	if (parsed.source === 'wire' && parsed.gateId) {
-		// Control/anti-control dot drag: move all sibling gates to the new column
+		// Dragging a control/anti-control dot: move all the gates that belong with it to the new column
 		const isControlDrag =
 			(parsed.gateType === 'CONTROL' || parsed.gateType === 'ANTI_CONTROL') &&
 			parsed.qubit !== undefined;
@@ -303,7 +304,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 			return;
 		}
 
-		// SWAP gate: both targets travel together — only the column changes
+		// SWAP gate: both targets move together, only the column changes
 		const draggedOp = ir.operations.find((op) => op.id === parsed.gateId);
 		const isSwap = draggedOp?.kind === 'unitary' && (draggedOp as UnitaryOperation).gate === 'swap';
 		if (isSwap && draggedOp) {
@@ -329,7 +330,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 			return;
 		}
 
-		// Collect pending + existing controls in destination column
+		// Gather the waiting and existing controls in the column we are dropping into
 		const { controls: allControls, antiControls: allAntiControls } = collectControlsInColumn(
 			ir,
 			col,
@@ -382,7 +383,7 @@ function _dropPaletteGate(
 	const upperType = gateType.toUpperCase();
 	const lowerType = gateType.toLowerCase();
 
-	// Any parametric gate (RX/RY/RZ/P …) drops with a default angle + inline editor.
+	// Any angle gate (RX/RY/RZ/P …) is dropped with a default angle and opens the small edit box.
 	if (isGateId(lowerType) && isParametricGate(lowerType)) {
 		dropParametricGate(lowerType, col, qubit, ir, pending, antiPending);
 		return;

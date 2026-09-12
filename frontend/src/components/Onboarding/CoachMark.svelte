@@ -18,7 +18,7 @@
 	let panelStyle = '';
 	let holeStyle = '';
 
-	const PAD = 6; // breathing room between the spotlight ring and the element
+	const PAD = 6; // space between the spotlight ring and the element
 
 	async function place() {
 		if (!anchorEl) return;
@@ -26,8 +26,8 @@
 
 		const r = anchorEl.getBoundingClientRect();
 
-		// The "hole" is a transparent box over the anchor with a huge spread
-		// shadow, which dims everything outside it in one element.
+		// The "hole" is a see-through box over the anchor with a very large shadow,
+		// which darkens everything outside it using just one element.
 		holeStyle = `left:${r.left - PAD}px; top:${r.top - PAD}px; width:${r.width + PAD * 2}px; height:${r.height + PAD * 2}px;`;
 
 		const { left, top, width } = positionPopover(r, panelEl?.offsetHeight ?? 180, {
@@ -37,7 +37,7 @@
 		panelStyle = `left:${left}px; top:${top}px; width:${width}px;`;
 	}
 
-	// Re-place whenever the target changes, and keep it pinned as things move.
+	// Move it again whenever the target changes, and keep it in place as things move.
 	$: if (anchorEl) {
 		void anchorEl;
 		place();
@@ -54,7 +54,7 @@
 	let observer: ResizeObserver | undefined;
 	onMount(() => {
 		// The anchor is scrolled into view first so the spotlight never lands
-		// off-screen on a short viewport.
+		// off-screen on a short screen.
 		anchorEl?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 		observer = new ResizeObserver(() => place());
 		observer.observe(document.body);
@@ -67,8 +67,8 @@
 
 <svelte:window on:resize={place} on:scroll={place} on:keydown={onKey} />
 
-<!-- Dimmer + spotlight. `pointer-events: none` so the ring never eats a click;
-     the click-blocking layer is the separate backdrop below it. -->
+<!-- Dark overlay + spotlight. `pointer-events: none` so the ring never catches a
+     click. Clicks are blocked by the separate backdrop below it. -->
 <div class="pointer-events-none fixed inset-0 z-300" transition:fade={{ duration: 150 }}>
 	<div
 		class="absolute rounded-md transition-all duration-200 ease-out"
@@ -76,8 +76,8 @@
 	></div>
 </div>
 
-<!-- Swallows clicks on the rest of the page while the tour is running. Clicking
-     the dimmed area exits, which is what people expect from an overlay. -->
+<!-- Blocks clicks on the rest of the page while the tour is running. Clicking
+     the dark area closes the tour, which is what people expect from an overlay. -->
 <div
 	class="fixed inset-0 z-300"
 	role="button"
@@ -106,7 +106,7 @@
 	<p class="text-xs leading-relaxed" style="color: var(--color-muted);">{body}</p>
 
 	<div class="mt-3 flex items-center justify-between gap-2">
-		<!-- Progress dots: cheap, and they promise the tour is short. -->
+		<!-- Progress dots: simple, and they show that the tour is short. -->
 		<div class="flex items-center gap-1" aria-label="Step {stepIndex + 1} of {stepCount}">
 			{#each Array(stepCount) as _, i (i)}
 				<span
@@ -142,8 +142,8 @@
 </div>
 
 <style>
-	/* Matches the surface treatment ConfirmDialog uses, so the tour reads as
-	   part of the app rather than a bolted-on library widget. */
+	/* Uses the same look as ConfirmDialog, so the tour feels like part of the
+	   app and not like an add-on from some library. */
 	div[role='dialog'] {
 		background-color: var(--color-surface);
 	}

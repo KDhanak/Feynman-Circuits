@@ -1,10 +1,10 @@
 """API tests for the accounts app: sign-up, sign-in, session (me/refresh/
 sign-out), password change, and the OTP password-reset flow.
 
-These lock the auth contract so it can be refactored (or touched by an
-automated agent) with a real safety net. Django's test runner swaps the email
-backend for an in-memory one, so the OTP/confirmation emails land in
-`mail.outbox` instead of being sent.
+These tests fix how login should behave, so the code can be changed later
+(by a person or by an automated agent) without breaking it by accident.
+Django's test runner uses a fake in-memory email backend, so the OTP and
+confirmation emails go into `mail.outbox` instead of being really sent.
 """
 
 from datetime import timedelta
@@ -22,8 +22,8 @@ from .models import PasswordResetOTP
 
 User = get_user_model()
 
-# A password that clears every configured Django validator (length, not common,
-# not all-numeric, not similar to the user's email/name).
+# A password that passes every Django password rule we use (long enough, not
+# common, not all numbers, not similar to the user's email or name).
 STRONG_PASSWORD = "Str0ngP@ssw0rd!"
 
 
@@ -50,7 +50,7 @@ class SignUpTests(APITestCase):
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         self.assertEqual(resp.data["email"], "new@example.com")
         user = User.objects.get(email="new@example.com")
-        # Password must be stored hashed, never in clear text.
+        # The password must be stored hashed, never as plain text.
         self.assertNotEqual(user.password, STRONG_PASSWORD)
         self.assertTrue(user.check_password(STRONG_PASSWORD))
 
@@ -178,7 +178,7 @@ class SessionTests(APITestCase):
         self.client.cookies["refresh_token"] = refresh
         resp = self.client.post(self.signout_url)
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        # delete_cookie sets the value to empty with an expiry in the past.
+        # delete_cookie empties the value and sets the expiry date in the past.
         self.assertEqual(resp.cookies["access_token"].value, "")
         self.assertEqual(resp.cookies["refresh_token"].value, "")
 
@@ -226,12 +226,13 @@ class PasswordResetFlowTests(APITestCase):
     confirm_url = "/accounts/api/auth/password-reset/confirm/"
 
     def setUp(self):
-        # The reset endpoints are rate-limited (password_reset scope, 5/hour)
-        # and DRF's throttle counters persist in a cache across test methods.
-        # These tests exercise the reset *logic*, not the throttle, so null the
-        # rate in place (DRF binds THROTTLE_RATES to this dict at import, so
-        # mutating it is what actually reaches the live throttle) and restore it
-        # in tearDown. The lockout test also needs >5 requests to run at all.
+        # The reset endpoints have a rate limit (password_reset scope, 5 per hour),
+        # and DRF keeps its rate-limit counters in a cache that carries over between
+        # test methods. These tests check the reset *logic*, not the rate limit, so we
+        # turn the limit off here and put it back in tearDown. We change this dict
+        # itself because DRF reads THROTTLE_RATES from this exact dict when it loads,
+        # so changing it is what really affects the running limit. The lockout test
+        # also needs more than 5 requests, so it could not run otherwise.
         cache.clear()
         self._orig_rates = dict(api_settings.DEFAULT_THROTTLE_RATES)
         api_settings.DEFAULT_THROTTLE_RATES["password_reset"] = None
@@ -259,7 +260,8 @@ class PasswordResetFlowTests(APITestCase):
 
     def test_request_for_unknown_email_is_indistinguishable(self):
         resp = self.client.post(self.request_url, {"email": "ghost@example.com"})
-        # Same 200 + generic message, but no OTP and no email — anti-enumeration.
+        # Same 200 and the same general message, but no OTP and no email. This stops
+        # people from finding out which emails have an account.
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(PasswordResetOTP.objects.count(), 0)
         self.assertEqual(len(mail.outbox), 0)
@@ -296,7 +298,7 @@ class PasswordResetFlowTests(APITestCase):
                 self.verify_url, {"email": self.user.email, "otp": "999999"}
             )
         otp = PasswordResetOTP.objects.get(user=self.user)
-        self.assertTrue(otp.is_used)  # burned after the attempt cap
+        self.assertTrue(otp.is_used)  # used up after too many tries
 
     def test_full_reset_flow_changes_password(self):
         otp = self._request_otp()

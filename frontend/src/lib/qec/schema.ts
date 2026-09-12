@@ -1,8 +1,8 @@
 // Types for the rotated distance-3 surface code memory experiment.
 //
-// Additive and self-contained: nothing here touches CircuitIR. A QEC run is
-// not a circuit the user built, it is an experiment configuration (how many
-// rounds, which errors) whose results come back from the backend.
+// This file stands on its own: nothing here changes or uses CircuitIR. A QEC
+// run is not a circuit the user built. It is a set of experiment settings (how
+// many rounds, which errors), and the results come back from the backend.
 
 export type Pauli = 'X' | 'Y' | 'Z';
 export type CheckType = 'X' | 'Z';
@@ -26,11 +26,11 @@ export interface SurfaceCodeLayout {
 	distance: 3;
 	dataQubits: DataQubit[];
 	checks: Check[];
-	/** Support of the logical Z operator. Its size is the code distance. */
+	/** The qubits the logical Z operator acts on. How many there are is the code distance. */
 	logicalZ: number[];
 }
 
-/** Applied BEFORE the given round's stabiliser measurement. */
+/** Added just BEFORE the stabiliser measurement of the given round. */
 export interface InjectedError {
 	qubit: number;
 	pauli: Pauli;
@@ -59,36 +59,36 @@ export interface LogicalVerdict {
 	success: boolean;
 }
 
-// ── The three epistemic layers ──────────────────────────────────────────
-// Kept as separate types rather than flat fields so that no panel can blur
-// them by accident: what was DONE to the qubits, what the ancillas SAW, and
-// what the decoder GUESSED are three different kinds of claim, and a tool
-// that presents them as one teaches the wrong thing.
+// ── The three layers of knowledge ──────────────────────────────────────────
+// Kept as separate types, not mixed together as plain fields, so no panel can
+// mix them up by accident. What was DONE to the qubits, what the ancillas SAW,
+// and what the decoder GUESSED are three different kinds of information. A
+// tool that shows them as one thing teaches the wrong idea.
 
 /**
- * Layer 1 — GROUND TRUTH. Known only because the user injected it. On real
- * hardware this layer is unobservable, and that asymmetry is the single most
- * important thing the visualisation has to convey.
+ * Layer 1: GROUND TRUTH. We only know this because the user placed the errors.
+ * On a real quantum computer nobody can see this layer. Showing that difference
+ * is the most important thing this visualisation has to do.
  */
 export interface PhysicalErrorLayer {
 	injected: InjectedError[];
 }
 
 /**
- * Layer 2 — MEASURED. What the ancillas report, and everything a real decoder
+ * Layer 2: MEASURED. What the ancillas report. This is all that a real decoder
  * is ever allowed to see.
  */
 export interface SyndromeLayer {
-	/** checkId -> frame-corrected value (cumulative XOR of detection events). */
+	/** checkId -> the check's current value (all detection events so far, XORed together). */
 	syndrome: Record<string, 0 | 1>;
 	/** checkId -> whether this check fired in this round. */
 	detectionEvents: Record<string, 0 | 1>;
 }
 
 /**
- * Layer 3 — INFERRED. The decoder's hypothesis. Consistent with layer 2, but
- * it is NOT layer 1 and may differ from it: a correction is a guess, never
- * "the error that happened".
+ * Layer 3: INFERRED. The decoder's best guess. It agrees with layer 2, but it
+ * is NOT layer 1 and may be different from it. A correction is a guess, never
+ * "the error that really happened".
  */
 export interface DecoderInferenceLayer {
 	matching: MatchingEdge[];
@@ -104,15 +104,15 @@ export interface TimelineSnapshot {
 }
 
 export interface QecResult {
-	/** Echoed by the backend so a FE/BE layout drift shows up as a test failure. */
+	/** Sent back by the backend, so if the frontend and backend layouts ever differ, a test fails. */
 	layout: SurfaceCodeLayout;
 	request: QecRequest;
-	/** 2 * rounds + 1 steps: inject + measure per round, then one decode step. */
+	/** 2 * rounds + 1 steps: place + measure for each round, then one decode step. */
 	timeline: TimelineSnapshot[];
 	/**
-	 * Layer 3 sits at result level, not per-snapshot: MWPM decodes the whole
-	 * detection history in one pass, so there is no per-round inference to show.
-	 * Null until the decoder lands (Phase 5).
+	 * Layer 3 belongs to the whole result, not to each step. MWPM decodes the whole
+	 * detection history in one go, so there is no separate guess for each round.
+	 * Null until the decoder is added (Phase 5).
 	 */
 	inferred: DecoderInferenceLayer | null;
 }

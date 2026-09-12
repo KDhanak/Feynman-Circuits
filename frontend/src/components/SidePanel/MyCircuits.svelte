@@ -31,8 +31,8 @@
 
 	export let onClose: () => void;
 
-	// Hydrate from the module-level cache so a reopen renders instantly; onMount
-	// still revalidates in the background (no spinner when we already have data).
+	// Start with the saved cache so reopening shows the list right away. onMount
+	// still fetches fresh data in the background (no spinner when we already have data).
 	const cached = get(circuitListCache);
 
 	let circuits: CircuitSummary[] = cached.circuits;
@@ -49,7 +49,7 @@
 	let contextMenuCircuit: CircuitSummary | null = null;
 	let contextMenuEl: HTMLElement | null = null;
 
-	// Multi-select for bulk delete. Reassigned (not mutated) so the list re-renders.
+	// Multi-select for deleting many at once. We replace the value (not change it in place) so the list redraws.
 	let selectedIds = new Set<string>();
 	let bulkDeleting = false;
 	let confirmDeleteOpen = false;
@@ -58,11 +58,11 @@
 	$: allSelected = total > 0 && selectedCount >= total;
 
 	// Any active selection puts the list in "select mode": clicking a row toggles
-	// its selection instead of loading the circuit, so a stray click can't open one.
+	// its selection instead of loading the circuit, so an accidental click can't open one.
 	$: selecting = selectedCount > 0;
 
-	// Select every circuit — including ones on pages not yet loaded — by fetching
-	// all ids. Toggles back to a clear when everything is already selected.
+	// Select every circuit, including ones on pages not loaded yet, by fetching
+	// all ids. If everything is already selected, it clears the selection instead.
 	async function toggleSelectAll() {
 		if (allSelected) {
 			clearSelection();
@@ -175,14 +175,14 @@
 		contextMenuY = e.clientY;
 		contextMenuVisible = true;
 
-		// Place it once it exists, because its height depends on which items the
-		// circuit gets (public circuits have two extra rows). Flip to the other
-		// side of the cursor when that side has no room, then clamp, so it can
-		// never end up half off-screen near an edge.
+		// Position it once it exists, because its height depends on which items the
+		// circuit gets (public circuits have two extra rows). Move it to the other
+		// side of the cursor when there is no room, then keep it inside the screen,
+		// so it can never end up half off-screen near an edge.
 		//
-		// offsetWidth/Height rather than getBoundingClientRect: the open
-		// animation starts at scale(0.95), and a measured rect would inherit that
-		// and place the menu a few pixels out.
+		// We use offsetWidth/Height instead of getBoundingClientRect: the opening
+		// animation starts at scale(0.95), and a measured rect would include that
+		// and place the menu a few pixels off.
 		await tick();
 		if (!contextMenuEl) return;
 		const MARGIN = 8;
@@ -193,8 +193,8 @@
 
 		const flippedX = e.clientX + w + MARGIN > vw ? e.clientX - w : e.clientX;
 		const flippedY = e.clientY + h + MARGIN > vh ? e.clientY - h : e.clientY;
-		// Clamp after flipping: flipping alone is not enough when the menu is
-		// wider or taller than the space on either side.
+		// Keep it on screen after flipping: flipping alone is not enough when the
+		// menu is wider or taller than the space on either side.
 		contextMenuX = Math.max(MARGIN, Math.min(flippedX, vw - w - MARGIN));
 		contextMenuY = Math.max(MARGIN, Math.min(flippedY, vh - h - MARGIN));
 	}
@@ -275,10 +275,10 @@
 		}
 	}
 
-	// Reassign rather than mutating `circuit.is_public` in place — Svelte does not
-	// track property writes on an object inside an array, so the row's Public badge
-	// would not re-render. The cache is updated too, since reopening the panel
-	// rehydrates from it.
+	// Replace the object instead of changing `circuit.is_public` in place. Svelte does
+	// not notice changes to a property of an object inside an array, so the row's
+	// Public badge would not redraw. The cache is updated too, because reopening the
+	// panel loads from it.
 	function markPublic(circuit_id: string, is_public: boolean) {
 		circuits = circuits.map((c) => (c.circuit_id === circuit_id ? { ...c, is_public } : c));
 		setPublicInCircuitListCache(circuit_id, is_public);
@@ -286,9 +286,9 @@
 		if (circuit_id === get(currentCircuitId)) currentCircuitIsPublic.set(is_public);
 	}
 
-	// Publish the circuit (if it isn't already) and put a shareable link on the
-	// clipboard. Publishing is implicit in asking for a link — a link to a
-	// private circuit would just 404 for whoever received it.
+	// Make the circuit public (if it isn't already) and copy a share link to the
+	// clipboard. Asking for a link means making it public, because a link to a
+	// private circuit would just give a 404 to whoever opens it.
 	async function handleShare(circuit: CircuitSummary) {
 		closeContextMenu();
 		try {
@@ -577,7 +577,7 @@
 	</aside>
 </div>
 
-<!-- Context menu rendered at root level so it's never clipped by the aside -->
+<!-- Context menu drawn at the top level so the side panel never cuts it off -->
 {#if contextMenuVisible && contextMenuCircuit}
 	<div
 		bind:this={contextMenuEl}
@@ -674,8 +674,8 @@
 />
 
 <style>
-	/* Custom checkbox: transparent background when unselected, brand fill + check
-	   when selected (native `accent-color` leaves an opaque white box unchecked). */
+	/* Custom checkbox: see-through background when not selected, brand colour and a
+	   tick when selected (the browser's own `accent-color` leaves a solid white box when unchecked). */
 	.select-checkbox {
 		appearance: none;
 		-webkit-appearance: none;

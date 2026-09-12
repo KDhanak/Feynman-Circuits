@@ -5,9 +5,9 @@
 	export let quick: string;
 	export let detail: string = '';
 
-	// Extra classes for the wrapper. Needed where the tooltip's root IS a layout
-	// child (a grid item, say) and the caller has to place it. Renamed because
-	// `class` is reserved in a script block.
+	// Extra classes for the wrapper. Needed when the tooltip's outer element IS part
+	// of the layout (for example a grid item) and the caller has to place it. It
+	// has a different name because `class` is a reserved word in a script block.
 	let className = '';
 	export { className as class };
 

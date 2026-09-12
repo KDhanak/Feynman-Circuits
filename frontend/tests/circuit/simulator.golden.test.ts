@@ -5,12 +5,12 @@ import type { CircuitIR, UnitaryOperation } from '../../src/lib/IR/schema';
 // ─────────────────────────────────────────────────────────────
 // Golden tests for simulateMultipleQubits.
 //
-// These pin down the simulator's current, trusted output for a
-// representative set of circuits (every gate, parametric angles,
-// swap, single/multi controls, and anti-controls). They exist as
-// a regression tripwire for the GATE_REGISTRY-based refactor of
-// simulator.ts: if a matrix, sign, or phase convention changes,
-// one of these will fail.
+// These save the simulator's current, trusted output for a
+// good mix of circuits (every gate, angle gates, swap, one or
+// more controls, and anti-controls). They are here to catch
+// mistakes when simulator.ts was rewritten to use GATE_REGISTRY:
+// if a matrix, a sign, or a phase rule changes, one of these
+// will fail.
 // ─────────────────────────────────────────────────────────────
 
 function op(
@@ -38,8 +38,8 @@ function circuit(numQubits: number, operations: UnitaryOperation[]): CircuitIR {
 
 const round = (n: number, dp = 6) => Number(n.toFixed(dp));
 
-// Reduces a state vector down to {basisString: [re, im]} for amplitudes
-// above a tiny floating-point threshold, so snapshots stay readable.
+// Turns a state vector into {basisString: [re, im]}, keeping only amplitudes
+// bigger than a tiny rounding-error limit, so snapshots stay easy to read.
 function snapshot(result: ReturnType<typeof simulateMultipleQubits>, _numQubits: number) {
 	const out: Record<string, [number, number]> = {};
 	for (const [basis, prob] of Object.entries(result.probabilities)) {

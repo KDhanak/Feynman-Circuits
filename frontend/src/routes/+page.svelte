@@ -34,29 +34,29 @@
 
 	let feedbackOpen = false;
 
-	// Grip dots for the two resize handles. Three is the conventional grip mark
-	// and reads as "draggable" at a size where a bar just looks like a divider.
+	// Grip dots for the two resize handles. Three dots is the usual grip sign, and
+	// at this small size it looks "draggable", while a bar would just look like a divider.
 	const GRIP_DOTS = [0, 1, 2];
 
-	// Panel explanations. Held here rather than inline because they are long and
-	// contain apostrophes, which template attributes handle badly.
+	// Panel explanations. Kept here instead of in the HTML because they are long and
+	// have apostrophes, which HTML attributes in the template handle badly.
 	const BLOCH_TIP = `Each qubit's state reduces to a vector r = (⟨X⟩, ⟨Y⟩, ⟨Z⟩): the north pole is |0⟩, the south pole is |1⟩, and the equator is superposition. This sphere plots the average of those vectors across the register, so it is exact for one qubit and only a summary for more — |01⟩ and a Bell pair both average to the centre. |r| = 1 means a pure state; |r| < 1 means mixed, which for a single qubit signals entanglement with the others.`;
 
 	const QEC_TIP = `A rotated distance-3 surface code, shown as a reference picture. Nine data qubits hold ONE logical qubit, and eight ancillas repeatedly measure the stabilisers around them — never the data itself, which would collapse the state. That is what protecting a single qubit costs: 17 physical qubits to keep one alive. Your circuit above is not encoded into this code yet; the panel is here to show what such protection looks like.`;
 
-	// The Bloch sphere is optional; when it's hidden the results row reflows so
-	// SimulationResult expands into the space it would have occupied.
+	// The Bloch sphere is optional. When it's hidden, the results row changes its
+	// layout so SimulationResult grows into the space the sphere would have used.
 	$: showBloch = $settings.showBlochSphere && !$isMobile;
 
-	// QEC mode takes the results row over. The simulation results and the third
-	// panel both describe a state vector, which is not what is being reasoned
-	// about here, so they give up their space to one wide surface code panel —
-	// the surface it will eventually draw syndrome history on needs the width.
-	// Left off mobile, where the row is a single narrow column already.
+	// QEC mode takes over the results row. The simulation results and the third
+	// panel both show a state vector, which is not what QEC mode is about, so they
+	// give their space to one wide surface code panel. That panel needs the width,
+	// because it will later draw the syndrome history. Not used on mobile, where
+	// the row is already a single narrow column.
 	$: qecTakeover = $qecMode && !$isMobile;
 
-	// The code panel can be docked to a tall left column, but only where there's
-	// horizontal room for it (≥1024px). Below that it stays in the bottom slot.
+	// The code panel can be moved to a tall left column, but only when the screen is
+	// wide enough (≥1024px). On smaller screens it stays at the bottom.
 	let isWideScreen = false;
 	onMount(() => {
 		const mq = window.matchMedia('(min-width: 1024px)');
@@ -67,10 +67,10 @@
 	});
 	$: leftMode = $settings.codePanelPosition === 'left' && isWideScreen;
 
-	// Results-grid column template. In left-dock mode the code panel is elsewhere,
-	// so the grid only lays out Sim (+ Bloch) inside the narrower right column.
-	// In QEC mode there is one panel instead of two, so the third column goes
-	// away and the QEC panel absorbs it.
+	// Column layout for the results grid. When the code panel is on the left, it is
+	// not in this grid, so the grid only holds Sim (+ Bloch) in the narrower right
+	// column. In QEC mode there is one panel instead of two, so the third column is
+	// removed and the QEC panel takes its space.
 	$: resultsGridCols = leftMode
 		? showBloch && !qecTakeover
 			? 'lg:grid-cols-2'
@@ -78,18 +78,18 @@
 		: showBloch && !qecTakeover
 			? 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)_auto]'
 			: 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]';
-	// In the bottom layout with no Bloch, Sim spans the full width; not needed
-	// in left-dock mode (Sim already fills its column there).
+	// In the bottom layout with no Bloch sphere, Sim takes the full width. Not needed
+	// when the code panel is on the left (Sim already fills its column there).
 	$: simSpan = !leftMode && !showBloch ? 'sm:col-span-2 lg:col-span-1' : '';
 
-	// In bottom mode the board/results centre themselves at 96% like the palette.
+	// In bottom mode the board/results are 96% wide and centred, like the palette.
 	// In left mode they fill the right column so their right edge lines up with
 	// the palette above (the column itself is already 96%-aligned).
 	$: contentWidth = leftMode ? 'w-full' : 'w-[96%] max-w-420 mx-auto';
 
 	// ── Draggable divider for the left-docked code panel ─────────────────
-	// `codePanelWidth` is the desired px width; the applied style clamps it to
-	// [280px, 65%] so the right column always keeps room. Persisted on drag end.
+	// `codePanelWidth` is the wanted width in px. The style keeps it between
+	// 280px and 65%, so the right column always has room. Saved when the drag ends.
 	let splitRowEl: HTMLDivElement | undefined;
 	let dragging = false;
 	let codePanelWidth = get(settings).codePanelWidthPx;
@@ -130,16 +130,16 @@
 	}
 
 	// ── Draggable divider between the board and the results row ──────────
-	// Only active ≥1024px, where <main> is h-screen and the board is `lg:flex-1
-	// lg:min-h-0` — so shrinking the results row hands that space straight back
-	// to the board. Below that the page scrolls and the row keeps its CSS height.
+	// Only works at ≥1024px, where <main> is h-screen and the board is `lg:flex-1
+	// lg:min-h-0`, so making the results row smaller gives that space straight back
+	// to the board. On smaller screens the page scrolls and the row keeps its CSS height.
 	let boardEl: HTMLDivElement | undefined;
 	let vDragging = false;
 	let resultsHeight = get(settings).resultsRowHeightPx;
 	const MIN_RESULTS = 160;
 	const MIN_BOARD = 220;
-	// Captured at pointerdown: board + results is a constant during a drag, so the
-	// ceiling can be fixed up front instead of re-measuring a moving layout.
+	// Measured at pointerdown: board + results stays the same size during a drag, so
+	// the maximum can be set once at the start, instead of measuring again while things move.
 	let vStartY = 0;
 	let vStartHeight = 0;
 	let vMaxHeight = Number.POSITIVE_INFINITY;
@@ -173,7 +173,7 @@
 	}
 	function onVHandleKey(e: KeyboardEvent) {
 		const STEP = 16;
-		// Keyboard nudges skip pointerdown, so establish the ceiling here too.
+		// Moving it with the keyboard skips pointerdown, so set the maximum here too.
 		vMaxHeight = boardEl ? resultsHeight + boardEl.clientHeight - MIN_BOARD : 1200;
 		if (e.key === 'ArrowUp') resultsHeight = clampHeight(resultsHeight + STEP);
 		else if (e.key === 'ArrowDown') resultsHeight = clampHeight(resultsHeight - STEP);
@@ -182,26 +182,26 @@
 		updateSettings({ resultsRowHeightPx: Math.round(resultsHeight) });
 	}
 
-	// Only initialize on first load — stores survive HMR so skip re-init
+	// Only set up on first load. Stores are kept during hot reload (HMR), so don't set them up again
 	if (!get(currentCircuitId)) {
 		currentCircuitId.set(crypto.randomUUID());
 		currentCircuitName.set('Untitled Circuit');
 	}
 
 	// --- Shared-circuit links ------------------------------------------------
-	// A share link can carry a circuit. Resolved on the client rather than in a
-	// `+page.ts` load: the inline form lives in the URL fragment, which never
-	// reaches the server, so a universal load could not see it anyway.
+	// A share link can hold a circuit. We read it in the browser instead of in a
+	// `+page.ts` load: the in-link kind is in the URL fragment (after #), which
+	// never reaches the server, so a universal load could not see it anyway.
 	let pendingHandoff: ResolvedHandoff | null = null;
 	let handoffError: string | null = null;
 
 	function acceptHandoff() {
 		if (!pendingHandoff) return;
 		const { ir, name, circuitId } = pendingHandoff;
-		// A circuit published from this app keeps its identity so the visitor can
-		// tell it is the same circuit; anything from elsewhere gets a fresh local
-		// id, and neither is treated as already-saved — this visitor does not own
-		// it until they save it themselves.
+		// A circuit made public from this app keeps its id, so the visitor can tell
+		// it is the same circuit. Anything from elsewhere gets a new local id. Neither
+		// is treated as already saved, because this visitor does not own it until they
+		// save it themselves.
 		applyCircuit(ir, { id: circuitId, name, saved: false });
 		showNotification(`"${name}" loaded.`, 'success');
 		dismissHandoff();
@@ -210,7 +210,7 @@
 	function dismissHandoff() {
 		pendingHandoff = null;
 		handoffError = null;
-		// Drop the param so a refresh does not reload the handoff over the user's edits.
+		// Remove the param so a refresh does not load the handoff again over the user's edits.
 		clearHandoffFromUrl();
 	}
 
@@ -256,12 +256,12 @@
 			<span class="mb-2 text-xl font-semibold" style="color: var(--color-text);">CIRCUITS</span>
 		</div>
 
-		<!-- The circuit name and save status now live on the board itself
-		     (WireDropeZone), centred between its two button clusters, so they show
-		     at phone widths too — this header copy was hidden below `sm`. -->
-		<!-- Header utilities. One height and one radius across all three, so the
-		     row shares a baseline; the account button is set off by a rule because
-		     it is identity, not a utility, and should not read as a third peer. -->
+		<!-- The circuit name and save status are now on the board itself
+		     (WireDropeZone), centred between its two groups of buttons, so they show
+		     on phones too. The copy that used to be in this header was hidden below `sm`. -->
+		<!-- Header buttons. All three have the same height and corner radius, so the
+		     row lines up. The account button has a line before it because it is about
+		     who you are, not a tool, and should not look like just a third button. -->
 		<div class="flex items-center gap-1">
 			<button
 				on:click={openWelcome}
@@ -306,7 +306,7 @@
 			<CircuitLayout />
 		</div>
 		{#if isWideScreen}
-			<!-- Drag handle: resize the results row; persists on release -->
+			<!-- Drag handle: resize the results row. Saved when you let go -->
 			<div
 				role="slider"
 				aria-label="Resize results row"
@@ -346,9 +346,9 @@
 			Row height fixed at 20.625rem so nothing shifts.
 		-->
 		<!--
-			`grid-auto-rows` is driven inline only on wide screens, where the drag
+			`grid-auto-rows` is only set inline on wide screens, where the drag
 			handle exists and the board can give up the space. Below 1024px the
-			inline style is omitted so the `sm:auto-rows-[20.625rem]` class stands.
+			inline style is left out, so the `sm:auto-rows-[20.625rem]` class is used.
 		-->
 		<div
 			class="{contentWidth} {isWideScreen
@@ -376,12 +376,12 @@
 			{/if}
 			{#if qecTakeover}
 				<!--
-					QEC mode: one wide panel standing in for both the simulation results
-					and the third panel. It holds only the reference lattice for now; the
-					syndrome history it is sized for comes later, which is why it claims
-					the width up front rather than growing into it.
-					`sm:col-span-2` matters below 1024px, where the row is a plain 2-up
-					grid and a single item would otherwise sit in half of it.
+					QEC mode: one wide panel that replaces both the simulation results
+					and the third panel. For now it only shows the lattice. The syndrome
+					history it is sized for comes later, which is why it takes the full
+					width now instead of growing later.
+					`sm:col-span-2` is needed below 1024px, where the row is a simple
+					2-column grid and a single item would otherwise only fill half of it.
 				-->
 				<Tooltip
 					class="sm:col-span-2 lg:col-span-1 min-w-0 min-h-0"
@@ -408,12 +408,13 @@
 	{/snippet}
 
 	<!--
-		Left-dock layout. The wrappers use `display: contents` in bottom mode so
-		they're layout-transparent (mainContent behaves as a direct child of
-		<main>, exactly like before). In left mode they become a flex row: a tall
-		code aside + a right column holding mainContent. Because mainContent stays
-		in the same DOM position (inside the right wrapper) in both modes, toggling
-		the dock only remounts the code panel — the circuit board is untouched.
+		Layout for the code panel on the left. In bottom mode the wrappers use
+		`display: contents`, so they don't affect the layout (mainContent acts as a
+		direct child of <main>, exactly like before). In left mode they become a flex
+		row: a tall code panel plus a right column holding mainContent. Because
+		mainContent stays in the same place in the DOM (inside the right wrapper) in
+		both modes, switching modes only rebuilds the code panel. The circuit board
+		is not touched.
 	-->
 	<div
 		bind:this={splitRowEl}
@@ -429,7 +430,7 @@
 			>
 				<CircuitDataPanel />
 			</aside>
-			<!-- Drag handle: resize the code panel; persists on release -->
+			<!-- Drag handle: resize the code panel. Saved when you let go -->
 			<div
 				role="slider"
 				aria-label="Resize code panel"
@@ -460,7 +461,7 @@
 		</div>
 	</div>
 
-	<!-- Feedback link — subtle, at the very bottom centre -->
+	<!-- Feedback link: small and quiet, at the very bottom centre -->
 	<button
 		type="button"
 		on:click={() => (feedbackOpen = true)}

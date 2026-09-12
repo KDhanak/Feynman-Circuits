@@ -9,46 +9,46 @@ import { isCircuitSaved, markAsReset, markNameResolved } from './autoSave';
 import { triggerSimulation } from './dragDropUtils';
 
 export interface ApplyCircuitOptions {
-	/** Server id of the circuit, when it already exists in the user's library.
-	 *  Omit for anything that arrived from outside — a file import, a handoff —
-	 *  and a fresh id is minted instead. */
+	/** Server id of the circuit, if it is already in the user's library.
+	 *  Leave it out for anything that came from outside (a file import, a
+	 *  handoff), and a new id will be made instead. */
 	id?: string;
 	name?: string;
-	/** Whether this circuit already exists server-side. Drives the Save/Rename
-	 *  button label and whether auto-save may write to `id`. */
+	/** Whether this circuit is already saved on the server. Decides whether the
+	 *  button says Save or Rename, and whether auto-save may write to `id`. */
 	saved?: boolean;
-	/** Whether the signed-in owner has published this circuit. Defaults to false,
-	 *  which is right for everything that is not the owner's own saved circuit —
+	/** Whether the signed-in owner has made this circuit public. Defaults to false,
+	 *  which is correct for everything that is not the owner's own saved circuit:
 	 *  file imports, handoffs, and circuits opened from someone else's link. */
 	isPublic?: boolean;
 }
 
 /**
- * Put a circuit on the board.
+ * Puts a circuit on the board.
  *
- * Everything that loads a circuit goes through here — the library, the JSON /
- * OpenQASM / Qiskit importers, and circuits opened from a share link — because the
- * order of these store writes matters and getting it wrong is silent.
+ * Everything that loads a circuit goes through here (the library, the JSON /
+ * OpenQASM / Qiskit importers, and circuits opened from a share link), because
+ * the order of these store updates matters, and if it is wrong nothing warns you.
  *
- * Specifically: `autoSave` subscribes to `circuitIR` and persists to whatever
- * `currentCircuitId` happens to hold. Setting the IR without also settling the
- * id means the next auto-save writes the *new* circuit over the *previously
- * open* one. So an import with no server identity of its own must claim a fresh
- * id and mark itself reset before the board is touched.
+ * Here is why: `autoSave` listens to `circuitIR` and saves to whatever id
+ * `currentCircuitId` holds at that moment. If we set the IR without also
+ * setting the right id, the next auto-save would write the *new* circuit over
+ * the circuit that was *open before*. So an import that has no server id of its
+ * own must take a new id and mark itself as reset before the board changes.
  */
 export function applyCircuit(ir: CircuitIR, options: ApplyCircuitOptions = {}): void {
 	const { id, name, saved = Boolean(id), isPublic = false } = options;
 
-	// Identity first: `circuitIR.set` is what wakes auto-save up, so by the time
-	// it fires the destination must already be correct.
+	// Set the id first: `circuitIR.set` is what wakes up auto-save, so by the time
+	// auto-save runs, the id it saves to must already be correct.
 	currentCircuitId.set(id ?? crypto.randomUUID());
 	if (name !== undefined) currentCircuitName.set(name);
 
 	if (saved) {
-		// Name came from the server, so no need to resolve an "Untitled" one.
+		// The name came from the server, so there is no need to pick an "Untitled" name.
 		markNameResolved();
 	} else {
-		// Nothing to overwrite yet — hold auto-save off until the user edits.
+		// Nothing to save over yet, so keep auto-save off until the user makes a change.
 		markAsReset();
 	}
 	isCircuitSaved.set(saved);

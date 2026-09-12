@@ -4,13 +4,13 @@
 	import { dismissWelcome, startTour } from '$lib/stores/onboardingStore';
 
 	/**
-	 * First-run gate: offer the tour, and take no for an answer. Shown once per
-	 * browser, then only via the header's `?`.
+	 * First visit screen: offer the tour, and accept it if the user says no.
+	 * Shown once per browser, then only from the `?` in the header.
 	 *
-	 * There is deliberately no "are you a researcher or a student?" fork here.
-	 * The two audiences do want different things, but until the guided lessons
-	 * exist there is only one tour to send them to, and a choice that leads
-	 * everywhere it says it does is worse than no choice.
+	 * On purpose, there is no "are you a researcher or a student?" choice here.
+	 * The two groups do want different things, but until the guided lessons
+	 * exist there is only one tour to send them to, and a choice that leads to
+	 * the same place either way is worse than no choice at all.
 	 */
 </script>
 

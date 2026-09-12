@@ -66,11 +66,11 @@
 	// How many columns the circuit currently occupies (highest used column + 1).
 	$: usedColumns = $circuitIR.operations.reduce((max, op) => Math.max(max, op.column + 1), 0);
 
-	// Number of dropzone columns to render. We show the used columns plus a small
-	// buffer to drop into, but never fewer than fill the panel (so the board never
-	// looks stunted) nor more than the hard cap. Deriving this from the circuit —
-	// rather than always rendering MAX_COLUMNS — is what lets a small circuit fit
-	// without a forced horizontal scrollbar.
+	// How many drop zone columns to draw. We show the used columns plus a few empty
+	// ones to drop into, but never so few that the panel isn't filled (so the board
+	// never looks too short), and never more than the maximum. Working this out
+	// from the circuit, instead of always drawing MAX_COLUMNS, is what lets a small
+	// circuit fit without an unneeded horizontal scrollbar.
 	$: visibleColumns = (() => {
 		const needed = Math.max(usedColumns + COLUMN_BUFFER, MIN_VISIBLE_COLUMNS);
 		if ($isMobile || centerWidth <= 0) return Math.min(needed, MAX_COLUMNS);
@@ -79,10 +79,10 @@
 		return Math.min(Math.max(needed, fillPanel), MAX_COLUMNS);
 	})();
 
-	// Fit the column width to the centre panel on desktop; mobile keeps the fixed
-	// width and scrolls. Once visibleColumns × MIN_COLUMN_WIDTH exceeds the panel
-	// the width clamps at the floor and the track scrolls — only then. Guarded so
-	// the store write settles instead of looping.
+	// On desktop, fit the column width to the centre panel. Mobile keeps the fixed
+	// width and scrolls. Only when visibleColumns × MIN_COLUMN_WIDTH is wider than
+	// the panel does the width stop at its minimum and the track start to scroll.
+	// There is a check so the store update happens once instead of looping forever.
 	$: {
 		const columnWidth =
 			$isMobile || centerWidth <= 0
@@ -108,9 +108,9 @@
 	$: showGhostWire =
 		($isDragging || ($isMobile && $armedGate)) && $circuitIR.registers.q < MAX_QUBITS;
 
-	// While dragging a gate, auto-scroll the board when the pointer nears the top/bottom
-	// edge (speed scales with proximity). This replaces the old force-scroll-to-bottom that
-	// yanked the view down every time the ghost wire appeared.
+	// While dragging a gate, scroll the board by itself when the pointer gets near the
+	// top/bottom edge (the closer, the faster). This replaces the old code that always
+	// jumped the view to the bottom every time the ghost wire appeared.
 	const EDGE_ZONE = 60; // px from an edge that starts auto-scrolling
 	const MAX_EDGE_SPEED = 14; // px per frame at the very edge
 	let edgeScrollDir = 0; // -1 = up, 1 = down, 0 = idle
@@ -186,9 +186,9 @@
 		removeQubitWire($circuitIR.registers.q - 1);
 	}
 
-	// Set the qubit count from the text box. Growing always appends (labels
-	// preserved); shrinking peels trailing wires off the end but stops at the
-	// first one carrying gates, so an in-use wire is never silently dropped.
+	// Set the number of qubits from the text box. Adding always puts new wires at
+	// the end (labels are kept). Removing takes wires off the end, but stops at the
+	// first one that has gates, so a wire in use is never removed without warning.
 	function setQubitCount(target: number) {
 		const clamped = Math.max(1, Math.min(MAX_QUBITS, Math.floor(target)));
 		const ir = $circuitIR;
@@ -210,8 +210,8 @@
 		}
 	}
 
-	// Parse the text box on commit (change / Enter), then snap the field back to
-	// the real count — covers invalid input and values clamped by setQubitCount.
+	// Read the text box when the user confirms (change / Enter), then reset the box
+	// to the real count. This handles bad input and values that setQubitCount limited.
 	function commitQubitCount(e: Event) {
 		const el = e.currentTarget as HTMLInputElement;
 		const n = parseInt(el.value, 10);
@@ -219,8 +219,8 @@
 		el.value = String($circuitIR.registers.q);
 	}
 
-	// The last qubit can be dropped only when there's more than one and it carries
-	// no gates (mirrors removeQubitWire's own guards, but drives the button state).
+	// The last qubit can only be removed when there is more than one qubit and it has
+	// no gates (the same checks as removeQubitWire, used here to enable/disable the button).
 	$: canRemoveLastQubit = $circuitIR.registers.q > 1 && !hasGatesOnWire($circuitIR.registers.q - 1);
 
 	function removeQubitWire(qubitIndex: number) {
@@ -228,7 +228,7 @@
 		if (ir.registers.q <= 1) return;
 		if (hasGatesOnWire(qubitIndex)) return;
 
-		// Remap all operations: shift qubits above the removed one down by 1
+		// Update all operations: move qubits above the removed one down by 1
 		const remappedOps = ir.operations
 			.map((op) => {
 				const remapQubit = (q: number) => (q > qubitIndex ? q - 1 : q);
@@ -274,13 +274,13 @@
 		gateMenuVisible = true;
 	}
 
-	// A freshly dropped RX/RY/RZ/SWAP gate parks its id here; open the same inline
-	// editor for it, anchored to the just-rendered gate token.
+	// A newly dropped RX/RY/RZ/SWAP gate stores its id here. Open the same small edit
+	// box for it, placed next to the gate token that was just drawn.
 	$: openRequestedGateEditor($editGateRequest);
 
 	async function openRequestedGateEditor(id: string | null) {
 		if (!id) return;
-		editGateRequest.set(null); // consume the request
+		editGateRequest.set(null); // mark the request as handled
 		await tick(); // wait for the new gate token to render
 		const op = $circuitIR.operations.find((o) => o.id === id);
 		if (!op || op.kind !== 'unitary') return;
@@ -292,9 +292,9 @@
 		gateMenuVisible = true;
 	}
 
-	// Board-level drag/drop delegation. Instead of attaching listeners to every
-	// (column × wire) dropzone — O(columns × wires) — resolve the target cell from
-	// the pointer's coordinates against the wire row under it.
+	// Drag/drop is handled once for the whole board. Instead of adding listeners to
+	// every (column × wire) drop zone, which would be columns × wires listeners, we
+	// work out the target cell from the pointer position and the wire row under it.
 	function resolveCell(
 		target: EventTarget | null,
 		clientX: number
@@ -311,7 +311,7 @@
 	}
 
 	function handleBoardDragOver(e: DragEvent) {
-		// Scroll when hovering near an edge, even over non-cell areas (labels, ghost wire).
+		// Scroll when hovering near an edge, even over areas that are not cells (labels, ghost wire).
 		updateEdgeScroll(e.clientY);
 		// Only allow the drop (preventDefault) when the pointer is over a valid cell.
 		if (resolveCell(e.target, e.clientX)) handleDragOver(e);
@@ -323,20 +323,20 @@
 		if (cell) handleDrop(e, cell.col, cell.qubit);
 	}
 
-	// Mobile tap-to-place / tap-to-move, delegated from the board click handler.
-	// Returns true when it consumed the tap so the caller can skip selection-clearing.
+	// Mobile tap-to-place / tap-to-move, called from the board's click handler.
+	// Returns true when it used the tap, so the caller can skip clearing the selection.
 	function handleBoardTap(e: MouseEvent): boolean {
 		if (!$isMobile || !$armedGate) return false;
-		// A tap that lands on a gate is arming or selecting that gate, never a drop
-		// target — otherwise tapping a gate to pick it up would immediately try to
-		// drop the armed gate onto the cell the tap passed through.
+		// A tap on a gate means picking or selecting that gate, never dropping onto it.
+		// Otherwise tapping a gate to pick it up would right away try to drop the
+		// selected gate onto the cell under the tap.
 		if ((e.target as HTMLElement).closest('.gate')) return false;
 		const cell = resolveCell(e.target, e.clientX);
 		if (!cell) return false;
 		const wasMove = $armedGate.source === 'wire';
 		placeArmedGate(cell.col, cell.qubit);
-		// A moved gate has arrived; drop the selection so the board isn't left
-		// showing it as picked up. A palette gate stays armed for repeated taps.
+		// A moved gate has reached its spot, so clear the selection and the board no
+		// longer shows it as picked up. A palette gate stays selected for more taps.
 		if (wasMove) clearSelection();
 		return true;
 	}
@@ -353,16 +353,16 @@
 	}
 
 	// --- Sharing ------------------------------------------------------------
-	// Two link shapes, picked by what the circuit actually is rather than by
-	// asking the user. A saved circuit the signed-in user owns can be published,
-	// which gives a short link that tracks later edits and can be revoked.
-	// Anything else — signed out, or never saved — gets an inline link carrying
-	// the circuit in the URL, so sharing never requires an account.
+	// Two kinds of link. We pick one based on the circuit, instead of asking the
+	// user. A saved circuit that the signed-in user owns can be made public, which
+	// gives a short link that shows later edits and can be turned off later.
+	// Anything else (signed out, or never saved) gets a link with the whole circuit
+	// inside the URL, so sharing never needs an account.
 	let shareOpen = false;
 
-	// Save/rename lives with the board's other circuit-level actions rather than
-	// in the gate palette: it acts on the circuit, not on a gate, and the palette
-	// needs its width for gates.
+	// Save/rename sits with the board's other whole-circuit buttons instead of in
+	// the gate palette: it works on the circuit, not on a gate, and the palette
+	// needs its space for gates.
 	let showNameDialog = false;
 
 	function openNameDialog() {
@@ -400,7 +400,7 @@
 			if (canPublish) {
 				const id = get(currentCircuitId);
 				await setCircuitPublic(id, true);
-				// Keep the circuit list's Public badge honest without a refetch.
+				// Keep the circuit list's Public badge correct without fetching again.
 				setPublicInCircuitListCache(id, true);
 				currentCircuitIsPublic.set(true);
 				shareLink = `${window.location.origin}/?circuit=${id}`;
@@ -411,8 +411,8 @@
 			}
 			shareOpen = true;
 		} catch (err) {
-			// buildInlineLink throws with a usable message when the circuit is too
-			// large to encode; anything else is a failed publish request.
+			// buildInlineLink throws an error with a clear message when the circuit is too
+			// big to fit in a link. Any other error means the publish request failed.
 			showNotification(
 				err instanceof Error && err.message ? err.message : 'Failed to create a share link.',
 				'error'
@@ -441,9 +441,9 @@
 			}
 		};
 
-		// Let the mouse wheel scroll the board during a native drag. Browsers suppress
-		// default wheel-scrolling while an HTML5 drag is active, so we scroll manually.
-		// Non-passive is required for preventDefault to take effect.
+		// Let the mouse wheel scroll the board during a drag. Browsers turn off normal
+		// wheel scrolling while an HTML5 drag is happening, so we scroll it ourselves.
+		// The listener must be non-passive, or preventDefault won't work.
 		const handleDragWheel = (e: WheelEvent) => {
 			if (!scrollContainer || !get(isDragging)) return;
 			e.preventDefault();
@@ -489,7 +489,7 @@
 	}}
 >
 	<!-- Add/remove qubit buttons, pinned to the board's top-left corner (icons only).
-	     Hidden on mobile while the delete-selected button occupies the same spot. -->
+	     Hidden on mobile while the delete-selected button is in the same spot. -->
 	{#if !($isMobile && $selectedGateIds.size > 0)}
 		<div
 			class="absolute top-2 pl-0.5 left-1.5 z-200 flex items-center backdrop-blur-lg rounded-sm shadow-sm"
@@ -531,13 +531,13 @@
 		</div>
 	{/if}
 
-	<!-- Circuit name, centred in the strip between the qubit controls on the left
-	     and the copy/reset buttons on the right. Width-capped to the gap between
-	     those two clusters (~7rem each plus breathing room) so a long name
-	     truncates instead of running underneath them — which is what keeps this
-	     readable at phone widths. The strip is click-through by default; only the
-	     name itself and the save/rename button opt back in, so the rest never
-	     swallows a tap meant for the board. -->
+	<!-- Circuit name, centred in the strip between the qubit buttons on the left
+	     and the copy/reset buttons on the right. Its width is limited to the space
+	     between those two groups (~7rem each plus some extra room), so a long name
+	     gets cut off with "…" instead of running under them. That keeps it
+	     readable on phones. By default, clicks go through the strip. Only the name
+	     itself and the save/rename button catch clicks, so the rest of the strip
+	     never blocks a tap meant for the board. -->
 	<div
 		class="absolute p-1 top-2 left-1/2 z-200 flex max-w-[calc(100%-14rem)] -translate-x-1/2 items-center gap-1.5 pointer-events-none"
 		style="color: var(--color-muted);"
@@ -557,17 +557,17 @@
 				{/if}
 			</span>
 		{/if}
-		<!-- Re-enables pointer events on the text alone, so a truncated name still
-		     reveals itself on hover while the rest of the strip stays click-through. -->
+		<!-- Turns clicks back on for the text only, so a cut-off name still shows in
+		     full on hover, while clicks still go through the rest of the strip. -->
 		<span
 			class="truncate text-sm py-1.5 px-4 font-semibold pointer-events-auto backdrop-blur-lg rounded-sm shadow-sm"
 			title={$currentCircuitName}>{$currentCircuitName}</span
 		>
-		<!-- Right of the name rather than left: the left already carries the
-		     circuit glyph and the save-status dot, and an action reads better
-		     next to the thing it acts on. Floppy while unsaved, pencil once the
-		     circuit exists and the action becomes a rename — the icon names the
-		     action, not the state. -->
+		<!-- To the right of the name, not the left: the left already has the
+		     circuit icon and the save-status dot, and a button makes more sense
+		     next to the thing it changes. Floppy disk while unsaved, pencil once
+		     the circuit is saved and the button becomes rename. The icon shows
+		     what the button does, not the current state. -->
 		<button
 			type="button"
 			class="pointer-events-auto shrink-0 flex cursor-pointer items-center justify-center rounded-sm p-1.5 backdrop-blur-lg shadow-sm transition-colors active:text-green-500"
@@ -765,7 +765,7 @@
 									on:gatecontextmenu={handleGateContextMenu}
 								/>
 							{/each}
-							<!-- Pending anti-control boxes (uncommitted) -->
+							<!-- Waiting anti-control boxes (not attached to a gate yet) -->
 							{#each Array.from($pendingAntiControls.entries()) as [col, qubits] (col)}
 								{#each qubits as antiControlQubit (antiControlQubit)}
 									{#if antiControlQubit === wire.qubit}
@@ -796,7 +796,7 @@
 									{/if}
 								{/each}
 							{/each}
-							<!-- Pending control boxes (uncommitted) -->
+							<!-- Waiting control boxes (not attached to a gate yet) -->
 							{#each Array.from($pendingControls.entries()) as [col, qubits] (col)}
 								{#each qubits as controlQubit (controlQubit)}
 									{#if controlQubit === wire.qubit}
@@ -854,9 +854,9 @@
 				</div>
 				<!-- RIGHT: Bloch sphere (fixed, does not scroll) -->
 				{#if !$isMobile}
-					<!-- gap-1 must match the label and wire columns: all three are
-					     independent stacks, so a different row pitch here makes the
-					     spheres drift 4px further from their wire on every row. -->
+					<!-- gap-1 must match the label and wire columns. All three are
+					     separate stacks, so a different row spacing here makes the
+					     spheres move 4px further away from their wire on every row. -->
 					<div class="flex flex-col gap-1">
 						{#each wires as wire (wire.id)}
 							<div class="flex h-14 items-center justify-start">
@@ -904,9 +904,9 @@
 		border-radius: 4px;
 	}
 
-	/* Pending control/anti-control boxes use the `.gate` class for positioning.
-	   The committed gates moved to GateToken.svelte (with their own scoped
-	   `.gate` rule), but these pending boxes still live here and need it too. */
+	/* Waiting control/anti-control boxes use the `.gate` class for positioning.
+	   The placed gates moved to GateToken.svelte (with their own scoped
+	   `.gate` rule), but these waiting boxes are still here and need it too. */
 	.gate {
 		position: absolute;
 		top: 50%;
@@ -927,7 +927,7 @@
 		border-radius: 4px;
 	}
 
-	/* Mobile tap-to-place: highlight tappable cells while a gate is armed. */
+	/* Mobile tap-to-place: highlight tappable cells while a gate is selected. */
 	.dropzone-armed {
 		background-color: rgba(168, 85, 247, 0.12);
 		border: 1px dashed var(--color-secondary-2);

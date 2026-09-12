@@ -7,8 +7,9 @@ export function createComplex(re: number, im: number): Complex {
 	return { re, im };
 }
 
-// Tolerance for treating floating-point results as zero. Gate matrices accumulate
-// rounding error (e.g. cos(π/2) computes as ~6.12e-17), so exact `=== 0` checks are unreliable.
+// How close to zero a decimal number must be for us to treat it as zero. Gate
+// matrices build up tiny rounding errors (for example cos(π/2) gives about
+// 6.12e-17 instead of 0), so checking `=== 0` exactly does not work.
 export const EPSILON = 1e-10;
 
 // True when a real value is within EPSILON of zero.
@@ -91,7 +92,7 @@ export function formatQuantumState(state: Complex[]): string {
 		.join(' + ');
 }
 
-// Format the quantum state in polar form to highlight phase shifts
+// Write the quantum state in polar form (size and angle) so phase changes are easy to see
 export function formatQuantumStatePolar(state: Complex[]): string {
 	const numQubits = Math.log2(state.length);
 

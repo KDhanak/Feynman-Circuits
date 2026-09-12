@@ -6,18 +6,18 @@
 	import { activeFlow, tourStep, endTour, maybeStartFirstRun } from '$lib/stores/onboardingStore';
 
 	/**
-	 * Drives whichever onboarding flow is active. Mounted once at the page root so
-	 * the tour can spotlight anything on screen, regardless of which component
-	 * owns it.
+	 * Runs whichever onboarding flow is active. It is added once at the top of the
+	 * page, so the tour can highlight anything on screen, no matter which component
+	 * it belongs to.
 	 */
 
 	let anchorEl: HTMLElement | null = null;
 
 	/**
-	 * Resolves the current step's anchor, walking forward past any step whose
-	 * target isn't rendered (the code panel is absent on mobile). `dir` keeps
-	 * skipping in the direction the user was travelling, so Back doesn't get
-	 * stuck bouncing off an optional step.
+	 * Finds the current step's anchor, and moves on past any step whose target
+	 * isn't on screen (the code panel is not shown on mobile). `dir` keeps skipping
+	 * in the direction the user was going, so Back doesn't get stuck going back
+	 * and forth on an optional step.
 	 */
 	async function resolveAnchor(dir: 1 | -1 = 1) {
 		await tick();
@@ -30,12 +30,12 @@
 				anchorEl = el;
 				return;
 			}
-			// A required step with no anchor is a bug, not a layout state — but
-			// skipping beats trapping the user mid-tour either way.
+			// A required step with no anchor is a bug, not a normal layout case. But
+			// skipping it is still better than leaving the user stuck in the middle of the tour.
 			i += dir;
 		}
 
-		// Ran off either end with nothing left to show.
+		// Went past the first or last step, and there is nothing left to show.
 		anchorEl = null;
 		endTour();
 	}

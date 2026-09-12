@@ -1,19 +1,19 @@
-"""Circuit IR validation, shared by the private (owner) API and the public
-handoff API.
+"""Checks (validates) the circuit IR. Used by both the private (owner) API and
+the public handoff API.
 
-This lives outside serializers.py because two very different callers need it:
-the authenticated CircuitDetailSerializer, where the payload comes from our own
-frontend, and circuits arriving from a share link, which may have been built in
-another browser or hand-edited in the URL. That second caller is the reason the
-checks here are strict — anything the frontend guarantees by construction has to
-be proven on the wire instead.
+This is kept outside serializers.py because two very different callers need it:
+the logged-in CircuitDetailSerializer, where the data comes from our own
+frontend, and circuits that come from a share link, which may have been made in
+another browser or edited by hand in the URL. That second caller is why the
+checks here are strict. Anything our own frontend always gets right has to be
+checked again when the data comes from outside.
 
-The gate rules are driven entirely by shared/gates.json (`arity` and `numParams`
-per gate), so adding a gate to the registry extends validation automatically
-rather than requiring a matching edit here.
+The gate rules come entirely from shared/gates.json (`arity` and `numParams`
+for each gate). So when a gate is added to that file, validation supports it
+automatically, with no change needed here.
 
-The client-side counterpart is frontend/src/lib/IR/validate.ts; the two are kept
-deliberately close in what they accept.
+The frontend version of these checks is frontend/src/lib/IR/validate.ts. We
+keep the two as close as possible in what they accept.
 """
 
 import json
@@ -28,10 +28,10 @@ VALID_GATES = set(_GATES)
 VALID_KINDS = {'unitary', 'measure', 'reset', 'barrier'}
 VALID_VERSION = '1.0'
 
-# Mirrors frontend/src/lib/utils/constants.ts — MAX_QUBITS and MAX_COLUMNS.
+# Same values as MAX_QUBITS and MAX_COLUMNS in frontend/src/lib/utils/constants.ts.
 MAX_QUBITS = 8
 MAX_COLUMNS = 29
-# Every qubit occupied in every column is the densest a circuit can legally get.
+# The fullest a valid circuit can be: every qubit used in every column.
 MAX_OPERATIONS = MAX_QUBITS * (MAX_COLUMNS + 1)
 
 
@@ -40,8 +40,9 @@ def _fail(message):
 
 
 def _qubit_indices(op, field, num_qubits, label):
-    """Read a qubit-index list off an operation and check every entry is an int
-    inside the register. Returns the list so callers can test for overlap."""
+    """Reads a list of qubit numbers from an operation and checks that each one
+    is a whole number inside the register. Returns the list so callers can check
+    for overlaps."""
     value = op.get(field, [])
     if not isinstance(value, list):
         _fail(f"{label}: '{field}' must be a list")
@@ -72,7 +73,7 @@ def _validate_unitary(op, num_qubits, label):
             f"got {len(targets)}"
         )
 
-    # A qubit cannot be both acted on and used as a control in the same column,
+    # In the same column, a qubit cannot be both a target and a control,
     # and a control cannot be both a control and an anti-control.
     if len(set(targets)) != len(targets):
         _fail(f"{label}: duplicate qubit in 'targets'")
@@ -111,8 +112,8 @@ def _validate_measure(op, num_qubits, num_clbits, label):
 
 
 def validate_circuit_ir(value):
-    """Validate a canonical Circuit IR document, raising DRF ValidationError on
-    the first problem found. Returns the value unchanged so it can be used
+    """Checks a standard Circuit IR document and raises a DRF ValidationError at
+    the first problem it finds. Returns the value unchanged, so it can be used
     directly as a serializer field validator."""
     if not isinstance(value, dict):
         _fail("IR must be an object")
@@ -163,9 +164,10 @@ def validate_circuit_ir(value):
         if not (0 <= column <= MAX_COLUMNS):
             _fail(f"{label}: column {column} out of range (0–{MAX_COLUMNS})")
 
-        # `id` is optional on the wire — the handoff format drops it to keep
-        # links short and the client regenerates one on import — but when it is
-        # present it has to be unique, since the frontend keys operations by it.
+        # `id` is optional in the data we receive. The handoff format leaves it
+        # out to keep links short, and the client makes a new one on import. But
+        # when an id is there, it must be unique, because the frontend uses it to
+        # tell operations apart.
         op_id = op.get('id')
         if op_id is not None:
             if not isinstance(op_id, str):

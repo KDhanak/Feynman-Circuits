@@ -1,6 +1,6 @@
 <script context="module" lang="ts">
-	// SVG ids are document-global and several spheres share one page (one per
-	// wire plus the overall one), so each instance needs its own gradient id.
+	// SVG ids are shared across the whole page, and one page has several spheres
+	// (one per wire plus the overall one), so each sphere needs its own gradient id.
 	let instanceCount = 0;
 </script>
 
@@ -12,47 +12,47 @@
 	export let size = 150;
 	export let showDetails = true;
 	export let showAxisLabels = false;
-	// Orbit control is opt-in. The board renders one small sphere per qubit
-	// (WireBloch); those are static decorations that must not swallow pointer
-	// events meant for the wires underneath.
+	// Rotating the sphere is off unless it is turned on. The board draws one small
+	// sphere per qubit (WireBloch). Those are just pictures, and they must not block
+	// mouse or touch events meant for the wires under them.
 	export let interactive = false;
 
 	const uid = `bloch-${(instanceCount++).toString(36)}`;
 
 	$: CENTER = size / 2;
-	// The ball fills 80% of its box. The remaining 10% a side is what the axis
-	// labels need: they sit at LABEL_RADIUS·R, and orthographic projection caps a
-	// unit vector's on-screen reach at exactly R, so the furthest a label can
-	// travel at any camera angle is LABEL_RADIUS·R + half its own text.
+	// The ball fills 80% of its box. The other 10% on each side is room for the
+	// axis labels: they sit at LABEL_RADIUS·R, and with orthographic projection a
+	// unit vector never reaches further than R on screen. So the furthest a label
+	// can go, from any camera angle, is LABEL_RADIUS·R plus half its own text.
 	$: R = size * 0.4;
 
-	// Orthographic projection of a unit sphere seen from elevation θ above the
-	// equatorial plane, at azimuth α around it:
+	// Orthographic projection (a flat view with no perspective) of a unit sphere,
+	// seen from height angle θ above the equator, turned by angle α around it:
 	//   screen right = −sinα·x + cosα·y
 	//   screen up    = −sinθ·(cosα·x + sinα·y) + cosθ·z
-	// Every mark is derived from these two angles, which is what keeps the axes,
-	// the equator and the outline in agreement: the equator projects to an ellipse
-	// with semi-axes R and |sinθ|·R (so the ±x/±y tips land exactly on it), and the
-	// poles land at cosθ·R — just inside the outline, as orthographic projection
-	// of a sphere requires.
+	// Everything drawn comes from these two angles, which is what keeps the axes,
+	// the equator and the outline lined up: the equator becomes an ellipse with
+	// half-widths R and |sinθ|·R (so the ±x/±y tips land exactly on it), and the
+	// poles land at cosθ·R, just inside the outline, as they should.
 	//
-	// `right` and `up` complete an orthonormal frame with the view direction
+	// `right`, `up` and the view direction are three directions at right angles
+	// to each other:
 	//   view = right × up = (cosθ·cosα, cosθ·sinα, sinθ)
-	// which points at the camera. A point's dot product with `view` is therefore
-	// its depth, positive toward the viewer — that is what `depthOf` returns and
-	// what decides which half of every mark is drawn behind the ball.
+	// which points at the camera. So a point's dot product with `view` is its
+	// depth, positive towards the viewer. That is what `depthOf` returns, and it
+	// decides which half of each line is drawn behind the ball.
 	const DEFAULT_ELEVATION = Math.asin(0.35);
 	const DEFAULT_AZIMUTH = (20 * Math.PI) / 180;
-	// Stop just shy of the poles: at exactly ±90° the azimuth becomes degenerate
-	// (the equator collapses to a line) and dragging feels stuck.
+	// Stop just before the poles: at exactly ±90° the turning angle stops meaning
+	// anything (the equator squashes into a line) and dragging feels stuck.
 	const MAX_ELEVATION = (85 * Math.PI) / 180;
 
 	let elevation = DEFAULT_ELEVATION;
 	let azimuth = DEFAULT_AZIMUTH;
 
-	// Bundled into one object so the reactive statements below list `cam` as a
-	// dependency — same reason `centre`/`radius` are passed in rather than closed
-	// over: a value only referenced inside the function body wouldn't be tracked.
+	// Put into one object so the reactive statements below depend on `cam`. It is
+	// the same reason `centre`/`radius` are passed in as arguments: Svelte doesn't
+	// track a value that is only used inside the function body.
 	$: cam = {
 		sinTilt: Math.sin(elevation),
 		cosTilt: Math.cos(elevation),
@@ -88,10 +88,10 @@
 	$: centerPoint = project(0, 0, 0, CENTER, R, cam);
 	$: vectorBehind = depthOf(vector.x, vector.y, vector.z, cam) < 0;
 
-	// Each axis splits into two halves at the origin. Which half points away from
-	// the camera depends on where the camera is, so it has to be computed rather
-	// than assumed — the negative half is only the far one while the camera stays
-	// in the +x+y+z octant, which it no longer does once you can orbit it.
+	// Each axis is split into two halves at the centre. Which half points away from
+	// the camera depends on where the camera is, so we must work it out, not guess.
+	// The negative half is only the far one while the camera stays in the +x+y+z
+	// corner, and that is no longer true once you can rotate the sphere.
 	$: axisHalves = AXES.flatMap(({ name, dir }) =>
 		[1, -1].map((sign) => {
 			const [x, y, z] = [dir[0] * sign, dir[1] * sign, dir[2] * sign];
@@ -116,12 +116,12 @@
 		behind: depthOf(dir[0], dir[1], dir[2], cam) < 0
 	}));
 
-	// The equator's near/far split happens where its depth crosses zero. On the
-	// equator (cos t, sin t, 0) the depth is cosθ·cos(t−α) and the projection is
-	// (sin(t−α), −sinθ·cos(t−α)), so the two zero-crossings are exactly the
-	// ellipse's left and right extremes — the split is always the horizontal
-	// diameter, and the far half is whichever arc bulges away from the camera:
-	// the upper one while the camera is above the equatorial plane, lower below.
+	// The equator is split into near and far halves where its depth becomes zero.
+	// On the equator (cos t, sin t, 0) the depth is cosθ·cos(t−α) and the projection
+	// is (sin(t−α), −sinθ·cos(t−α)), so the two zero points are exactly the ellipse's
+	// far left and far right. So the split is always the horizontal line through the
+	// middle, and the far half is the arc that bulges away from the camera: the top
+	// one while the camera is above the equator, the bottom one when it is below.
 	$: equatorRy = R * Math.abs(cam.sinTilt);
 	$: farSweep = cam.sinTilt >= 0 ? 1 : 0;
 	$: equatorFar = arcPath(CENTER, R, equatorRy, farSweep);
@@ -131,8 +131,8 @@
 		return `M ${centre - rx} ${centre} A ${rx} ${ry} 0 0 ${sweep} ${centre + rx} ${centre}`;
 	}
 
-	// Kept close to proportional: a fixed floor that is too high is what pushes
-	// labels past the edge on the smallest spheres, where the margin is tightest.
+	// Kept close to proportional: a minimum size that is too big pushes the labels
+	// past the edge on the smallest spheres, where there is the least room.
 	$: labelFont = Math.max(7, size * 0.055);
 	$: coordText = `x=${vector.x.toFixed(2)} y=${vector.y.toFixed(2)} z=${vector.z.toFixed(2)}`;
 
@@ -152,10 +152,10 @@
 
 	function onDrag(e: PointerEvent) {
 		if (!dragging) return;
-		// One sphere-width of travel sweeps 180°, so the point under the cursor
-		// tracks the pointer roughly 1:1. Both signs are chosen so the surface
-		// follows the drag: increasing α slides world features left, and
-		// increasing θ lifts the camera, which pushes the north pole down.
+		// Dragging one sphere-width turns it 180°, so the point under the cursor
+		// follows the pointer about 1:1. Both signs are chosen so the surface moves
+		// with the drag: a bigger α slides things left, and a bigger θ raises the
+		// camera, which pushes the north pole down.
 		const perPx = Math.PI / Math.max(1, size);
 		azimuth -= (e.clientX - lastX) * perPx;
 		elevation = clamp(elevation + (e.clientY - lastY) * perPx, -MAX_ELEVATION, MAX_ELEVATION);
@@ -179,10 +179,10 @@
 		azimuth = DEFAULT_AZIMUTH;
 	}
 
-	// Drives the reset button's disabled state. Azimuth is unbounded (it keeps
-	// accumulating as you spin), so compare it modulo a full turn rather than
-	// against the raw default — otherwise spinning back round leaves the button
-	// live at a view that is already the default one.
+	// Decides if the reset button is disabled. The turning angle has no limit (it
+	// keeps growing as you spin), so we compare it after removing full turns, not
+	// against the raw default. Otherwise, after spinning all the way round, the
+	// button would stay on even though the view is already the default one.
 	const TAU = Math.PI * 2;
 	$: azimuthOffset = (((azimuth - DEFAULT_AZIMUTH) % TAU) + TAU) % TAU;
 	$: cameraMoved =
@@ -207,11 +207,11 @@
 <div class="bloch-card">
 	<div class="sphere-wrap">
 		<!--
-		The sphere stays role="img" rather than claiming a widget role: rotating it
-		conveys nothing the text below doesn't already state (the same x/y/z and
-		|r| are printed verbatim), so it is a graphic with a convenience gesture,
-		not a control. It is still reachable by keyboard with an aria-label that
-		says so, which is what the interaction rules are protecting.
+		The sphere keeps role="img" instead of a widget role: rotating it shows
+		nothing that the text below doesn't already say (the same x/y/z and |r|
+		are printed exactly), so it is a picture with a handy drag gesture, not a
+		control. You can still reach it with the keyboard, and its aria-label says
+		so, which is what the accessibility rules are there to protect.
 	-->
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_no_noninteractive_tabindex -->
 		<svg
@@ -233,9 +233,9 @@
 			on:keydown={onKey}
 		>
 			<defs>
-				<!-- Off-centre focal point reads as a light source above and to the
-			     left, which is what turns a flat disc into a ball. The light stays
-			     put in screen space while the camera orbits, as it would in a room. -->
+				<!-- The off-centre bright spot looks like a light shining from the top
+				     left, which is what makes a flat circle look like a ball. The light
+				     stays in the same place on screen while the camera turns, like it would in a room. -->
 				<radialGradient id="{uid}-shade" cx="50%" cy="50%" r="50%" fx="32%" fy="28%">
 					<stop offset="0%" stop-color="var(--color-surface)" stop-opacity="0.62" />
 					<stop offset="55%" stop-color="var(--color-surface)" stop-opacity="0.45" />
@@ -243,9 +243,9 @@
 				</radialGradient>
 			</defs>
 
-			<!-- Painter's algorithm. Everything on the far side of the ball is drawn
-		     first so the translucent shell washes it out, which is what makes the
-		     depth read; near-side marks go on top of the shell at full strength. -->
+			<!-- Painter's algorithm (draw from back to front). Everything on the far side of
+			     the ball is drawn first, so the see-through shell fades it. That is what
+			     shows depth. Near-side lines are drawn on top of the shell at full strength. -->
 			<g class="behind">
 				{#each axisHalves.filter((a) => a.behind) as axis (axis.key)}
 					<line
@@ -263,7 +263,7 @@
 				{/if}
 			</g>
 
-			<!-- The ball: a shaded, translucent shell over the far-side marks. -->
+			<!-- The ball: a shaded, see-through shell over the far-side lines. -->
 			<circle cx={CENTER} cy={CENTER} r={R} fill="url(#{uid}-shade)" />
 			<circle cx={CENTER} cy={CENTER} r={R} class="silhouette" />
 
@@ -283,8 +283,8 @@
 				<circle cx={tip.x} cy={tip.y} r={Math.max(2.5, size * 0.02)} class="tip" />
 			{/if}
 
-			<!-- Labels last: they sit outside the outline so nothing occludes them,
-		     but the ones on the far side are dimmed to match their axis. -->
+			<!-- Labels go last: they sit outside the outline so nothing covers them,
+			     but the ones on the far side are dimmed to match their axis. -->
 			{#if showAxisLabels}
 				{#each axisLabels as label (label.name)}
 					<text
@@ -300,8 +300,8 @@
 			{/if}
 		</svg>
 		{#if interactive}
-			<!-- Sits in the empty top-right corner: the ball only reaches 35% of the
-			     box and the axis labels land on the axes, never the diagonal. -->
+			<!-- Placed in the empty top-right corner: the ball only reaches 35% of the
+			     box, and the axis labels sit on the axes, never on the diagonal. -->
 			<button
 				type="button"
 				class="reset-btn"
@@ -316,8 +316,8 @@
 	</div>
 
 	{#if showDetails}
-		<!-- One line rather than two: the row this sits in is height-constrained,
-		     and the reclaimed line goes to the ball. -->
+		<!-- One line instead of two: the row this is in has limited height,
+		     and the saved line gives the ball more room. -->
 		<div class="readout">
 			{coordText}<span class="purity">|r|={vector.magnitude.toFixed(2)}</span>
 		</div>
@@ -377,15 +377,17 @@
 	svg.interactive.dragging {
 		cursor: grabbing;
 	}
-	/* An `outline` on an SVG element always paints as a rectangle — `border-radius`
-	   does not clip it — so a focus ring here draws a square box across the sphere.
-	   Focus is shown on the silhouette circle instead, which is already round.
+	/* An `outline` on an SVG element is always drawn as a rectangle
+	   (`border-radius` does not round it), so a focus ring here would draw a
+	   square box over the sphere. So focus is shown on the outline circle
+	   instead, which is already round.
 
-	   The circle is deliberately NOT called `.outline`: that is a Tailwind v4
-	   utility (`outline-style: solid; outline-width: 1px`), and the global rule
-	   matched the class alongside the scoped one, boxing the ball in a black
-	   rectangle. Scoped styles do not shield a component from utility-class
-	   collisions — only a name Tailwind does not claim does. */
+	   The circle is NOT called `.outline` on purpose: that is a Tailwind v4
+	   utility class (`outline-style: solid; outline-width: 1px`), and the global
+	   Tailwind rule matched the class as well as our scoped one, which drew a
+	   black rectangle around the ball. Scoped styles do not protect a component
+	   from clashing with utility class names. Only using a name that Tailwind
+	   does not use does. */
 	svg.interactive:focus-visible .silhouette {
 		stroke: var(--color-ternary-1);
 		stroke-width: 3;
@@ -415,8 +417,8 @@
 	.origin {
 		fill: var(--color-line);
 	}
-	/* Everything on the far side of the ball, dashed and dimmed on top of the
-	   wash the translucent shell already applies. */
+	/* Everything on the far side of the ball: dashed and dimmed, on top of the
+	   fading that the see-through shell already adds. */
 	.behind {
 		opacity: 0.55;
 	}

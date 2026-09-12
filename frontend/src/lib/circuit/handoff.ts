@@ -5,18 +5,20 @@ import { fetchPublicCircuit } from '../api/publicApi';
 /**
  * Share links: how a circuit gets from a link onto this board.
  *
- * Two link shapes, both handled here:
+ * There are two kinds of link, and this file handles both:
  *
- *   /?circuit=<uuid>     a saved circuit its owner has published
- *   /#handoff=<base64>   the whole circuit inline, no server round-trip
+ *   /?circuit=<uuid>     a saved circuit that its owner has made public
+ *   /#handoff=<base64>   the whole circuit inside the link, no server needed
  *
- * The inline form uses the URL *fragment* deliberately — fragments are never
- * sent to a server, so a circuit shared this way never lands in an access log
- * or a proxy cache, and it is not bounded by any server's request-line limit.
+ * The second kind uses the URL *fragment* (the part after #) on purpose. The
+ * browser never sends the fragment to a server, so a circuit shared this way
+ * never ends up in a server log or a proxy cache, and no server limit on URL
+ * length applies to it.
  */
 
-/** Wire envelope for the inline transport. Versioned separately from the IR so
- *  the envelope can gain fields without implying an IR schema change. */
+/** The wrapper object for the circuit inside the link. It has its own version,
+ *  separate from the IR, so we can add fields to it without it looking like
+ *  the IR schema changed. */
 export interface HandoffPayload {
 	name?: string;
 	ir: unknown;
@@ -27,23 +29,23 @@ export type Handoff = { kind: 'circuit'; circuitId: string } | { kind: 'inline';
 export interface ResolvedHandoff {
 	ir: CircuitIR;
 	name: string;
-	/** Set only for `?circuit=` links, where the circuit has a server identity
-	 *  worth preserving. A handoff from elsewhere gets a fresh local id. */
+	/** Only set for `?circuit=` links, where the circuit already has an id on the
+	 *  server that we want to keep. A circuit from any other link gets a new local id. */
 	circuitId?: string;
 }
 
 /**
- * Ceiling on an inline payload, in base64 characters.
+ * The largest circuit data allowed inside a link, in base64 characters.
  *
- * A maximally dense circuit is ~38 KB of base64 uncompressed, which is past
- * what is comfortable to paste, embed in an anchor, or hand to a QR code — and
- * gzip brings that same circuit under 2 KB. Refusing here surfaces an oversized
- * circuit at the boundary rather than as a mysterious truncation later; the
- * sender is told to save it and share the saved-circuit link instead.
+ * The fullest possible circuit is about 38 KB of base64 without compression.
+ * That is too long to paste easily, put in a link, or turn into a QR code. With
+ * gzip, that same circuit is under 2 KB. Stopping a too-big circuit here gives a
+ * clear error right away, instead of a confusing cut-off link later. The sender
+ * is told to save the circuit and share the saved-circuit link instead.
  */
 export const MAX_INLINE_PAYLOAD_CHARS = 8192;
 
-/** Read whichever handoff the current URL carries, if any. */
+/** Reads the handoff from the current URL, if there is one. */
 export function readHandoffFromUrl(url: URL): Handoff | null {
 	const circuitId = url.searchParams.get('circuit');
 	if (circuitId) return { kind: 'circuit', circuitId };
@@ -59,8 +61,8 @@ export function readHandoffFromUrl(url: URL): Handoff | null {
 }
 
 function base64UrlToBytes(encoded: string): Uint8Array {
-	// Accept both base64url (what we emit) and standard base64, so a link that has
-	// been through a tool using a stock encoder still decodes.
+	// Accept both base64url (what we create) and normal base64, so a link that
+	// went through some other tool that uses normal base64 still works.
 	const normalised = encoded.replace(/-/g, '+').replace(/_/g, '/');
 	const padded = normalised.padEnd(Math.ceil(normalised.length / 4) * 4, '=');
 	const binary = atob(padded);
@@ -77,14 +79,15 @@ async function gunzip(bytes: Uint8Array): Promise<string> {
 }
 
 /**
- * Decode an inline payload.
+ * Decodes the circuit data from inside a link.
  *
- * The encoding is self-describing rather than signalled by a separate param:
- * after base64 decoding we sniff the gzip magic bytes (0x1f 0x8b) and inflate
- * only if they are present. That keeps one link format for both plain and
- * compressed payloads, so an uncompressed link built by hand still opens.
+ * The data itself tells us whether it is compressed, so no extra URL param is
+ * needed. After base64 decoding, we look for the two bytes every gzip file
+ * starts with (0x1f 0x8b) and only unzip if they are there. This way one link
+ * format works for both plain and compressed data, so an uncompressed link
+ * made by hand still opens.
  *
- * Compression uses the platform's own DecompressionStream — no dependency.
+ * Unzipping uses the browser's own DecompressionStream, so no extra library is needed.
  */
 export async function decodeInlinePayload(encoded: string): Promise<HandoffPayload> {
 	if (encoded.length > MAX_INLINE_PAYLOAD_CHARS) {
@@ -127,14 +130,14 @@ export async function decodeInlinePayload(encoded: string): Promise<HandoffPaylo
 }
 
 /**
- * Give every operation an id before validation.
+ * Gives every operation an id before validation.
  *
- * The wire format drops per-op ids: they are `crypto.randomUUID()` values that
- * mean nothing outside this browser and account for about a third of an
- * uncompressed payload. `validateCanonicalIR` requires them and enforces
- * uniqueness, so they are synthesised here — and regenerated even when the
- * sender supplied them, so a payload carrying duplicates cannot land two
- * operations that the board would then treat as one.
+ * The link format leaves out each operation's id. The ids are
+ * `crypto.randomUUID()` values that mean nothing outside this browser, and they
+ * take up about a third of the uncompressed data. `validateCanonicalIR` needs
+ * them and checks that they are all different, so we make them here. We make
+ * new ones even if the sender included ids, so that data with repeated ids
+ * can't create two operations that the board would then treat as one.
  */
 function withFreshOperationIds(ir: unknown): unknown {
 	if (typeof ir !== 'object' || ir === null) return ir;
@@ -149,7 +152,7 @@ function withFreshOperationIds(ir: unknown): unknown {
 	};
 }
 
-/** Validate an IR that arrived from outside, normalising ids first. */
+/** Checks an IR that came from outside the app, after first giving it fresh ids. */
 export function acceptForeignIR(ir: unknown): CircuitIR {
 	const result = importCircuit(withFreshOperationIds(ir));
 	if (!result.ok) {
@@ -177,11 +180,11 @@ export async function resolveHandoff(handoff: Handoff): Promise<ResolvedHandoff>
 }
 
 /**
- * Drop the handoff from the address bar once it has been dealt with.
+ * Removes the handoff from the address bar once it has been loaded.
  *
- * Without this a refresh re-triggers the handoff — and worse, after the user
- * has edited and saved the circuit, reloading would silently throw their work
- * away and load the original again.
+ * Without this, a page refresh would load the shared circuit again. Worse,
+ * after the user has edited and saved the circuit, a reload would quietly
+ * throw away their work and load the original again.
  */
 export function clearHandoffFromUrl(): void {
 	const url = new URL(window.location.href);
@@ -201,17 +204,18 @@ async function gzipToBytes(text: string): Promise<Uint8Array> {
 }
 
 /**
- * Build an inline handoff link — the whole circuit encoded in the URL, needing
- * no account and no server round-trip.
+ * Builds a handoff link that holds the whole circuit inside the URL. It needs
+ * no account and no server.
  *
- * The payload is gzipped before base64. `decodeInlinePayload` sniffs the gzip
- * magic bytes rather than being told, so this stays the same link format either
- * way; compressing matters because an uncompressed dense circuit is ~38 KB of
- * base64, well past MAX_INLINE_PAYLOAD_CHARS, while the same circuit gzips to
- * around 1.2 KB.
+ * The data is gzipped before base64. `decodeInlinePayload` checks the first
+ * bytes to see if the data is gzipped, so the link format is the same either
+ * way. Compressing is important: a full circuit without compression is about
+ * 38 KB of base64, far more than MAX_INLINE_PAYLOAD_CHARS, while the same
+ * circuit gzipped is only about 1.2 KB.
  *
- * Throws rather than returning an oversized link: better to fail here, where we
- * can say why, than to hand someone a URL the receiver will reject.
+ * Throws an error instead of returning a link that is too long. It is better
+ * to fail here, where we can explain why, than to give someone a URL that the
+ * receiver will reject.
  */
 export async function buildInlineLink(
 	baseUrl: string,
@@ -220,7 +224,7 @@ export async function buildInlineLink(
 ): Promise<string> {
 	const payload: HandoffPayload = {
 		...(name ? { name } : {}),
-		// Strip ids on the way out; the receiver regenerates them.
+		// Remove the ids before sending. The receiver makes new ones.
 		ir: {
 			...ir,
 			operations: ir.operations.map(({ id: _id, ...rest }) => rest)
