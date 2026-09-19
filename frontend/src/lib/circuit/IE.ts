@@ -6,6 +6,7 @@ import {
 	type OpenQasmExportOptions
 } from './openQasmConverter';
 import { circuitToQiskit, qiskitToCircuit, type QiskitExportOptions } from './qiskitConverter';
+import { circuitToQSharp, qsharpToCircuit, type QSharpExportOptions } from './qsharpConverter';
 
 export type ImportResult = { ok: true; data: CircuitIR } | { ok: false; error: string };
 
@@ -37,6 +38,18 @@ export function importFromQiskit(pythonCode: string): ImportResult {
 	const circuit = qiskitToCircuit(pythonCode);
 	if (!circuit) {
 		return { ok: false, error: 'Failed to parse Qiskit code' };
+	}
+	return { ok: true, data: circuit };
+}
+
+export function exportToQSharp(ir: CircuitIR, options?: QSharpExportOptions): string {
+	return circuitToQSharp(ir, options);
+}
+
+export function importFromQSharp(qsharpCode: string): ImportResult {
+	const circuit = qsharpToCircuit(qsharpCode);
+	if (!circuit) {
+		return { ok: false, error: 'Failed to parse Q# code' };
 	}
 	return { ok: true, data: circuit };
 }

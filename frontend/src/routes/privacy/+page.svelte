@@ -265,8 +265,8 @@
 				what was deleted.
 			</li>
 			<li>
-				<strong>Take it with you</strong>: download any circuit as JSON, OpenQASM or Qiskit from the
-				code panel, or ask us for all your data.
+				<strong>Take it with you</strong>: download any circuit as JSON, OpenQASM, Qiskit or Q# from
+				the code panel, or ask us for all your data.
 			</li>
 			<li>
 				<strong>Object or limit</strong>: ask us to stop or limit how we use your data.

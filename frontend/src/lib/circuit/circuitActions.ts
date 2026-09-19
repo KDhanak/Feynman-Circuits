@@ -3,7 +3,9 @@ import {
 	exportToOpenQasm,
 	importFromOpenQasm,
 	exportToQiskit,
-	importFromQiskit
+	importFromQiskit,
+	exportToQSharp,
+	importFromQSharp
 } from './IE';
 import { applyCircuit } from '$lib/circuit/applyCircuit';
 import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
@@ -264,4 +266,26 @@ export function importQiskit(pythonText: string): void {
 		showNotification('Circuit imported but simulation failed', 'error');
 	}
 	showNotification('Circuit imported from Qiskit successfully!', 'success');
+}
+
+export function downloadCircuitAsQSharp(name: string, ir: CircuitIR): void {
+	const content = exportToQSharp(ir, { includeComments: true });
+	downloadFile(`${name}.qs`, content, 'text/plain');
+	showNotification('Circuit exported as Q#!', 'success');
+}
+
+export function importQSharp(qsharpText: string): void {
+	const result = importFromQSharp(qsharpText);
+	if (!result.ok) {
+		showNotification(result.error, 'error');
+		return;
+	}
+
+	const ir = result.data;
+	try {
+		applyCircuit(ir);
+	} catch {
+		showNotification('Circuit imported but simulation failed', 'error');
+	}
+	showNotification('Circuit imported from Q# successfully!', 'success');
 }

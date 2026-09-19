@@ -9,6 +9,7 @@
 		buildCanonicalString,
 		buildQASMString,
 		buildQiskitString,
+		buildQSharpString,
 		type DataViewMode,
 		type OpenQasmVersion
 	} from '$lib/circuit/circuitDataModal';
@@ -17,9 +18,11 @@
 		downloadCircuit,
 		downloadCircuitAsOpenQasm,
 		downloadCircuitAsQiskit,
+		downloadCircuitAsQSharp,
 		importJson,
 		importOpenQasm,
-		importQiskit
+		importQiskit,
+		importQSharp
 	} from '$lib/circuit/circuitActions';
 	import { resolvedTheme } from '$lib/stores/themeStore';
 	import { settings, updateSettings } from '$lib/stores/settingsStore';
@@ -193,11 +196,12 @@
 	let qasmVersion: OpenQasmVersion = '3.0';
 	let showVersionMenu = false;
 
-	// When the panel itself is narrow (≤440px, e.g. in a slim left column, or on a
+	// When the panel itself is narrow (≤490px, e.g. in a slim left column, or on a
 	// small screen), the side-by-side view buttons don't fit next to the action
 	// icons, so they turn into a hamburger dropdown. We measure the panel's own
-	// width (not the screen's) with ResizeObserver.
-	const NARROW_THRESHOLD = 440;
+	// width (not the screen's) with ResizeObserver. The threshold went up with the
+	// Q# button: one more view button needs one more button's worth of room.
+	const NARROW_THRESHOLD = 490;
 	let isNarrow = false;
 	let showViewMenu = false;
 	let viewMenuContainer: HTMLDivElement;
@@ -208,7 +212,9 @@
 			? `OpenQASM ${qasmVersion}`
 			: activeView === 'qiskit'
 				? 'Qiskit'
-				: 'Canonical IR';
+				: activeView === 'qsharp'
+					? 'Q#'
+					: 'Canonical IR';
 
 	let container: HTMLDivElement;
 	let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
@@ -233,10 +239,20 @@
 			? buildQASMString($circuitIR, qasmVersion)
 			: activeView === 'qiskit'
 				? buildQiskitString($circuitIR)
-				: buildCanonicalString($circuitIR);
+				: activeView === 'qsharp'
+					? buildQSharpString($circuitIR)
+					: buildCanonicalString($circuitIR);
 
+	// Monaco ships a Q# grammar of its own, so unlike 'openqasm' this one needs
+	// no registering.
 	const editorLanguage = (view: DataViewMode) =>
-		view === 'qasm' ? 'openqasm' : view === 'qiskit' ? 'python' : 'json';
+		view === 'qasm'
+			? 'openqasm'
+			: view === 'qiskit'
+				? 'python'
+				: view === 'qsharp'
+					? 'qsharp'
+					: 'json';
 
 	// Put the generated text into the editor. `editor` is listed as a dependency so
 	// the first update runs once the editor is ready.
@@ -249,7 +265,12 @@
 
 	onMount(() => {
 		const savedView = localStorage.getItem('circuitDataView') as DataViewMode | null;
-		if (savedView === 'cir' || savedView === 'qasm' || savedView === 'qiskit')
+		if (
+			savedView === 'cir' ||
+			savedView === 'qasm' ||
+			savedView === 'qiskit' ||
+			savedView === 'qsharp'
+		)
 			activeView = savedView;
 		initializeEditor();
 	});
@@ -347,6 +368,8 @@
 			downloadCircuitAsOpenQasm($currentCircuitName, $circuitIR, qasmVersion);
 		} else if (activeView === 'qiskit') {
 			downloadCircuitAsQiskit($currentCircuitName, $circuitIR);
+		} else if (activeView === 'qsharp') {
+			downloadCircuitAsQSharp($currentCircuitName, $circuitIR);
 		} else {
 			downloadCircuit($currentCircuitName, $circuitIR);
 		}
@@ -358,6 +381,8 @@
 			importOpenQasm(text);
 		} else if (activeView === 'qiskit') {
 			importQiskit(text);
+		} else if (activeView === 'qsharp') {
+			importQSharp(text);
 		} else {
 			importJson(text);
 		}
@@ -425,11 +450,21 @@
 							type="button"
 							role="menuitem"
 							on:click={() => selectViewFromMenu('qiskit')}
-							class="btn-highlight-item w-full rounded-b-sm"
+							class="btn-highlight-item w-full"
 							class:opacity-100={activeView === 'qiskit'}
 							class:opacity-75={activeView !== 'qiskit'}
 						>
 							Qiskit
+						</button>
+						<button
+							type="button"
+							role="menuitem"
+							on:click={() => selectViewFromMenu('qsharp')}
+							class="btn-highlight-item w-full rounded-b-sm"
+							class:opacity-100={activeView === 'qsharp'}
+							class:opacity-75={activeView !== 'qsharp'}
+						>
+							Q#
 						</button>
 					</div>
 				{/if}
@@ -511,6 +546,16 @@
 					class="rounded-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
 				>
 					Qiskit
+				</button>
+				<button
+					type="button"
+					on:click={() => selectView('qsharp')}
+					class:!bg-ternary-2={activeView === 'qsharp'}
+					class:!text-white={activeView === 'qsharp'}
+					class:!border-ternary-2={activeView === 'qsharp'}
+					class="rounded-sm border border-secondary-2 bg-white px-2.5 py-1 text-xs text-secondary-2 cursor-pointer"
+				>
+					Q#
 				</button>
 			</div>
 		{/if}
