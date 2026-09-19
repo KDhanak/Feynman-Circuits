@@ -25,7 +25,7 @@
 	import { setCircuitPublic } from '$lib/api/circuitApi';
 	import { setPublicInCircuitListCache } from '$lib/stores/circuitListCache';
 	import { showNotification } from '$lib/utils/notificationUtils';
-	import { undo, redo } from '$lib/IR/history';
+	import { undo, redo, canUndo, canRedo } from '$lib/IR/history';
 	import { isTypingTarget } from '$lib/utils/keyboard';
 	import ShareDialog from '../ShareDialog.svelte';
 	import NameDialog from '../NameDialog.svelte';
@@ -551,15 +551,21 @@
 		</div>
 	{/if}
 
-	<!-- Circuit name, centred in the strip between the qubit buttons on the left
-	     and the copy/reset buttons on the right. Its width is limited to the space
-	     between those two groups (~7rem each plus some extra room), so a long name
-	     gets cut off with "…" instead of running under them. That keeps it
-	     readable on phones. By default, clicks go through the strip. Only the name
-	     itself and the save/rename button catch clicks, so the rest of the strip
-	     never blocks a tap meant for the board. -->
+	<!-- Circuit name, centred in the strip. Its width is limited to the space
+	     between whatever sits on either side of it, so a long name gets cut off
+	     with "…" instead of running under them. By default, clicks go through the
+	     strip. Only the name itself and the save/rename button catch clicks, so
+	     the rest of the strip never blocks a tap meant for the board.
+
+	     On a phone it sits at the bottom instead of the top. Up there it would
+	     have to fit between the qubit buttons and the share/copy/reset buttons
+	     (~7rem each), which leaves almost nothing on a narrow screen. At the
+	     bottom only the undo/redo buttons are in the way, so the name gets more
+	     room before it is cut off. -->
 	<div
-		class="absolute p-1 top-2 left-1/2 z-200 flex max-w-[calc(100%-14rem)] -translate-x-1/2 items-center gap-1.5 pointer-events-none"
+		class={`absolute p-1 left-1/2 z-200 flex -translate-x-1/2 items-center gap-1.5 pointer-events-none ${
+			$isMobile ? 'bottom-2 max-w-[calc(100%-10rem)]' : 'top-2 max-w-[calc(100%-14rem)]'
+		}`}
 		style="color: var(--color-muted);"
 	>
 		<Icon icon="ph:circuit-board" width="15" height="15" class="shrink-0" />
@@ -661,6 +667,36 @@
 		</button>
 	{/if}
 
+	<!-- Mobile: undo/redo, pinned to the board's bottom-right corner. A phone has
+	     no Ctrl+Z, so without these buttons undo cannot be reached at all there. -->
+	{#if $isMobile}
+		<div
+			class="absolute bottom-2 right-2 z-200 flex items-center gap-1 backdrop-blur-lg rounded-sm shadow-sm"
+			style="color: var(--color-text);"
+		>
+			<button
+				type="button"
+				class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-not-allowed disabled:opacity-40"
+				on:click|stopPropagation={undo}
+				disabled={!$canUndo}
+				aria-label="Undo"
+				title="Undo"
+			>
+				<Icon icon="ph:arrow-counter-clockwise-bold" width="18" height="18" />
+			</button>
+			<button
+				type="button"
+				class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-not-allowed disabled:opacity-40"
+				on:click|stopPropagation={redo}
+				disabled={!$canRedo}
+				aria-label="Redo"
+				title="Redo"
+			>
+				<Icon icon="ph:arrow-clockwise-bold" width="18" height="18" />
+			</button>
+		</div>
+	{/if}
+
 	<!-- Drag selection box -->
 	{#if $isDragSelecting && $dragStart && $dragCurrent}
 		{@const minX = Math.min($dragStart.x, $dragCurrent.x)}
@@ -673,12 +709,17 @@
 				minY}px; z-index: 100; background-color: rgba(59, 130, 246, 0.5);"
 		></div>
 	{/if}
-	<div class="rounded-sm overflow-hidden h-full">
+	<!-- The scrolling wire area. On a phone it stops 3rem short of the bottom of
+	     the panel, so the circuit name and the undo/redo buttons down there get a
+	     strip of their own. Without it a wire would sit behind them whenever the
+	     area is scrolled up. -->
+	<div class={`rounded-sm overflow-hidden ${$isMobile ? 'h-[calc(100%-3rem)]' : 'h-full'}`}>
 		<div
 			class="h-full overflow-y-auto"
 			bind:this={scrollContainer}
 			on:scroll={() => connectorLayer?.recomputeConnectorsSync()}
 		>
+			<!-- pt-10 keeps the first wire clear of the buttons pinned to the top. -->
 			<div class="flex items-start p-2 pt-10">
 				<!-- LEFT: qubit box + label (fixed, does not scroll) -->
 				<div class="flex shrink-0 flex-col gap-1 pr-1">

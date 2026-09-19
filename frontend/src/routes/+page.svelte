@@ -297,11 +297,16 @@
 	<GatePalette />
 
 	{#snippet mainContent()}
-		<!-- Circuit board — fills all remaining vertical space -->
+		<!-- Circuit board. Below `lg` it is a fixed 55vh tall, not a minimum. A
+		     minimum let the panel grow as qubits were added, which moved the
+		     circuit name and the undo/redo buttons at its bottom edge further down
+		     the page with every wire. At a fixed height the wires scroll inside the
+		     panel instead, so the bottom of the panel stays where it is. From `lg`
+		     up the panel takes all the height the page has left, as before. -->
 		<div
 			bind:this={boardEl}
 			data-tour="board"
-			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 min-h-[55vh] lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
+			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 flex h-[55vh] lg:h-auto lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
 		>
 			<CircuitLayout />
 		</div>
