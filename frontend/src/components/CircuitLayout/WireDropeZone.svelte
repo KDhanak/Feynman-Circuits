@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { qecMode, qubitLimit } from '$lib/qec/stores';
 	import type { UnitaryOperation } from '$lib/IR/schema';
 	import { onMount, tick } from 'svelte';
 	import { get } from 'svelte/store';
@@ -34,7 +35,6 @@
 	import {
 		COLUMN_WIDTH,
 		MAX_COLUMNS,
-		MAX_QUBITS,
 		MIN_COLUMN_WIDTH,
 		COLUMN_BUFFER,
 		MIN_VISIBLE_COLUMNS
@@ -106,7 +106,7 @@
 	}));
 
 	$: showGhostWire =
-		($isDragging || ($isMobile && $armedGate)) && $circuitIR.registers.q < MAX_QUBITS;
+		($isDragging || ($isMobile && $armedGate)) && $circuitIR.registers.q < $qubitLimit;
 
 	// While dragging a gate, scroll the board by itself when the pointer gets near the
 	// top/bottom edge (the closer, the faster). This replaces the old code that always
@@ -172,7 +172,7 @@
 
 	function addQubitWire() {
 		const ir = $circuitIR;
-		if (ir.registers.q >= MAX_QUBITS) return;
+		if (ir.registers.q >= $qubitLimit) return;
 		const newIndex = ir.registers.q;
 		circuitIR.set({
 			...ir,
@@ -190,7 +190,7 @@
 	// the end (labels are kept). Removing takes wires off the end, but stops at the
 	// first one that has gates, so a wire in use is never removed without warning.
 	function setQubitCount(target: number) {
-		const clamped = Math.max(1, Math.min(MAX_QUBITS, Math.floor(target)));
+		const clamped = Math.max(1, Math.min($qubitLimit, Math.floor(target)));
 		const ir = $circuitIR;
 		if (clamped > ir.registers.q) {
 			const start = ir.registers.q;
@@ -499,9 +499,9 @@
 				type="button"
 				class="flex cursor-pointer items-center justify-center rounded-sm p-1 transition-colors active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
 				on:click|stopPropagation={addQubitWire}
-				disabled={$circuitIR.registers.q >= MAX_QUBITS}
+				disabled={$circuitIR.registers.q >= $qubitLimit}
 				aria-label="Add qubit"
-				title="Add qubit"
+				title={$qecMode ? 'QEC mode works on one logical qubit' : 'Add qubit'}
 			>
 				<Icon icon="mdi:plus" width="20" height="20" />
 			</button>
@@ -674,14 +674,22 @@
 							<div class="relative mr-2 z-10 shrink-0 rounded-sm">
 								<div
 									class={`flex h-7 select-none items-center justify-center px-2 rounded-sm text-[13px] font-bold leading-none focus:outline-none ${
-										measured ? 'bg-measured/30 text-measured' : 'bg-ternary-3/30 text-ternary-1'
+										measured
+											? 'bg-measured/30 text-measured'
+											: $qecMode
+												? 'bg-qec-1/20 text-qec-1 ring-1 ring-qec-1/60'
+												: 'bg-ternary-3/30 text-ternary-1'
 									} ${wire.qubit >= 1 ? 'cursor-pointer shadow-sm shadow-ternary-1 active:shadow-none' : 'cursor-default'}`}
 									role="button"
 									tabindex="0"
-									title={wire.qubit >= 1 ? 'Double-click to remove qubit' : ''}
+									title={$qecMode
+										? 'Logical qubit: kept alive by the 17 physical qubits in the QEC panel below'
+										: wire.qubit >= 1
+											? 'Double-click to remove qubit'
+											: ''}
 									on:dblclick={() => removeQubitWire(wire.qubit)}
 								>
-									|0⟩
+									|0⟩{#if $qecMode}<sub class="ml-px text-[9px] font-semibold">L</sub>{/if}
 								</div>
 								{#if wire.qubit >= 1 && !hasGatesOnWire(wire.qubit)}
 									<button
@@ -698,7 +706,7 @@
 								value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 								on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 								placeholder="Label"
-								class={`qubit-label z-10 w-13 h-7 px-1.5 cursor-text text-[11px] border border-ternary-0 focus:scale-105 focus:shadow-sm focus:shadow-ternary-1 text-center rounded-sm focus:outline-none select-auto ${
+								class={`qubit-label z-10 w-13 h-7 px-1.5 cursor-text text-[11px] border ${$qecMode ? 'border-qec-1/60' : 'border-ternary-0'} focus:scale-105 focus:shadow-sm focus:shadow-ternary-1 text-center rounded-sm focus:outline-none select-auto ${
 									measured
 										? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
 										: 'text-black input-field'

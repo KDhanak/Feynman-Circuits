@@ -51,6 +51,12 @@
 	/* Actions that delete or destroy things. It flips like the rest: the deep red is
 	   hard to read on the dark background, so dark mode uses the light one. */
 	--color-danger: #b91c1c;
+
+	/* Lattice check colours. Fixed on purpose, and separate from the brand
+	   colours: QEC mode turns the brand purple emerald, and the X checks must not
+	   change colour with it, or they would look like part of the QEC frame. */
+	--color-check-x: #a855f7;
+	--color-check-z: #2563eb;
 }
 
 html.dark {
@@ -72,12 +78,30 @@ html.dark {
 	--color-qec-2: #6ee7b7;
 	--color-qec-fg: #052e16;
 	--color-danger: #f87171;
+	--color-check-z: #06b6d4;
 
 	/* Accents — Cyan for dark mode */
 	--color-ternary-0: #cffafe;
 	--color-ternary-1: #06b6d4;
 	--color-ternary-2: #0891b2;
 	--color-ternary-3: #0e7490;
+}
+
+/* QEC theme. Switched on by QEC mode (the `qec` class on <html>). It swaps the
+   brand purple for emerald everywhere at once: panels, the palette bar, the
+   wordmark. The blue accent stays, because it marks things you can click.
+   secondary-3 is #065f46 because at /20 it has the same brightness as the
+   purple panels in both themes, so the page changes colour, not brightness. */
+html.qec {
+	--color-secondary-1: #d1fae5;
+	--color-secondary-2: #059669;
+	--color-secondary-3: #065f46;
+	--color-secondary-4: #022c22;
+	--color-branding: #047857;
+}
+
+html.dark.qec {
+	--color-branding: #a7f3d0;
 }
 
 /* Smooth transitions */

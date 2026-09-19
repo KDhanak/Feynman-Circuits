@@ -1,3 +1,4 @@
+import { qubitLimit } from '$lib/qec/stores';
 import type {
 	CircuitIR,
 	UnitaryOperation,
@@ -256,7 +257,7 @@ export function handleDrop(e: DragEvent, col: number, qubit: number) {
 	const antiPending = get(pendingAntiControls);
 
 	/*─── Ghost wire drop: add more qubits ───*/
-	if (qubit === ir.registers.q && ir.registers.q < 8) {
+	if (qubit === ir.registers.q && ir.registers.q < get(qubitLimit)) {
 		setNumQubitsIR(ir.registers.q + 1);
 		const freshIR = get(circuitIR);
 
@@ -426,7 +427,7 @@ function _dropPaletteGate(
 			return;
 		}
 
-		if (ir.registers.q < 2 && ir.registers.q < 8) {
+		if (ir.registers.q < 2 && ir.registers.q < get(qubitLimit)) {
 			setNumQubitsIR(ir.registers.q + 1);
 			ir = get(circuitIR);
 		}

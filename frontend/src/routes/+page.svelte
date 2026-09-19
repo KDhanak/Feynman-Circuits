@@ -9,7 +9,7 @@
 	import { settings, updateSettings } from '$lib/stores/settingsStore';
 	import { isMobile } from '$lib/stores/isMobile';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
-	import LatticePanel from '../components/Qec/LatticePanel.svelte';
+	import QecPanel from '../components/Qec/QecPanel.svelte';
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 	import CircuitDataPanel from '../components/CircuitDataPanel.svelte';
 	import Icon from '@iconify/svelte';
@@ -42,7 +42,7 @@
 	// have apostrophes, which HTML attributes in the template handle badly.
 	const BLOCH_TIP = `Each qubit's state reduces to a vector r = (⟨X⟩, ⟨Y⟩, ⟨Z⟩): the north pole is |0⟩, the south pole is |1⟩, and the equator is superposition. This sphere plots the average of those vectors across the register, so it is exact for one qubit and only a summary for more — |01⟩ and a Bell pair both average to the centre. |r| = 1 means a pure state; |r| < 1 means mixed, which for a single qubit signals entanglement with the others.`;
 
-	const QEC_TIP = `A rotated distance-3 surface code, shown as a reference picture. Nine data qubits hold ONE logical qubit, and eight ancillas repeatedly measure the stabilisers around them — never the data itself, which would collapse the state. That is what protecting a single qubit costs: 17 physical qubits to keep one alive. Your circuit above is not encoded into this code yet; the panel is here to show what such protection looks like.`;
+	const QEC_TIP = `A rotated distance-3 surface code: nine data qubits hold ONE logical qubit, and eight ancillas keep checking the stabilisers around them, never the data itself, which would destroy the state. Click a data qubit to place an error, press Run, then step through the rounds to see which checks notice it and whether the decoder gets it right. Your circuit above is not encoded into this code: this is a separate experiment on one protected qubit.`;
 
 	// The Bloch sphere is optional. When it's hidden, the results row changes its
 	// layout so SimulationResult grows into the space the sphere would have used.
@@ -377,9 +377,8 @@
 			{#if qecTakeover}
 				<!--
 					QEC mode: one wide panel that replaces both the simulation results
-					and the third panel. For now it only shows the lattice. The syndrome
-					history it is sized for comes later, which is why it takes the full
-					width now instead of growing later.
+					and the third panel. It holds the whole QEC experiment:
+					the lattice, the controls, the injection ledger and the step control.
 					`sm:col-span-2` is needed below 1024px, where the row is a simple
 					2-column grid and a single item would otherwise only fill half of it.
 				-->
@@ -392,7 +391,7 @@
 						data-tour="results"
 						class="w-full h-full shadow-sm shadow-qec-1 bg-qec-surface/20 rounded-sm p-4 overflow-hidden flex justify-center"
 					>
-						<LatticePanel />
+						<QecPanel />
 					</div>
 				</Tooltip>
 			{:else if showBloch}

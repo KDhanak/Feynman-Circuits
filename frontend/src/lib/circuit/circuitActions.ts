@@ -18,7 +18,7 @@ import { showNotification } from '../utils/notificationUtils';
 import { circuitIR } from '$lib/IR/stores';
 import { setNumQubitsIR } from '$lib/IR/operations';
 import { get } from 'svelte/store';
-import { qecMode } from '$lib/qec/stores';
+import { QEC_LOGICAL_QUBITS, qecMode, qubitLimit } from '$lib/qec/stores';
 import { GATE_REGISTRY, isCliffordGate } from '$lib/quantum/gates';
 import type { UnitaryOperation } from '../IR/schema';
 
@@ -42,10 +42,23 @@ export function toggleQecMode(): void {
 				.map((op) => GATE_REGISTRY[op.gate].label)
 		)
 	];
+	// Nothing is deleted. Extra wires stay where they are, like non-Clifford
+	// gates do: the user is told, and can remove them with the minus button.
+	const problems: string[] = [];
 	if (offenders.length) {
+		problems.push(
+			`non-Clifford gates (${offenders.join(', ')}), which a stabiliser simulator cannot run`
+		);
+	}
+	const qubits = get(circuitIR).registers.q;
+	if (qubits > QEC_LOGICAL_QUBITS) {
+		problems.push(`${qubits} qubits, but QEC mode works on one logical qubit`);
+	}
+	if (problems.length) {
 		showNotification(
-			`QEC mode on. The circuit still contains non-Clifford gates (${offenders.join(', ')}) — a stabiliser simulator cannot run these.`,
-			'error'
+			`QEC mode on. The circuit still has ${problems.join(', and ')}.`,
+			'error',
+			5000
 		);
 	}
 }
@@ -110,6 +123,11 @@ export function downloadCircuitAsOpenQasm(
 }
 
 export function applyBellPairPreset(): void {
+	// A Bell pair needs two qubits, and QEC mode works on one logical qubit.
+	if (get(qubitLimit) < 2) {
+		showNotification('Bell Pair needs two qubits. QEC mode works on one logical qubit.', 'error');
+		return;
+	}
 	if (get(circuitIR).registers.q < 2) {
 		setNumQubitsIR(2);
 	}

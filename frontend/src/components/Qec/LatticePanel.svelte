@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { D3_LAYOUT, LATTICE_EXTENT } from '$lib/qec/layout';
 	import { currentSnapshot, highlightedCheck, visibleLayers } from '$lib/qec/stores';
-	import type { Check } from '$lib/qec/schema';
+	import { createEventDispatcher } from 'svelte';
+	import type { Check, InjectedError } from '$lib/qec/schema';
 
 	// The counts are worked out from the layout instead of typed in, so the caption
 	// can never disagree with the layout it describes. While this panel only gives
@@ -20,6 +21,21 @@
 	const H = PAD * 2 + (LATTICE_EXTENT.maxY - LATTICE_EXTENT.minY) * CELL;
 
 	const DATA_R = 9;
+
+	// When true, data qubits can be clicked to place errors. The panel only
+	// reports the click. What a click means is decided outside, in actions.ts.
+	export let interactive = false;
+
+	// Errors placed but not run yet. They are shown only while there is no
+	// result, in a hollow "planned" style, so they can never be mistaken for the
+	// truth layer of a run that really happened.
+	export let planned: InjectedError[] = [];
+
+	const dispatch = createEventDispatcher<{ qubitclick: { qubit: number } }>();
+
+	function qubitLabel(id: number): string {
+		return `Data qubit ${id}. Click to place or remove an error.`;
+	}
 
 	/**
 	 * Plaquette outline. Weight-4 checks are drawn as the square through their four
@@ -63,7 +79,14 @@
 	// ── Layer 1: what was actually injected ───────────────────────────────
 	// Adds up over time, so a mark stays on the qubit once placed. The round it was
 	// placed in is kept for the label, because "when" is half of the information.
-	$: injected = $visibleLayers.truth ? ($currentSnapshot?.truth.injected ?? []) : [];
+	// Before a run there is no snapshot, so the marks come from the planned
+	// errors instead. After a run they come only from the result.
+	$: isPlanned = !$currentSnapshot;
+	$: injected = isPlanned
+		? planned
+		: $visibleLayers.truth
+			? ($currentSnapshot?.truth.injected ?? [])
+			: [];
 	$: injectedByQubit = injected.reduce<Record<number, { pauli: string; round: number }[]>>(
 		(acc, e) => {
 			(acc[e.qubit] ??= []).push({ pauli: e.pauli, round: e.round });
@@ -81,7 +104,7 @@
 <div class="flex h-full w-full flex-col items-center justify-center gap-2">
 	<svg
 		viewBox="0 0 {W} {H}"
-		class="max-h-full w-auto max-w-full"
+		class="min-h-0 w-full flex-1"
 		role="group"
 		aria-label="Distance-3 rotated surface code lattice"
 	>
@@ -101,13 +124,15 @@
 				on:focus={() => highlightedCheck.set(check.id)}
 				on:blur={() => highlightedCheck.set(null)}
 			>
+				<!-- Outline only. The fill is transparent rather than "none" so the whole
+				     plaquette, not just its border, still picks up the hover. A fired check
+				     shows through its ancilla dot and a slightly heavier outline. -->
 				<path
 					{d}
 					class="transition-opacity duration-150"
-					fill={check.type === 'X' ? 'var(--color-secondary-2)' : 'var(--color-ternary-1)'}
-					fill-opacity={isFired ? 0.55 : 0.14}
-					stroke={check.type === 'X' ? 'var(--color-secondary-2)' : 'var(--color-ternary-1)'}
-					stroke-width={$highlightedCheck === check.id ? 2.5 : 1.25}
+					fill="transparent"
+					stroke={check.type === 'X' ? 'var(--color-check-x)' : 'var(--color-check-z)'}
+					stroke-width={$highlightedCheck === check.id ? 2.5 : isFired ? 2 : 1.25}
 					opacity={isDim ? 0.35 : 1}
 				/>
 				<!-- Ancilla marker: a detection event is shown as a filled ring, not only a
@@ -118,10 +143,10 @@
 					r={isFired ? 6.5 : 3.5}
 					fill={isFired
 						? check.type === 'X'
-							? 'var(--color-secondary-2)'
-							: 'var(--color-ternary-1)'
+							? 'var(--color-check-x)'
+							: 'var(--color-check-z)'
 						: 'var(--color-surface)'}
-					stroke={check.type === 'X' ? 'var(--color-secondary-2)' : 'var(--color-ternary-1)'}
+					stroke={check.type === 'X' ? 'var(--color-check-x)' : 'var(--color-check-z)'}
 					stroke-width="1.5"
 					opacity={isDim ? 0.35 : 1}
 				/>
@@ -157,22 +182,47 @@
 				>
 				{#if hits.length}
 					<!-- Layer 1 mark: on purpose, a different shape and colour from
-					     anything the syndrome or decoder layers draw. -->
+					     anything the syndrome or decoder layers draw. A planned error
+					     (not run yet) is hollow and dashed. A real one is solid. -->
 					<circle
 						cx={px(q.x) + DATA_R}
 						cy={px(q.y) - DATA_R}
 						r="7"
-						fill="var(--color-measured)"
-						stroke="var(--color-surface)"
+						class="pointer-events-none"
+						fill={isPlanned ? 'var(--color-surface)' : 'var(--color-measured)'}
+						stroke={isPlanned ? 'var(--color-measured)' : 'var(--color-surface)'}
 						stroke-width="1.5"
+						stroke-dasharray={isPlanned ? '2 1.5' : undefined}
 					/>
 					<text
 						x={px(q.x) + DATA_R}
 						y={px(q.y) - DATA_R + 3}
 						text-anchor="middle"
 						class="pointer-events-none select-none text-[8px] font-bold"
-						fill="#ffffff">{hits.map((h) => h.pauli).join('')}</text
+						fill={isPlanned ? 'var(--color-measured)' : '#ffffff'}
+						>{hits.map((h) => h.pauli).join('')}</text
 					>
+				{/if}
+				{#if interactive}
+					<!-- Click target. Drawn last so it sits on top, and a little larger
+					     than the qubit so it is easy to hit. -->
+					<circle
+						cx={px(q.x)}
+						cy={px(q.y)}
+						r={DATA_R + 4}
+						role="button"
+						tabindex="0"
+						aria-label={qubitLabel(q.id)}
+						class="cursor-pointer fill-transparent stroke-transparent outline-none hover:fill-qec-1/15 focus-visible:stroke-qec-1"
+						stroke-width="2"
+						on:click={() => dispatch('qubitclick', { qubit: q.id })}
+						on:keydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								dispatch('qubitclick', { qubit: q.id });
+							}
+						}}
+					/>
 				{/if}
 			</g>
 		{/each}
@@ -200,20 +250,28 @@
 			<span class="inline-block h-2.5 w-2.5 rounded-full" style="background: var(--color-measured)"
 			></span>injected error <span class="opacity-60">(truth)</span>
 		</span>
+		{#if isPlanned && planned.length}
+			<span class="flex items-center gap-1.5">
+				<span
+					class="inline-block h-2.5 w-2.5 rounded-full border border-dashed"
+					style="border-color: var(--color-measured)"
+				></span>placed, not run yet
+			</span>
+		{/if}
 		<span class="flex items-center gap-1.5">
 			<span
 				class="inline-block h-2.5 w-2.5 rounded-full border"
-				style="border-color: var(--color-ternary-1); background: var(--color-ternary-1)"
+				style="border-color: var(--color-check-z); background: var(--color-check-z)"
 			></span>detection event <span class="opacity-60">(measured)</span>
 		</span>
 		<span class="flex items-center gap-1.5">
 			<span
 				class="inline-block h-2.5 w-2.5 rounded-full border"
-				style="border-color: var(--color-secondary-2)"
+				style="border-color: var(--color-check-x)"
 			></span>X-check
 			<span
 				class="ml-2 inline-block h-2.5 w-2.5 rounded-full border"
-				style="border-color: var(--color-ternary-1)"
+				style="border-color: var(--color-check-z)"
 			></span>Z-check
 		</span>
 	</div>

@@ -1,5 +1,7 @@
 import { writable, derived } from 'svelte/store';
 import type { QecResult, TimelineSnapshot } from './schema';
+import { DEFAULT_DRAFT, type QecDraft } from './draft';
+import { MAX_QUBITS } from '$lib/utils/constants';
 
 /**
  * The whole result of one experiment, exactly as the backend sent it.
@@ -49,6 +51,30 @@ export const currentSnapshot = derived(
  * kept here and not in settingsStore.
  */
 export const qecMode = writable<boolean>(false);
+
+/**
+ * In QEC mode the circuit is ONE logical qubit: the one the 17 physical qubits
+ * in the QEC panel protect. Everything that can add a qubit (the + button, the
+ * count box, the ghost wire, SWAP, Bell Pair) reads this instead of MAX_QUBITS.
+ */
+export const QEC_LOGICAL_QUBITS = 1;
+export const qubitLimit = derived(qecMode, ($on) => ($on ? QEC_LOGICAL_QUBITS : MAX_QUBITS));
+
+// The QEC theme is a class on <html>, the same way dark mode is. The check
+// keeps this from running during server rendering, where there is no page.
+if (typeof document !== 'undefined') {
+	qecMode.subscribe((on) => document.documentElement.classList.toggle('qec', on));
+}
+
+/**
+ * The experiment being set up: rounds, the chosen Pauli and round, and the
+ * errors placed so far (the injection ledger). Kept apart from `qecResult` on
+ * purpose: this is what the user is ASKING for, the result is what came back.
+ */
+export const qecDraft = writable<QecDraft>(DEFAULT_DRAFT);
+
+/** True while a run is waiting on the backend. */
+export const qecRunning = writable<boolean>(false);
 
 export function resetQec() {
 	qecResult.set(null);
