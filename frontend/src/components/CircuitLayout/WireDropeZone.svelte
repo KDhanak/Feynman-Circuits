@@ -25,6 +25,8 @@
 	import { setCircuitPublic } from '$lib/api/circuitApi';
 	import { setPublicInCircuitListCache } from '$lib/stores/circuitListCache';
 	import { showNotification } from '$lib/utils/notificationUtils';
+	import { undo, redo } from '$lib/IR/history';
+	import { isTypingTarget } from '$lib/utils/keyboard';
 	import ShareDialog from '../ShareDialog.svelte';
 	import NameDialog from '../NameDialog.svelte';
 	import Icon from '@iconify/svelte';
@@ -434,10 +436,28 @@
 			}
 		};
 
-		const handleDeleteKey = (e: KeyboardEvent) => {
+		// Board shortcuts. They listen on the whole document, so they must do
+		// nothing while the user is typing in the circuit name, a qubit label or
+		// a gate angle box.
+		const handleBoardKeys = (e: KeyboardEvent) => {
+			if (isTypingTarget(e)) return;
+
 			if (e.key === 'Delete' && get(selectedGateIds).size > 0) {
 				e.preventDefault();
 				deleteSelectedGates();
+				return;
+			}
+
+			if (!(e.ctrlKey || e.metaKey)) return;
+			const key = e.key.toLowerCase();
+			// Ctrl+Z undoes, Ctrl+Shift+Z and Ctrl+Y redo. Both redo shortcuts are
+			// here because Windows apps use Ctrl+Y and Mac apps use Ctrl+Shift+Z.
+			if (key === 'z' && !e.shiftKey) {
+				e.preventDefault();
+				undo();
+			} else if ((key === 'z' && e.shiftKey) || key === 'y') {
+				e.preventDefault();
+				redo();
 			}
 		};
 
@@ -452,11 +472,11 @@
 		};
 
 		document.addEventListener('click', handleClickOutside);
-		document.addEventListener('keydown', handleDeleteKey);
+		document.addEventListener('keydown', handleBoardKeys);
 		scrollContainer?.addEventListener('wheel', handleDragWheel, { passive: false });
 		return () => {
 			document.removeEventListener('click', handleClickOutside);
-			document.removeEventListener('keydown', handleDeleteKey);
+			document.removeEventListener('keydown', handleBoardKeys);
 			scrollContainer?.removeEventListener('wheel', handleDragWheel);
 			stopEdgeScroll();
 		};

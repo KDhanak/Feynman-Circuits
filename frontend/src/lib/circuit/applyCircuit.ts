@@ -6,6 +6,7 @@ import {
 	currentCircuitName
 } from '../IR/stores';
 import { isCircuitSaved, markAsReset, markNameResolved } from './autoSave';
+import { resetHistory } from '../IR/history';
 import { triggerSimulation } from './dragDropUtils';
 
 export interface ApplyCircuitOptions {
@@ -55,5 +56,10 @@ export function applyCircuit(ir: CircuitIR, options: ApplyCircuitOptions = {}): 
 	currentCircuitIsPublic.set(isPublic);
 
 	circuitIR.set(ir);
+	// Loading a circuit is not an edit, so the steps of whatever was open before
+	// must go away. Otherwise one Ctrl+Z would bring the old circuit back onto
+	// the board while the id and name above still belong to this one, and the
+	// next auto-save would write the old gates over this circuit.
+	resetHistory(ir);
 	triggerSimulation(ir);
 }
