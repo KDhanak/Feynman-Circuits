@@ -18,7 +18,8 @@
 	} from '$lib/circuit/dragDropUtils';
 	import { updateQubitLabel } from '$lib/circuit/qubitLables';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
-	import { copyToClipboard } from '$lib/circuit/circuitActions';
+	import { copyToClipboard, startNewCircuit } from '$lib/circuit/circuitActions';
+	import ConfirmDialog from '../ConfirmDialog.svelte';
 	import { buildInlineLink } from '$lib/circuit/handoff';
 	import { isCircuitSaved, manualSave } from '$lib/circuit/autoSave';
 	import { currentCircuitId, currentCircuitIsPublic } from '$lib/IR/stores';
@@ -350,6 +351,21 @@
 		});
 	}
 
+	// Starting a new circuit throws away whatever is on the board, so ask first
+	// when there is anything on it. An empty board has nothing to lose, and
+	// asking there would only be in the way.
+	let newCircuitConfirmOpen = false;
+
+	function newCircuit() {
+		if ($circuitIR.operations.length === 0) startNewCircuit();
+		else newCircuitConfirmOpen = true;
+	}
+
+	function confirmNewCircuit() {
+		newCircuitConfirmOpen = false;
+		startNewCircuit();
+	}
+
 	function copyCircuit() {
 		copyToClipboard(buildCanonicalString($circuitIR));
 	}
@@ -622,11 +638,27 @@
 		{/if}
 	</div>
 
-	<!-- Share + Copy + Reset buttons, pinned to the board's top-right corner (icon only) -->
+	<!-- New + Share + Copy + Clear buttons, pinned to the board's top-right corner (icon only) -->
 	<div
 		class="absolute top-2 right-2 z-200 flex items-center gap-1 backdrop-blur-lg rounded-sm shadow-sm"
 		style="color: var(--color-text);"
 	>
+		<!-- The only labelled button in this row: starting a new circuit is the one
+		     action here that throws work away, so it says what it is wherever
+		     there is room. On a phone the row has none, so it falls back to the
+		     icon and keeps its name in the tooltip and for screen readers. -->
+		<button
+			type="button"
+			class="cursor-pointer flex items-center gap-1.5 rounded-sm p-1.5 text-sm font-medium text-measured transition-colors hover:text-measured/80 active:text-measured/60"
+			on:click|stopPropagation={newCircuit}
+			aria-label="New circuit"
+			title="New circuit — starts a separate circuit and leaves this one saved as it is"
+		>
+			<Icon icon="ph:file-plus-bold" width="18" height="18" />
+			{#if !$isMobile}
+				<span>New circuit</span>
+			{/if}
+		</button>
 		<button
 			type="button"
 			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-wait disabled:opacity-50"
@@ -650,8 +682,8 @@
 			type="button"
 			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 active:text-red-700"
 			on:click|stopPropagation={resetCircuitBoard}
-			aria-label="Reset circuit"
-			title="Reset circuit"
+			aria-label="Clear board"
+			title="Clear board — takes the gates off but keeps this circuit's name"
 		>
 			<Icon icon="material-symbols:restart-alt" width="20" height="20" />
 		</button>
@@ -965,6 +997,18 @@
 	confirmLabel="Save"
 	onConfirm={saveCircuit}
 	onCancel={() => (showNameDialog = false)}
+/>
+
+<ConfirmDialog
+	open={newCircuitConfirmOpen}
+	title="Start a new circuit?"
+	message={$isCircuitSaved
+		? `The board will be cleared. "${$currentCircuitName}" stays in your circuits as it is.`
+		: 'The board will be cleared. This circuit is not saved, so it will be lost.'}
+	confirmLabel="Start new"
+	danger={!$isCircuitSaved}
+	onConfirm={confirmNewCircuit}
+	onCancel={() => (newCircuitConfirmOpen = false)}
 />
 
 <style>

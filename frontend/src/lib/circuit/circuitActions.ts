@@ -17,7 +17,8 @@ import {
 	pendingAntiControls
 } from '$lib/circuit/dragDropUtils';
 import { showNotification } from '../utils/notificationUtils';
-import { circuitIR } from '$lib/IR/stores';
+import { resetAutoSaveState } from '$lib/circuit/autoSave';
+import { circuitIR, emptyCircuitIR } from '$lib/IR/stores';
 import { setNumQubitsIR } from '$lib/IR/operations';
 import { get } from 'svelte/store';
 import { QEC_LOGICAL_QUBITS, qecMode, qubitLimit } from '$lib/qec/stores';
@@ -122,6 +123,25 @@ export function downloadCircuitAsOpenQasm(
 	const content = exportToOpenQasm(ir, { version, includeComments: true });
 	downloadFile(`${name}.qasm`, content, 'text/plain');
 	showNotification(`Circuit exported as OpenQasm ${version}!`, 'success');
+}
+
+/**
+ * Starts a brand new circuit on the board.
+ *
+ * This is not the same as clearing the board. Clearing takes the gates off but
+ * keeps the circuit's id and name, so for a signed-in user the next edit
+ * auto-saves the new work over the circuit they had open. Starting a new
+ * circuit hands the board a fresh id and an Untitled name, so whatever was
+ * open before is left alone in their library.
+ *
+ * Resetting auto-save's own state matters too: it clears `nameResolved`, so
+ * the first save asks the server for a free "Untitled Circuit N" instead of
+ * keeping the last circuit's name, and it clears any run of failed saves.
+ */
+export function startNewCircuit(): void {
+	resetAutoSaveState();
+	applyCircuit(emptyCircuitIR(), { name: 'Untitled Circuit' });
+	showNotification('Started a new circuit.', 'success');
 }
 
 export function applyBellPairPreset(): void {

@@ -1,15 +1,25 @@
 import { writable } from 'svelte/store';
 import type { CircuitIR, SimulationResult } from './schema';
 
-export const circuitIR = writable<CircuitIR>({
-	version: '1.0',
-	registers: {
-		q: 1,
-		c: 0
-	},
-	qubitLabels: ['Qubit 0'],
-	operations: []
-});
+/**
+ * The circuit a fresh board starts with: one qubit, nothing on it.
+ *
+ * A function rather than a shared constant, so the empty circuit cannot be
+ * edited by accident through a reference somebody kept.
+ */
+export function emptyCircuitIR(): CircuitIR {
+	return {
+		version: '1.0',
+		registers: {
+			q: 1,
+			c: 0
+		},
+		qubitLabels: ['Qubit 0'],
+		operations: []
+	};
+}
+
+export const circuitIR = writable<CircuitIR>(emptyCircuitIR());
 
 export const simulationResult = writable<SimulationResult>({
 	probabilities: { '0': 1, '1': 0 },

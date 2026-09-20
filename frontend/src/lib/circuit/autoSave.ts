@@ -40,7 +40,8 @@ const autoSaveState = writable<AutoSaveState>({ ...INITIAL_STATE });
 // loaded from the user's saved circuits). Decides whether the button says Save or Rename.
 export const isCircuitSaved = writable<boolean>(false);
 
-// Used by tests: reset everything back to the start between tests.
+// Puts auto-save back to how it starts: used between tests, and when the user
+// starts a new circuit, which needs the same clean slate.
 export function resetAutoSaveState() {
 	autoSaveState.set({ ...INITIAL_STATE });
 }
