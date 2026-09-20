@@ -43,6 +43,9 @@
 	let page = 1;
 	let hasMore = cached.hasMore;
 	let deletingId = '';
+	// The circuit being fetched and drawn right now, if any. Also acts as the
+	// guard that stops a second row being opened while one is still loading.
+	let openingId = '';
 
 	let contextMenuVisible = false;
 	let contextMenuX = 0;
@@ -206,7 +209,12 @@
 	}
 
 	async function openCircuit(circuit: CircuitSummary) {
+		// Fetching the circuit and drawing it takes long enough to notice, so the
+		// row says it is working. Without this a click looks like it did nothing,
+		// and people click again.
+		if (openingId) return;
 		closeContextMenu();
+		openingId = circuit.circuit_id;
 		try {
 			const ir = await loadCircuit(circuit.circuit_id);
 			applyCircuit(ir, {
@@ -219,6 +227,8 @@
 			onClose();
 		} catch {
 			showNotification('Failed to load circuit.', 'error');
+		} finally {
+			openingId = '';
 		}
 	}
 
@@ -453,9 +463,12 @@
 								class="circuit-row w-full text-left px-4 py-3 rounded-sm shadow-sm shadow-measured/40 hover:shadow-measured transition-shadow duration-200 flex items-center justify-between gap-3 cursor-pointer"
 								class:ring-2={selectedIds.has(circuit.circuit_id)}
 								class:ring-secondary-2={selectedIds.has(circuit.circuit_id)}
+								class:is-opening={openingId === circuit.circuit_id}
+								class:is-waiting={openingId !== '' && openingId !== circuit.circuit_id}
 								style="background-color: var(--color-surface);"
 								role="button"
 								tabindex="0"
+								aria-busy={openingId === circuit.circuit_id}
 								on:click={() => onRowClick(circuit)}
 								on:keydown={(e) => e.key === 'Enter' && onRowClick(circuit)}
 								on:contextmenu={(e) => handleContextMenu(circuit, e)}
@@ -504,6 +517,17 @@
 								{#if deletingId === circuit.circuit_id}
 									<span style="color: var(--color-measured);">
 										<Loader size={18} label="Deleting this circuit" />
+									</span>
+								{:else if openingId === circuit.circuit_id}
+									<!-- Named rather than a bare spinner: with the drawer still open
+									     over the board, "Loading…" on its own would not say which
+									     circuit is on its way. -->
+									<span
+										class="flex shrink-0 items-center gap-1.5 text-xs"
+										style="color: var(--color-measured);"
+									>
+										<Loader size={16} />
+										Loading…
 									</span>
 								{/if}
 							</div>
@@ -667,6 +691,22 @@
 />
 
 <style>
+	/* While a circuit is being fetched and drawn, its own row keeps a highlight
+	   and every other row steps back, so it is obvious which one is on its way.
+	   The other rows also stop taking clicks: a second one cannot be started
+	   until this one finishes. */
+	.circuit-row.is-opening {
+		cursor: progress;
+		box-shadow:
+			0 0 0 1.5px var(--color-measured),
+			0 1px 2px rgb(0 0 0 / 0.1);
+	}
+
+	.circuit-row.is-waiting {
+		opacity: 0.5;
+		pointer-events: none;
+	}
+
 	/* Custom checkbox: see-through background when not selected, brand colour and a
 	   tick when selected (the browser's own `accent-color` leaves a solid white box when unchecked). */
 	.select-checkbox {
