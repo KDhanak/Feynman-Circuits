@@ -10,8 +10,12 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 - Double-click to place gates from the palette
 - Box-select multiple gates by dragging over them (Ctrl/Cmd to add), then `Delete` to remove
 - Undo and redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, plus on-screen buttons on mobile)
-- Copy or reset the whole circuit from the board's right-click menu (or the reset button)
+- Right-click a gate for its own menu (edit angle, delete, add a control)
+- Board toolbar: start a new circuit, share, copy, or clear the board
+- **New circuit** saves the circuit you are on to your library first, then hands you a fresh board — so starting over never overwrites what you had open
+- **Clear board** takes the gates off but keeps the circuit's name, so it stays the same circuit
 - Import and export circuits as JSON, OpenQASM 2.0 / 3.0, Qiskit Python, or Q#
+- Up to 8 qubits and 29 columns
 
 **Gates**
 | Category | Gates |
@@ -42,9 +46,9 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 
 **Accounts & Storage**
 - Sign up / sign in with email and password
-- OTP-based password reset via email
-- Cloud circuit save with auto-save while editing
-- Circuit library — load and manage saved circuits
+- OTP-based password reset via email; profile editing, password change and account deletion
+- Cloud circuit save with auto-save while editing, and a save indicator on the board
+- Circuit library — open, rename, download, publish, delete, and select several at once to delete in bulk
 
 **Sharing**
 - Publish a saved circuit and share it by link — recipients need no account
@@ -52,9 +56,11 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 - Opening a shared link loads the circuit onto the board and simulates it
 
 **UI**
-- Dark and light theme
+- Dark and light theme (or follow the system)
 - Fully responsive layout, with tap-to-place editing on touch devices
 - Guided onboarding tour for first-time users
+- Settings for the default results view (list or histogram), auto-save, and bit order — `q0` leftmost (textbook) or rightmost (Qiskit / IBM)
+- In-app feedback form
 
 ## Tech Stack
 
@@ -97,9 +103,9 @@ feynman-circuits/
 
 ### Prerequisites
 
-- Node.js 18+
-- Python 3.11+
-- PostgreSQL
+- Node.js 20+
+- Python 3.12+ (Django 6 requires it)
+- PostgreSQL — only for production; local development runs on SQLite
 
 ### Frontend
 
@@ -120,14 +126,26 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-Create a `.env` file in `backend/` with:
+Create a `.env` file in `backend/`. Local development needs very little — with `DEBUG=True`
+the app uses SQLite, prints emails to the console, allows `http://localhost:5173`, and falls back
+to a development secret key:
 
 ```env
-SECRET_KEY=your-django-secret-key
 DEBUG=True
-DATABASE_URL=postgres://user:password@localhost:5432/feynman_circuits
-ANYMAIL_API_KEY=your-email-provider-key
+```
+
+For anything deployed, none of those fallbacks apply and these are required instead:
+
+```env
+DEBUG=False
+SECRET_KEY=your-django-secret-key
+DATABASE_URL=postgres://user:password@host:5432/feynman_circuits
+ALLOWED_HOSTS=api.yourdomain.com
+FRONTEND_URL=https://yourdomain.com
+RESEND_API_KEY=your-resend-key
 DEFAULT_FROM_EMAIL=noreply@yourdomain.com
+AUTH_FROM_EMAIL=noreply@yourdomain.com
+FEEDBACK_TO_EMAIL=you@yourdomain.com
 ```
 
 Then run:
@@ -138,6 +156,19 @@ python manage.py runserver
 ```
 
 The frontend dev server runs on `http://localhost:5173` and proxies API requests to `http://localhost:8000`.
+
+### Tests
+
+```bash
+cd frontend && npm run check    # svelte-check
+cd frontend && npm run lint     # prettier + eslint
+cd frontend && npx vitest run   # unit and component tests
+cd backend && python manage.py test
+```
+
+GitHub Actions runs the frontend checks and the backend test suite on every push and pull request
+(`.github/workflows/test.yml`). The backend job runs with `DEBUG=True`, so it needs no database
+service and no secrets.
 
 ## How the Simulator Works
 

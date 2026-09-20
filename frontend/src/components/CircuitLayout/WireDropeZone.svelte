@@ -18,8 +18,13 @@
 	} from '$lib/circuit/dragDropUtils';
 	import { updateQubitLabel } from '$lib/circuit/qubitLables';
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
-	import { copyToClipboard, startNewCircuit } from '$lib/circuit/circuitActions';
+	import {
+		copyToClipboard,
+		saveThenStartNewCircuit,
+		startNewCircuit
+	} from '$lib/circuit/circuitActions';
 	import ConfirmDialog from '../ConfirmDialog.svelte';
+	import Loader from '../Loader.svelte';
 	import { buildInlineLink } from '$lib/circuit/handoff';
 	import { isCircuitSaved, manualSave } from '$lib/circuit/autoSave';
 	import { currentCircuitId, currentCircuitIsPublic } from '$lib/IR/stores';
@@ -355,15 +360,22 @@
 	// when there is anything on it. An empty board has nothing to lose, and
 	// asking there would only be in the way.
 	let newCircuitConfirmOpen = false;
+	// True while the circuit on the board is being saved on its way out.
+	let startingNewCircuit = false;
 
 	function newCircuit() {
 		if ($circuitIR.operations.length === 0) startNewCircuit();
 		else newCircuitConfirmOpen = true;
 	}
 
-	function confirmNewCircuit() {
+	async function confirmNewCircuit() {
 		newCircuitConfirmOpen = false;
-		startNewCircuit();
+		startingNewCircuit = true;
+		try {
+			await saveThenStartNewCircuit();
+		} finally {
+			startingNewCircuit = false;
+		}
 	}
 
 	function copyCircuit() {
@@ -649,14 +661,19 @@
 		     icon and keeps its name in the tooltip and for screen readers. -->
 		<button
 			type="button"
-			class="cursor-pointer flex items-center gap-1.5 rounded-sm p-1.5 text-sm font-medium text-measured transition-colors hover:text-measured/80 active:text-measured/60"
+			class="cursor-pointer flex items-center gap-1.5 rounded-sm p-1.5 text-sm font-medium text-measured transition-colors hover:text-measured/80 active:text-measured/60 disabled:cursor-wait"
 			on:click|stopPropagation={newCircuit}
+			disabled={startingNewCircuit}
 			aria-label="New circuit"
 			title="New circuit — starts a separate circuit and leaves this one saved as it is"
 		>
-			<Icon icon="ph:file-plus-bold" width="18" height="18" />
+			{#if startingNewCircuit}
+				<Loader size={18} />
+			{:else}
+				<Icon icon="ph:file-plus-bold" width="18" height="18" />
+			{/if}
 			{#if !$isMobile}
-				<span>New circuit</span>
+				<span>{startingNewCircuit ? 'Saving…' : 'New circuit'}</span>
 			{/if}
 		</button>
 		<button
@@ -1002,11 +1019,11 @@
 <ConfirmDialog
 	open={newCircuitConfirmOpen}
 	title="Start a new circuit?"
-	message={$isCircuitSaved
-		? `The board will be cleared. "${$currentCircuitName}" stays in your circuits as it is.`
-		: 'The board will be cleared. This circuit is not saved, so it will be lost.'}
-	confirmLabel="Start new"
-	danger={!$isCircuitSaved}
+	message={$session.status === 'authenticated'
+		? `"${$currentCircuitName}" is saved to your circuits first, then the board starts fresh.`
+		: 'The board will be cleared. You are not signed in, so this circuit cannot be saved and will be lost.'}
+	confirmLabel={$session.status === 'authenticated' ? 'Save and start new' : 'Start new'}
+	danger={$session.status !== 'authenticated'}
 	onConfirm={confirmNewCircuit}
 	onCancel={() => (newCircuitConfirmOpen = false)}
 />

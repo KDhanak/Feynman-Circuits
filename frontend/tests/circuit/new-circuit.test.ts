@@ -8,14 +8,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * circuit must hand the board a fresh id, so the old one is left alone.
  */
 
+const upsertCircuit = vi.fn(async (circuit_id: string, name: string, _ir: unknown) => ({
+	circuit_id,
+	name
+}));
 vi.mock('$lib/api/circuitApi', () => ({
-	upsertCircuit: vi.fn(),
+	upsertCircuit: (id: string, name: string, ir: unknown) => upsertCircuit(id, name, ir),
 	getNextUntitledName: async () => 'Untitled Circuit 2'
 }));
 vi.mock('$lib/utils/notificationUtils', () => ({ showNotification: vi.fn() }));
 
 import { get } from 'svelte/store';
-import { startNewCircuit } from '$lib/circuit/circuitActions';
+import { saveThenStartNewCircuit, startNewCircuit } from '$lib/circuit/circuitActions';
+import { session } from '$lib/auth/session';
 import { resetCircuit } from '$lib/circuit/simulator';
 import { isCircuitSaved, resetAutoSaveState } from '$lib/circuit/autoSave';
 import { canUndo } from '$lib/IR/history';
@@ -58,8 +63,17 @@ function openSavedCircuit() {
 }
 
 beforeEach(() => {
+	upsertCircuit.mockClear();
+	session.set({ status: 'anonymous', user: null });
 	openSavedCircuit();
 });
+
+function signIn() {
+	session.set({
+		status: 'authenticated',
+		user: { id: 1, email: 'user@example.com', first_name: 'A', last_name: 'B' }
+	});
+}
 
 describe('startNewCircuit', () => {
 	it('gives the board a different id, so the circuit that was open is not written over', () => {
@@ -90,6 +104,51 @@ describe('startNewCircuit', () => {
 		startNewCircuit();
 
 		expect(get(canUndo)).toBe(false);
+	});
+});
+
+describe('saveThenStartNewCircuit', () => {
+	it('saves the circuit that is on its way out, under its own id and gates', async () => {
+		signIn();
+
+		await saveThenStartNewCircuit();
+
+		expect(upsertCircuit).toHaveBeenCalledOnce();
+		const [id, name, ir] = upsertCircuit.mock.calls[0];
+		expect(id).toBe('saved-circuit-id');
+		expect(name).toBe('Bell pair');
+		// The old gates, not the empty board that replaces them a moment later.
+		expect((ir as CircuitIR).operations).toHaveLength(1);
+	});
+
+	it('only then starts the new circuit', async () => {
+		signIn();
+
+		await saveThenStartNewCircuit();
+
+		expect(get(currentCircuitId)).not.toBe('saved-circuit-id');
+		expect(get(circuitIR).operations).toEqual([]);
+	});
+
+	it('keeps the circuit on the board when the save fails', async () => {
+		signIn();
+		upsertCircuit.mockRejectedValueOnce(new Error('network down'));
+
+		await saveThenStartNewCircuit();
+
+		// Nothing was cleared: losing the work we could not save is the one
+		// outcome this has to rule out.
+		expect(get(currentCircuitId)).toBe('saved-circuit-id');
+		expect(get(currentCircuitName)).toBe('Bell pair');
+		expect(get(circuitIR).operations).toHaveLength(1);
+	});
+
+	it('just starts fresh when signed out, since there is nowhere to save to', async () => {
+		await saveThenStartNewCircuit();
+
+		expect(upsertCircuit).not.toHaveBeenCalled();
+		expect(get(currentCircuitId)).not.toBe('saved-circuit-id');
+		expect(get(circuitIR).operations).toEqual([]);
 	});
 });
 

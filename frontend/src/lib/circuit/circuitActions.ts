@@ -17,7 +17,8 @@ import {
 	pendingAntiControls
 } from '$lib/circuit/dragDropUtils';
 import { showNotification } from '../utils/notificationUtils';
-import { resetAutoSaveState } from '$lib/circuit/autoSave';
+import { manualSave, resetAutoSaveState } from '$lib/circuit/autoSave';
+import { session } from '$lib/auth/session';
 import { circuitIR, emptyCircuitIR } from '$lib/IR/stores';
 import { setNumQubitsIR } from '$lib/IR/operations';
 import { get } from 'svelte/store';
@@ -142,6 +143,33 @@ export function startNewCircuit(): void {
 	resetAutoSaveState();
 	applyCircuit(emptyCircuitIR(), { name: 'Untitled Circuit' });
 	showNotification('Started a new circuit.', 'success');
+}
+
+/**
+ * Saves whatever is on the board, then starts a new circuit.
+ *
+ * Auto-save runs on a timer, so the last few edits may not be on the server
+ * yet when someone starts a new circuit. This puts them there first.
+ *
+ * Two things this must get right:
+ *  - It waits for the save to finish. `startNewCircuit` replaces the id and
+ *    the board that the save is still reading, so starting early would save
+ *    the new empty circuit over the old one.
+ *  - If the save fails, the new circuit is NOT started. Clearing the board
+ *    after failing to save the work on it is the one outcome nobody wants.
+ *
+ * A signed-out user has nowhere to save to, so there is nothing to wait for.
+ */
+export async function saveThenStartNewCircuit(): Promise<void> {
+	if (get(session).status === 'authenticated') {
+		try {
+			await manualSave();
+		} catch {
+			showNotification('Could not save this circuit, so the new one was not started.', 'error');
+			return;
+		}
+	}
+	startNewCircuit();
 }
 
 export function applyBellPairPreset(): void {
