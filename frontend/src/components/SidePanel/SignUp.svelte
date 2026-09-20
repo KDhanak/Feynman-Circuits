@@ -9,6 +9,7 @@
 		validatePasswordsMatch
 	} from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
+	import Loader from '../Loader.svelte';
 
 	export let onSignedUp: (email: string) => void = () => {};
 
@@ -155,7 +156,8 @@
 				style="color: var(--color-ternary-1);">Privacy Policy</a
 			>.
 		</p>
-		<button type="submit" class="btn-primary w-full">
+		<button type="submit" class="btn-primary flex w-full items-center justify-center gap-2">
+			{#if loading}<Loader size={14} />{/if}
 			{loading ? 'Creating...' : 'Create Account'}
 		</button>
 		{#if signupErrors.non_field_errors}

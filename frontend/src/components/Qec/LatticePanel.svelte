@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { D3_LAYOUT, LATTICE_EXTENT } from '$lib/qec/layout';
-	import { currentSnapshot, highlightedCheck, visibleLayers } from '$lib/qec/stores';
+	import { currentSnapshot, highlightedCheck, qecRunning, visibleLayers } from '$lib/qec/stores';
 	import { createEventDispatcher } from 'svelte';
 	import type { Check, InjectedError } from '$lib/qec/schema';
 
@@ -101,178 +101,263 @@
 	}
 </script>
 
-<div class="flex h-full w-full flex-col items-center justify-center gap-2">
-	<svg
-		viewBox="0 0 {W} {H}"
-		class="min-h-0 w-full flex-1"
-		role="group"
-		aria-label="Distance-3 rotated surface code lattice"
-	>
-		<!-- Plaquettes first so data qubits and marks sit on top of them. -->
-		{#each plaquettes as { check, d } (check.id)}
-			{@const isFired = firedChecks.has(check.id)}
-			<!-- Dimmed when a different check is highlighted, so hovering clearly means
-			     "this one" and not "one of these". -->
-			{@const isDim = $highlightedCheck !== null && $highlightedCheck !== check.id}
-			<g
-				role="button"
-				tabindex="0"
-				aria-label={checkLabel(check)}
-				class="cursor-pointer outline-none"
-				on:mouseenter={() => highlightedCheck.set(check.id)}
-				on:mouseleave={() => highlightedCheck.set(null)}
-				on:focus={() => highlightedCheck.set(check.id)}
-				on:blur={() => highlightedCheck.set(null)}
+<div class="flex h-full w-full items-stretch gap-4">
+	<!-- Everything that explains the picture sits beside it rather than under it.
+	     The lattice is square, so the space to its left was empty anyway, and
+	     moving the text there gives the lattice the full height of the panel.
+	     The column is wide enough for "detection event (measured)" on two
+	     comfortable lines rather than three squeezed ones. -->
+	<aside class="flex w-60 shrink-0 flex-col justify-center gap-6 text-muted">
+		<!-- Count caption. Always shown, because the numbers ARE the lesson: nine
+		     data qubits plus eight ancillas give you just one protected qubit.
+		     Laid out as a sum, with the operators in their own column and the
+		     numbers right-aligned under each other, so it reads as arithmetic
+		     rather than as four separate lines of text. -->
+		<!-- justify-start keeps the three columns at content width; without it the
+		     spare width in the panel is handed to them and the numbers drift away
+		     from their operators. -->
+		<div
+			class="grid grid-cols-[0.85rem_auto_auto] items-baseline justify-start gap-x-2 gap-y-2 text-sm"
+		>
+			<span></span>
+			<span class="text-right font-semibold" style="color: var(--color-text)">{DATA_COUNT}</span>
+			<span>data</span>
+
+			<span class="opacity-50">+</span>
+			<span class="text-right font-semibold" style="color: var(--color-text)">{CHECK_COUNT}</span>
+			<span>ancilla</span>
+
+			<!-- The rule turns the two lines above into a sum, which is the point:
+			     seventeen physical qubits go in, one protected qubit comes out. -->
+			<span class="col-span-3 h-px" style="background: var(--color-border)"></span>
+
+			<span class="opacity-50">=</span>
+			<span class="text-right font-semibold" style="color: var(--color-text)"
+				>{DATA_COUNT + CHECK_COUNT}</span
 			>
-				<!-- Outline only. The fill is transparent rather than "none" so the whole
+			<span>physical</span>
+
+			<span class="opacity-50">&rarr;</span>
+			<span class="text-right font-semibold" style="color: var(--color-text)">1</span>
+			<span style="color: var(--color-text)">logical qubit</span>
+		</div>
+
+		<!-- Legend. Shown from the start, even when only some layers have data:
+		     the difference between the three layers is what we are teaching, so it
+		     is labelled before there is anything in it. -->
+		<div class="flex flex-col gap-2.5 text-xs leading-snug">
+			<span class="flex items-start gap-1.5">
+				<span
+					class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+					style="background: var(--color-measured)"
+				></span>
+				<span>injected error <span class="opacity-60">(truth)</span></span>
+			</span>
+			{#if isPlanned && planned.length}
+				<span class="flex items-start gap-1.5">
+					<span
+						class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-dashed"
+						style="border-color: var(--color-measured)"
+					></span>
+					<span>placed, not run yet</span>
+				</span>
+			{/if}
+			<span class="flex items-start gap-1.5">
+				<span
+					class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border"
+					style="border-color: var(--color-check-z); background: var(--color-check-z)"
+				></span>
+				<span>detection event <span class="opacity-60">(measured)</span></span>
+			</span>
+			<span class="flex items-start gap-1.5">
+				<span
+					class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border"
+					style="border-color: var(--color-check-x)"
+				></span>
+				<span>X-check</span>
+			</span>
+			<span class="flex items-start gap-1.5">
+				<span
+					class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border"
+					style="border-color: var(--color-check-z)"
+				></span>
+				<span>Z-check</span>
+			</span>
+		</div>
+	</aside>
+
+	<!-- The lattice and whatever the panel puts under it share this column, so a
+	     step control below lines up with the lattice rather than with the panel
+	     as a whole (which would sit off to the left of it). -->
+	<div class="flex min-w-0 flex-1 flex-col gap-1">
+		<svg
+			viewBox="0 0 {W} {H}"
+			class="min-h-0 w-full flex-1"
+			role="group"
+			aria-label="Distance-3 rotated surface code lattice"
+			aria-busy={$qecRunning}
+		>
+			<!-- Plaquettes first so data qubits and marks sit on top of them. -->
+			{#each plaquettes as { check, d }, i (check.id)}
+				{@const isFired = firedChecks.has(check.id)}
+				<!-- Dimmed when a different check is highlighted, so hovering clearly means
+			     "this one" and not "one of these". -->
+				{@const isDim = $highlightedCheck !== null && $highlightedCheck !== check.id}
+				<g
+					role="button"
+					tabindex="0"
+					aria-label={checkLabel(check)}
+					class="cursor-pointer outline-none"
+					class:sweeping={$qecRunning}
+					style="--sweep-i: {i}"
+					on:mouseenter={() => highlightedCheck.set(check.id)}
+					on:mouseleave={() => highlightedCheck.set(null)}
+					on:focus={() => highlightedCheck.set(check.id)}
+					on:blur={() => highlightedCheck.set(null)}
+				>
+					<!-- Outline only. The fill is transparent rather than "none" so the whole
 				     plaquette, not just its border, still picks up the hover. A fired check
 				     shows through its ancilla dot and a slightly heavier outline. -->
-				<path
-					{d}
-					class="transition-opacity duration-150"
-					fill="transparent"
-					stroke={check.type === 'X' ? 'var(--color-check-x)' : 'var(--color-check-z)'}
-					stroke-width={$highlightedCheck === check.id ? 2.5 : isFired ? 2 : 1.25}
-					opacity={isDim ? 0.35 : 1}
-				/>
-				<!-- Ancilla marker: a detection event is shown as a filled ring, not only a
+					<path
+						{d}
+						class="transition-opacity duration-150"
+						fill="transparent"
+						stroke={check.type === 'X' ? 'var(--color-check-x)' : 'var(--color-check-z)'}
+						stroke-width={$highlightedCheck === check.id ? 2.5 : isFired ? 2 : 1.25}
+						opacity={isDim ? 0.35 : 1}
+					/>
+					<!-- Ancilla marker: a detection event is shown as a filled ring, not only a
 				     colour change, so it is still clear when printed or for colour-blind users. -->
-				<circle
-					cx={px(check.x)}
-					cy={px(check.y)}
-					r={isFired ? 6.5 : 3.5}
-					fill={isFired
-						? check.type === 'X'
-							? 'var(--color-check-x)'
-							: 'var(--color-check-z)'
-						: 'var(--color-surface)'}
-					stroke={check.type === 'X' ? 'var(--color-check-x)' : 'var(--color-check-z)'}
-					stroke-width="1.5"
-					opacity={isDim ? 0.35 : 1}
-				/>
-				<text
-					x={px(check.x)}
-					y={px(check.y) - 11}
-					text-anchor="middle"
-					class="pointer-events-none select-none text-[9px] font-semibold"
-					fill="var(--color-muted)"
-					opacity={isDim ? 0.35 : 0.85}>{check.id}</text
-				>
-			</g>
-		{/each}
-
-		<!-- Data qubits -->
-		{#each D3_LAYOUT.dataQubits as q (q.id)}
-			{@const hits = injectedByQubit[q.id] ?? []}
-			<g>
-				<circle
-					cx={px(q.x)}
-					cy={px(q.y)}
-					r={DATA_R}
-					fill="var(--color-surface)"
-					stroke="var(--color-line)"
-					stroke-width="1.5"
-				/>
-				<text
-					x={px(q.x)}
-					y={px(q.y) + 3.5}
-					text-anchor="middle"
-					class="pointer-events-none select-none text-[10px]"
-					fill="var(--color-text)">{q.id}</text
-				>
-				{#if hits.length}
-					<!-- Layer 1 mark: on purpose, a different shape and colour from
-					     anything the syndrome or decoder layers draw. A planned error
-					     (not run yet) is hollow and dashed. A real one is solid. -->
 					<circle
-						cx={px(q.x) + DATA_R}
-						cy={px(q.y) - DATA_R}
-						r="7"
-						class="pointer-events-none"
-						fill={isPlanned ? 'var(--color-surface)' : 'var(--color-measured)'}
-						stroke={isPlanned ? 'var(--color-measured)' : 'var(--color-surface)'}
+						cx={px(check.x)}
+						cy={px(check.y)}
+						r={isFired ? 6.5 : 3.5}
+						fill={isFired
+							? check.type === 'X'
+								? 'var(--color-check-x)'
+								: 'var(--color-check-z)'
+							: 'var(--color-surface)'}
+						stroke={check.type === 'X' ? 'var(--color-check-x)' : 'var(--color-check-z)'}
 						stroke-width="1.5"
-						stroke-dasharray={isPlanned ? '2 1.5' : undefined}
+						opacity={isDim ? 0.35 : 1}
 					/>
 					<text
-						x={px(q.x) + DATA_R}
-						y={px(q.y) - DATA_R + 3}
+						x={px(check.x)}
+						y={px(check.y) - 11}
 						text-anchor="middle"
-						class="pointer-events-none select-none text-[8px] font-bold"
-						fill={isPlanned ? 'var(--color-measured)' : '#ffffff'}
-						>{hits.map((h) => h.pauli).join('')}</text
+						class="pointer-events-none select-none text-[9px] font-semibold"
+						fill="var(--color-muted)"
+						opacity={isDim ? 0.35 : 0.85}>{check.id}</text
 					>
-				{/if}
-				{#if interactive}
-					<!-- Click target. Drawn last so it sits on top, and a little larger
-					     than the qubit so it is easy to hit. -->
+				</g>
+			{/each}
+
+			<!-- Data qubits -->
+			{#each D3_LAYOUT.dataQubits as q (q.id)}
+				{@const hits = injectedByQubit[q.id] ?? []}
+				<g>
 					<circle
 						cx={px(q.x)}
 						cy={px(q.y)}
-						r={DATA_R + 4}
-						role="button"
-						tabindex="0"
-						aria-label={qubitLabel(q.id)}
-						class="cursor-pointer fill-transparent stroke-transparent outline-none hover:fill-qec-1/15 focus-visible:stroke-qec-1"
-						stroke-width="2"
-						on:click={() => dispatch('qubitclick', { qubit: q.id })}
-						on:keydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								dispatch('qubitclick', { qubit: q.id });
-							}
-						}}
+						r={DATA_R}
+						fill="var(--color-surface)"
+						stroke="var(--color-line)"
+						stroke-width="1.5"
 					/>
-				{/if}
-			</g>
-		{/each}
-	</svg>
+					<text
+						x={px(q.x)}
+						y={px(q.y) + 3.5}
+						text-anchor="middle"
+						class="pointer-events-none select-none text-[10px]"
+						fill="var(--color-text)">{q.id}</text
+					>
+					{#if hits.length}
+						<!-- Layer 1 mark: on purpose, a different shape and colour from
+					     anything the syndrome or decoder layers draw. A planned error
+					     (not run yet) is hollow and dashed. A real one is solid. -->
+						<circle
+							cx={px(q.x) + DATA_R}
+							cy={px(q.y) - DATA_R}
+							r="7"
+							class="pointer-events-none"
+							fill={isPlanned ? 'var(--color-surface)' : 'var(--color-measured)'}
+							stroke={isPlanned ? 'var(--color-measured)' : 'var(--color-surface)'}
+							stroke-width="1.5"
+							stroke-dasharray={isPlanned ? '2 1.5' : undefined}
+						/>
+						<text
+							x={px(q.x) + DATA_R}
+							y={px(q.y) - DATA_R + 3}
+							text-anchor="middle"
+							class="pointer-events-none select-none text-[8px] font-bold"
+							fill={isPlanned ? 'var(--color-measured)' : '#ffffff'}
+							>{hits.map((h) => h.pauli).join('')}</text
+						>
+					{/if}
+					{#if interactive}
+						<!-- Click target. Drawn last so it sits on top, and a little larger
+					     than the qubit so it is easy to hit. -->
+						<circle
+							cx={px(q.x)}
+							cy={px(q.y)}
+							r={DATA_R + 4}
+							role="button"
+							tabindex="0"
+							aria-label={qubitLabel(q.id)}
+							class="cursor-pointer fill-transparent stroke-transparent outline-none hover:fill-qec-1/15 focus-visible:stroke-qec-1"
+							stroke-width="2"
+							on:click={() => dispatch('qubitclick', { qubit: q.id })}
+							on:keydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault();
+									dispatch('qubitclick', { qubit: q.id });
+								}
+							}}
+						/>
+					{/if}
+				</g>
+			{/each}
+		</svg>
 
-	<!-- Count caption. Always shown, because the numbers ARE the lesson: nine data
-	     qubits plus eight ancillas give you just one protected qubit. -->
-	<p class="text-center text-[0.7rem] leading-tight text-muted">
-		<span class="font-semibold" style="color: var(--color-text)">{DATA_COUNT}</span> data
-		<span class="opacity-50">+</span>
-		<span class="font-semibold" style="color: var(--color-text)">{CHECK_COUNT}</span> ancilla
-		<span class="opacity-50">=</span>
-		<span class="font-semibold" style="color: var(--color-text)"
-			>{DATA_COUNT + CHECK_COUNT} physical</span
-		>
-		<span class="opacity-50">&rarr;</span>
-		<span class="font-semibold" style="color: var(--color-text)">1 logical qubit</span>
-	</p>
-
-	<!-- Legend. Shown from the start, even when only some layers have data:
-	     the difference between the three layers is what we are teaching, so it is
-	     labelled before there is anything in it. -->
-	<div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[0.7rem] text-muted">
-		<span class="flex items-center gap-1.5">
-			<span class="inline-block h-2.5 w-2.5 rounded-full" style="background: var(--color-measured)"
-			></span>injected error <span class="opacity-60">(truth)</span>
-		</span>
-		{#if isPlanned && planned.length}
-			<span class="flex items-center gap-1.5">
-				<span
-					class="inline-block h-2.5 w-2.5 rounded-full border border-dashed"
-					style="border-color: var(--color-measured)"
-				></span>placed, not run yet
-			</span>
-		{/if}
-		<span class="flex items-center gap-1.5">
-			<span
-				class="inline-block h-2.5 w-2.5 rounded-full border"
-				style="border-color: var(--color-check-z); background: var(--color-check-z)"
-			></span>detection event <span class="opacity-60">(measured)</span>
-		</span>
-		<span class="flex items-center gap-1.5">
-			<span
-				class="inline-block h-2.5 w-2.5 rounded-full border"
-				style="border-color: var(--color-check-x)"
-			></span>X-check
-			<span
-				class="ml-2 inline-block h-2.5 w-2.5 rounded-full border"
-				style="border-color: var(--color-check-z)"
-			></span>Z-check
-		</span>
+		<!-- Whatever the panel wants directly under the lattice: the step control,
+		     or the one-line hint before a run. -->
+		<slot />
 	</div>
 </div>
+
+<style>
+	/* Waiting for a run is shown on the lattice itself instead of over it: the
+	   checks light up one after another, in the order the ancillas are measured.
+	   The wait then teaches the thing the panel is for, and when the result
+	   arrives the first step simply takes over from the sweep. The delay per
+	   check comes from its position in the layout, so the order can never drift
+	   away from the order the backend measures in. */
+	.sweeping {
+		animation: qec-sweep 1.2s linear infinite;
+		animation-delay: calc(var(--sweep-i) * 0.09s);
+	}
+
+	/* The resting level stays readable on purpose. A check that is waiting its
+	   turn is still part of the picture, so it dims rather than disappears. */
+	@keyframes qec-sweep {
+		0% {
+			opacity: 0.4;
+		}
+		10% {
+			opacity: 1;
+		}
+		32% {
+			opacity: 0.4;
+		}
+		100% {
+			opacity: 0.4;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sweeping {
+			animation: none;
+			opacity: 0.55;
+		}
+	}
+</style>

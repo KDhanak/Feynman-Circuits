@@ -8,6 +8,30 @@ Decisions locked: deterministic injections at user-chosen rounds (no background 
 
 **This plan serves PHY5005 Assessment 2.** Assessment 1 (proposal) scored 86/100 with one substantive criticism: the project must *"emphasize scientific correctness and formal evaluation alongside interface design."* The phase order below is rebalanced against that — see §0.
 
+## Progress snapshot (2026-09-20)
+
+Verified against the code, not from memory. Phases 1 and 3 are built (and in places overshot); phases 0, 2, 4, 5, 6 and 7 are not.
+
+| Phase | Plan | Status | Evidence |
+|---|---|---|---|
+| 0 (wk 1) | Design criteria + tool comparison | ❌ Not started | No `docs/qec-design-criteria.md`. Everything downstream is meant to cite it, and it is on the never-cut list — so it is now the *oldest* outstanding item, not an optional preamble. |
+| 1 (wk 2) | Static lattice | ✅ Done, relocated | `lib/qec/{schema,layout,stores}.ts`, `components/Qec/LatticePanel.svelte` + its test, layout invariants in `frontend/tests/qec/layout.test.ts`. **Deviation:** there is no `/qec` route. QEC is a mode inside the main editor — `qecMode` store, QEC button in `GatePalette.svelte`, panel swapped into the results row in `routes/+page.svelte`. |
+| 2 (wks 3–4) | Scenario library on fixtures | ❌ Not started | No `backend/qec/scripts/gen_fixtures.py`, no `frontend/tests/qec/fixtures/`, no scenario picker, no `lib/qec/validate.ts`. The FE/BE layout drift guard exists in a different form: `qec/tests.py::LayoutGoldenTest` parses the TypeScript source and compares it to `layout.py`. |
+| 3 (wks 5–6) | Endpoint live + injection ledger | ✅ Done, and beyond scope | `backend/qec/` app with `POST /qec/api/qec/run/` wired through `qecApi.ts`; injection ledger, Pauli picker, round and rounds selectors and Run in `QecPanel.svelte`; 27 backend tests including the corner error, the Y error, the undetectable chain and both decoder outcomes; deps pinned; `qec_run` throttled. Beyond the plan: `GET /qec/api/qec/layout/` and `POST /qec/api/qec/error-rate/` (a many-shot logical-error-rate sweep) exist, but **nothing on the frontend calls either** — the error-rate endpoint in particular is a whole capability with no UI. |
+| 4 (wks 7–8) | Multi-round + wire panel + scrubber | 🟡 Half | The rounds selector and the step control are in `QecPanel.svelte` (the scrubber, inlined rather than a separate `StepScrubber.svelte`). **`WirePanel.svelte` does not exist**, so there is no ancilla-wire timeline and no cross-panel highlight: `highlightedCheck` is written by lattice hover and read by nothing else. |
+| 5 (wks 9–10) | Decode + matching viz + verdict | 🟡 Half | The backend decodes and returns `inferred.matching` (pair and boundary edges) plus the verdict, and `QecPanel.svelte` states the verdict in words. **Nothing draws layer 3:** `LatticePanel.svelte` renders no matching edges, and the `visibleLayers` store (`truth`/`measured`/`inferred`) is read by the lattice but never written — the layer toggle UI is missing. `correction` is returned empty by design (`experiment.py`), so the correction overlay has no data source yet. |
+| 6 (wk 11) | Evaluation + extensibility | ❌ Not started | Blocked on the phase 0 criteria. |
+| 7 (wk 12) | Polish, deploy, write-up | ❌ Not started | The backend deps are pinned and the app is wired into `INSTALLED_APPS` and `config/urls.py`, so the deploy step is mostly redeployment. |
+
+**Two gaps the plan does not cover, found in the code:**
+
+1. **QEC mode is reachable on mobile but its panel is not.** The QEC button in `GatePalette.svelte` is not gated by `isMobile`, while the panel renders only when `qecTakeover = $qecMode && !$isMobile` (`routes/+page.svelte`). On a phone, turning QEC on restricts the palette to one logical qubit and Clifford gates and shows nothing in return.
+2. **The circuit wire is not connected to the experiment** (the open note from commit `1fd2abc`). `QecRequest` is `{rounds, errors}`, so Clifford gates placed on the `|0⟩ᴸ` wire never reach the backend. Closing this means deciding how logical gates act on the encoded qubit — transversal X/Z are cheap, H needs a lattice rotation, S is not transversal at d=3 — and this plan deliberately scopes the experiment as *not* encoding the user's circuit. Raise it with the supervisor before building it.
+
+**Suggested next step, in the plan's own terms:** finish phase 5's layer-3 visualisation (matching edges on the lattice plus the layer toggle that `visibleLayers` already anticipates), since the data is already on the wire and the three-layer separation is the one thing the cut order says never to cut. Then phase 4's `WirePanel.svelte`, then the phase 0 document that phase 6 depends on.
+
+---
+
 ## 0. Objectives → phases (the rebalance)
 
 The proposal states five objectives. An earlier draft of this plan scheduled only two of them; that imbalance *was* the marker's criticism, expressed as a schedule. Every objective now owns weeks.

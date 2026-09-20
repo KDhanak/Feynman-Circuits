@@ -1,6 +1,6 @@
 # Feynman Circuits
 
-A browser-based quantum circuit simulator built from scratch — no Qiskit, no Pennylane. The entire simulation engine is implemented in TypeScript.
+A browser-based quantum circuit simulator built from scratch — no Qiskit, no Pennylane. The statevector simulation engine is implemented entirely in TypeScript. The separate quantum-error-correction mode is the one exception: its stabiliser simulation and decoding run on the backend with Stim and PyMatching.
 
 ## Features
 
@@ -9,14 +9,15 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 - Touch support for mobile devices
 - Double-click to place gates from the palette
 - Box-select multiple gates by dragging over them (Ctrl/Cmd to add), then `Delete` to remove
+- Undo and redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, plus on-screen buttons on mobile)
 - Copy or reset the whole circuit from the board's right-click menu (or the reset button)
-- Import and export circuits as JSON or OpenQASM 2.0 / 3.0
+- Import and export circuits as JSON, OpenQASM 2.0 / 3.0, Qiskit Python, or Q#
 
 **Gates**
 | Category | Gates |
 |---|---|
 | Single-qubit | X, Y, Z, H, S, T |
-| Parametric | RX(θ), RY(θ), RZ(θ) |
+| Parametric | RX(θ), RY(θ), RZ(θ), P(θ) |
 | Multi-qubit | CONTROL, ANTI-CONTROL, SWAP |
 | Measurement | MEASURE |
 
@@ -31,6 +32,14 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 - Per-qubit Bloch sphere rendered in real time
 - Overall Bloch sphere for multi-qubit state overview
 
+**Error Correction (QEC mode)**
+- A rotated distance-3 surface code memory: 9 data qubits holding one logical qubit, 8 ancillas measuring the stabilisers
+- Click a data qubit to place a deterministic X, Y or Z error at a chosen round, then run the experiment
+- Step through the rounds and watch which checks fire — detection events, not raw syndromes
+- Ground truth, measured syndrome and the decoder's guess are kept as three separate layers, so a correction is never shown as "the error that happened"
+- Decoder verdict from MWPM matching, including the cases where the decoder gets it wrong
+- Turning QEC mode on restricts the palette to single-qubit Clifford gates, which is all the stabiliser simulator can represent
+
 **Accounts & Storage**
 - Sign up / sign in with email and password
 - OTP-based password reset via email
@@ -44,7 +53,8 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 
 **UI**
 - Dark and light theme
-- Fully responsive layout
+- Fully responsive layout, with tap-to-place editing on touch devices
+- Guided onboarding tour for first-time users
 
 ## Tech Stack
 
@@ -55,8 +65,9 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 | Auth | JWT via HTTP-only cookies, SimpleJWT |
 | Database | PostgreSQL |
 | Email | django-anymail |
+| QEC simulation | Stim + PyMatching (backend only) |
 
-The simulation engine ([frontend/src/lib/circuit/simulator.ts](frontend/src/lib/circuit/simulator.ts)) and all quantum math (complex numbers, state vectors, matrix operations, Bloch vector computation) are written from first principles with no external quantum computing dependencies.
+The simulation engine ([frontend/src/lib/circuit/simulator.ts](frontend/src/lib/circuit/simulator.ts)) and all quantum math (complex numbers, state vectors, matrix operations, Bloch vector computation) are written from first principles with no external quantum computing dependencies. QEC mode is deliberately separate: it is a stabiliser simulation, which a statevector engine is the wrong tool for, so it runs in the Django backend on Stim with PyMatching for decoding.
 
 ## Project Structure
 
@@ -66,16 +77,19 @@ feynman-circuits/
 │   └── src/
 │       ├── components/     # UI components (CircuitLayout, GatePalette, BlochSphere, ...)
 │       ├── lib/
-│       │   ├── circuit/    # Simulator, drag-drop, OpenQASM converter, auto-save
+│       │   ├── circuit/    # Simulator, drag-drop, OpenQASM/Qiskit/Q# converters, auto-save
 │       │   ├── quantum/    # Complex numbers, vectors, matrices, gates, Bloch
 │       │   ├── IR/         # Circuit intermediate representation & schema
 │       │   ├── api/        # Axios client & circuit API calls
 │       │   ├── auth/       # Session management
+│       │   ├── qec/        # Surface-code layout, stores and run actions
+│       │   ├── onboarding/ # Guided tour steps
 │       │   └── stores/     # Svelte stores (theme, UI state)
 │       └── routes/         # SvelteKit pages
 └── backend/                # Django REST API
     ├── accounts/           # Auth — sign up, sign in, JWT, password reset
     ├── circuits/           # Circuit CRUD, IR validation, public share endpoint
+    ├── qec/                # Surface-code experiment: Stim circuit, MWPM decoding, run API
     └── config/             # Django settings & URL config
 ```
 

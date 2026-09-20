@@ -3,6 +3,7 @@
 	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import { validateEmail, validateRequired } from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
+	import Loader from '../Loader.svelte';
 
 	export let initialEmail: string = '';
 	export let onSignedIn: () => void = () => {};
@@ -92,7 +93,12 @@
 			onInput={() => clearError('password', 'detail')}
 		/>
 
-		<button type="submit" class="btn-primary w-full" disabled={loading}>
+		<button
+			type="submit"
+			class="btn-primary flex w-full items-center justify-center gap-2"
+			disabled={loading}
+		>
+			{#if loading}<Loader size={14} />{/if}
 			{loading ? 'Signing in...' : 'Sign In'}
 		</button>
 

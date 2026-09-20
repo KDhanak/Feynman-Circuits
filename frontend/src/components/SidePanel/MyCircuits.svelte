@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { fly, fade } from 'svelte/transition';
 	import Icon from '@iconify/svelte';
+	import Loader from '../Loader.svelte';
 	import {
 		listCircuits,
 		loadCircuit,
@@ -401,13 +402,8 @@
 		<!-- Body -->
 		<div class="flex-1 overflow-y-auto px-4 py-4">
 			{#if loading}
-				<div class="flex items-center justify-center h-40">
-					<Icon
-						icon="svg-spinners:ring-resize"
-						width="32"
-						height="32"
-						style="color: var(--color-measured);"
-					/>
+				<div class="flex items-center justify-center h-40" style="color: var(--color-measured);">
+					<Loader size="md" label="Loading your circuits" />
 				</div>
 			{:else if circuits.length === 0}
 				<div class="flex flex-col items-center justify-center h-40 gap-2">
@@ -430,7 +426,7 @@
 						disabled={selectingAll || bulkDeleting}
 					>
 						{#if selectingAll}
-							<Icon icon="svg-spinners:ring-resize" width="15" height="15" />
+							<Loader size={15} />
 							Selecting…
 						{:else}
 							<Icon
@@ -506,12 +502,9 @@
 								</div>
 
 								{#if deletingId === circuit.circuit_id}
-									<Icon
-										icon="svg-spinners:ring-resize"
-										width="18"
-										height="18"
-										style="color: var(--color-measured);"
-									/>
+									<span style="color: var(--color-measured);">
+										<Loader size={18} label="Deleting this circuit" />
+									</span>
 								{/if}
 							</div>
 						</li>
@@ -527,7 +520,7 @@
 						disabled={loadingMore}
 					>
 						{#if loadingMore}
-							<Icon icon="svg-spinners:ring-resize" width="16" height="16" />
+							<Loader size={16} />
 							Loading…
 						{:else}
 							Load more
@@ -564,7 +557,7 @@
 						disabled={bulkDeleting}
 					>
 						{#if bulkDeleting}
-							<Icon icon="svg-spinners:ring-resize" width="16" height="16" />
+							<Loader size={16} />
 							Deleting…
 						{:else}
 							<Icon icon="material-symbols:delete-outline" width="16" height="16" />

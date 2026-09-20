@@ -3,6 +3,7 @@
 	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import { validateEmail } from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
+	import Loader from '../Loader.svelte';
 
 	export let initialEmail: string = '';
 	export let onOtpSent: (email: string) => void = () => {};
@@ -74,7 +75,12 @@
 			onInput={() => clearError('email', 'detail')}
 		/>
 
-		<button type="submit" class="btn-primary w-full" disabled={loading}>
+		<button
+			type="submit"
+			class="btn-primary flex w-full items-center justify-center gap-2"
+			disabled={loading}
+		>
+			{#if loading}<Loader size={14} />{/if}
 			{loading ? 'Sending OTP...' : 'Send OTP'}
 		</button>
 

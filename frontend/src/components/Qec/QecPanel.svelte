@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import LatticePanel from './LatticePanel.svelte';
+	import Loader from '../Loader.svelte';
 	import { currentSnapshot, currentStep, qecDraft, qecResult, qecRunning } from '$lib/qec/stores';
 	import {
 		MAX_ERRORS,
@@ -74,45 +75,52 @@
 </script>
 
 <div class="flex h-full min-h-0 w-full gap-4 text-xs" style="color: var(--color-text)">
-	<!-- Left: the lattice, with the step control under it. -->
-	<div class="flex min-w-0 flex-1 flex-col gap-1">
-		<div class="min-h-0 flex-1">
-			<LatticePanel
-				interactive
-				planned={$qecDraft.errors}
-				on:qubitclick={(e) => placeError(e.detail.qubit)}
-			/>
-		</div>
-
-		{#if $qecResult}
-			<div class="flex items-center justify-center gap-2">
-				<button
-					type="button"
-					class={BTN}
-					style="border-color: var(--color-border)"
-					aria-label="Previous step"
-					disabled={step <= 0}
-					on:click={() => stepBy(-1)}
-				>
-					<Icon icon="ph:caret-left-bold" width="12" height="12" />
-				</button>
-				<span class="min-w-44 text-center font-semibold">{stepLabel($currentSnapshot)}</span>
-				<span class="opacity-60">{step + 1}/{total}</span>
-				<button
-					type="button"
-					class={BTN}
-					style="border-color: var(--color-border)"
-					aria-label="Next step"
-					disabled={atEnd}
-					on:click={() => stepBy(1)}
-				>
-					<Icon icon="ph:caret-right-bold" width="12" height="12" />
-				</button>
-			</div>
-			<p class="text-center text-[0.7rem] opacity-70" aria-live="polite">{hint}</p>
-		{:else}
-			<p class="text-center opacity-70">Click a data qubit to place an error, then press Run.</p>
-		{/if}
+	<!-- Left: the lattice, with the step control under it. The step control is
+	     passed into the lattice panel so it sits in the same column as the
+	     lattice and stays centred on it. -->
+	<div class="flex min-w-0 flex-1 flex-col">
+		<LatticePanel
+			interactive
+			planned={$qecDraft.errors}
+			on:qubitclick={(e) => placeError(e.detail.qubit)}
+		>
+			{#if $qecResult}
+				<div class="flex items-center justify-center gap-2">
+					<button
+						type="button"
+						class={BTN}
+						style="border-color: var(--color-border)"
+						aria-label="Previous step"
+						disabled={step <= 0}
+						on:click={() => stepBy(-1)}
+					>
+						<Icon icon="ph:caret-left-bold" width="12" height="12" />
+					</button>
+					<span class="min-w-44 text-center font-semibold">{stepLabel($currentSnapshot)}</span>
+					<span class="opacity-60">{step + 1}/{total}</span>
+					<button
+						type="button"
+						class={BTN}
+						style="border-color: var(--color-border)"
+						aria-label="Next step"
+						disabled={atEnd}
+						on:click={() => stepBy(1)}
+					>
+						<Icon icon="ph:caret-right-bold" width="12" height="12" />
+					</button>
+				</div>
+				<p class="text-center text-[0.7rem] opacity-70" aria-live="polite">{hint}</p>
+			{:else}
+				<!-- While a run is in flight the lattice itself is doing the explaining
+			     (the checks light up in measurement order), so this line only says
+			     what is happening, not what to do next. -->
+				<p class="text-center opacity-70" aria-live="polite">
+					{$qecRunning
+						? 'Measuring the checks round by round, then decoding.'
+						: 'Click a data qubit to place an error, then press Run.'}
+				</p>
+			{/if}
+		</LatticePanel>
 	</div>
 
 	<!-- Right: controls, the injection ledger, and the verdict. -->
@@ -171,13 +179,12 @@
 				disabled={$qecRunning}
 				on:click={runExperiment}
 			>
-				<Icon
-					icon={$qecRunning ? 'ph:circle-notch-bold' : 'ph:play-bold'}
-					width="12"
-					height="12"
-					class={$qecRunning ? 'animate-spin' : ''}
-				/>
-				{$qecRunning ? 'Running...' : 'Run'}
+				{#if $qecRunning}
+					<Loader size={12} />
+				{:else}
+					<Icon icon="ph:play-bold" width="12" height="12" />
+				{/if}
+				{$qecRunning ? `Running ${$qecDraft.rounds} rounds...` : 'Run'}
 			</button>
 		</section>
 

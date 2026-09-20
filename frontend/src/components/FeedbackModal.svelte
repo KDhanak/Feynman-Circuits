@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { fly, fade } from 'svelte/transition';
 	import Icon from '@iconify/svelte';
+	import Loader from './Loader.svelte';
 	import { submitFeedback, type FeedbackPayload } from '$lib/api/feedbackApi';
 
 	export let onClose: () => void = () => {};
@@ -400,7 +401,12 @@
 						<p class="text-sm font-bold text-red-500">{errorMsg}</p>
 					{/if}
 
-					<button type="submit" class="btn-primary w-full" disabled={loading}>
+					<button
+						type="submit"
+						class="btn-primary flex w-full items-center justify-center gap-2"
+						disabled={loading}
+					>
+						{#if loading}<Loader size={14} />{/if}
 						{loading ? 'Sending…' : 'Send feedback'}
 					</button>
 				</form>

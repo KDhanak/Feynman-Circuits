@@ -3,6 +3,7 @@
 	import { normalizeBackendErrors, extractResponseData, clearFields } from '$lib/utils/errorUtils';
 	import { validatePasswordLength, validatePasswordsMatch } from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
+	import Loader from '../Loader.svelte';
 
 	export let resetToken: string = '';
 	export let onResetDone: () => void = () => {};
@@ -101,7 +102,12 @@
 			onInput={() => clearError('password2', 'detail')}
 		/>
 
-		<button type="submit" class="btn-primary w-full" disabled={loading}>
+		<button
+			type="submit"
+			class="btn-primary flex w-full items-center justify-center gap-2"
+			disabled={loading}
+		>
+			{#if loading}<Loader size={14} />{/if}
 			{loading ? 'Resetting...' : 'Reset Password'}
 		</button>
 

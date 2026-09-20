@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { verifyPasswordResetOtp, requestPasswordReset } from '$lib/auth/session';
 	import { normalizeBackendErrors, extractResponseData } from '$lib/utils/errorUtils';
+	import Loader from '../Loader.svelte';
 
 	export let email = '';
 	export let onVerified: (resetToken: string) => void = () => {};
@@ -253,10 +254,11 @@
 
 		<button
 			type="button"
-			class="btn-primary"
+			class="btn-primary flex items-center justify-center gap-2"
 			on:click={() => void verifyOtp()}
 			disabled={loading || otpValue().length !== 6}
 		>
+			{#if loading}<Loader size={14} />{/if}
 			{loading ? 'Verifying...' : 'Verify OTP'}
 		</button>
 	</div>

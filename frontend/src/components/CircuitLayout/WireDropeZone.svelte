@@ -572,12 +572,15 @@
 		{#if $session.status === 'authenticated'}
 			<span class="w-3.25 h-3.25 shrink-0 flex items-center justify-center">
 				{#if $saveStatus === 'saving'}
-					<Icon
-						icon="svg-spinners:ring-resize"
-						width="13"
-						height="13"
-						style="color: var(--color-measured);"
-					/>
+					<!-- Auto-save happens in the background and blocks nothing, so it gets a
+					     quiet pulsing dot rather than a spinner. A spinner here would say
+					     "you are waiting for this", which is not true. -->
+					<span
+						role="status"
+						aria-label="Saving"
+						class="h-2 w-2 animate-pulse rounded-full"
+						style="background: var(--color-measured);"
+					></span>
 				{:else if $saveStatus === 'saved'}
 					<Icon icon="ph:check-bold" width="13" height="13" class="text-green-500" />
 				{/if}

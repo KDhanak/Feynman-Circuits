@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
+	import Loader from './Loader.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
@@ -620,12 +621,7 @@
 				style="background: var(--color-background);"
 				out:fade={{ duration: 200 }}
 			>
-				<Icon
-					icon="svg-spinners:ring-resize"
-					width="30"
-					height="30"
-					style="color: var(--color-measured);"
-				/>
+				<span style="color: var(--color-measured);"><Loader size="md" /></span>
 				<span class="text-xs" style="color: var(--color-muted);">Loading editor…</span>
 			</div>
 		{/if}

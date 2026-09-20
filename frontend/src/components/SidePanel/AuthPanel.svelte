@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { session, signOut, loadSession } from '$lib/auth/session';
 	import Icon from '@iconify/svelte';
+	import Loader from '../Loader.svelte';
 	import { fly, fade } from 'svelte/transition';
 	import SignIn from './SignIn.svelte';
 	import SignUp from './SignUp.svelte';
@@ -102,7 +103,11 @@
 </script>
 
 {#if $session.status === 'loading'}
-	<button class="btn-highlight" disabled>Loading…</button>
+	<!-- Same size as the other three account states, so the header does not jump
+	     when the session check finishes. -->
+	<button class="btn-highlight" disabled>
+		<Loader size={16} label="Checking your session" />
+	</button>
 {:else if $session.status === 'anonymous'}
 	<button class="btn-highlight" on:click={openDrawer}>Sign In/Up</button>
 {:else}

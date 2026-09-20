@@ -7,6 +7,7 @@
 		validatePasswordsMatch
 	} from '$lib/utils/formValidation';
 	import FormField from './FormField.svelte';
+	import Loader from '../Loader.svelte';
 	import ConfirmDialog from '../ConfirmDialog.svelte';
 
 	// ── Delete Account ────────────────────────────────────────────────
@@ -196,7 +197,12 @@
 				/>
 			</div>
 
-			<button type="submit" class="btn-primary w-full" disabled={profileLoading}>
+			<button
+				type="submit"
+				class="btn-primary flex w-full items-center justify-center gap-2"
+				disabled={profileLoading}
+			>
+				{#if profileLoading}<Loader size={14} />{/if}
 				{profileLoading ? 'Saving...' : 'Save Changes'}
 			</button>
 
@@ -256,7 +262,12 @@
 				onInput={() => clearPasswordError('password2', 'detail')}
 			/>
 
-			<button type="submit" class="btn-primary w-full" disabled={passwordLoading}>
+			<button
+				type="submit"
+				class="btn-primary flex w-full items-center justify-center gap-2"
+				disabled={passwordLoading}
+			>
+				{#if passwordLoading}<Loader size={14} />{/if}
 				{passwordLoading ? 'Updating...' : 'Update Password'}
 			</button>
 
