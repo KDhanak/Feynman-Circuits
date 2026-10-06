@@ -990,6 +990,21 @@
 					</div>
 				{/if}
 			</div>
+			<!-- In QEC mode the panel below runs its own demo. Nothing placed on
+			     these wires is sent to it yet, so say so quietly, so the user does
+			     not expect their gates to show up there. -->
+			{#if $qecMode}
+				<div
+					class="mx-2 mb-2 flex items-start gap-1.5 rounded-sm px-2 py-1.5 text-[11px] leading-snug text-qec-1 bg-qec-1/10 ring-1 ring-qec-1/30"
+					role="note"
+					transition:slide={{ duration: 200 }}
+				>
+					<Icon icon="ph:info" width="14" height="14" class="mt-px shrink-0" />
+					<span>
+						The QEC panel runs on its own for now. Gates you place on this board are not sent to it.
+					</span>
+				</div>
+			{/if}
 		</div>
 	</div>
 
