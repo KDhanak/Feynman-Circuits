@@ -9,11 +9,16 @@ There are three kinds of tests, from most to least important:
    give random results. So we check that a run with no noise fires nothing.
 3. Fixed examples: placing a specific error must fire exactly the checks the
    layout says it should, and the distance-3 logical failure must stay hidden.
+
+The tests above mostly check the code against its own design. The last group,
+`StimGeneratorCrossCheckTest`, is an outside check: it compares our hand-built
+circuit with the surface code circuit that Stim builds by itself.
 """
 
 import re
 from pathlib import Path
 
+import stim
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -241,3 +246,121 @@ class ApiTest(TestCase):
     def test_run_rejects_too_many_rounds(self):
         response = self.client.post(reverse("qec-run"), {"rounds": 99}, format="json")
         self.assertEqual(response.status_code, 400)
+
+
+class StimGeneratorCrossCheckTest(TestCase):
+    """Compares our circuit with Stim's own `surface_code:rotated_memory_z`.
+
+    Stim's circuit was written by different people, so agreeing with it is
+    real evidence that ours is right, not just that it matches itself.
+
+    Stim draws the same lattice mirrored left to right: a qubit we put at
+    (x, y), Stim puts at (6 - x, y). The mirror moves every check to the other
+    side but changes nothing about how the code works, so each comparison
+    below first flips Stim's x coordinates back.
+    """
+
+    ROUNDS = 3
+    PAULI_CHANNEL = {"X": "X_ERROR", "Y": "Y_ERROR", "Z": "Z_ERROR"}
+
+    def stim_circuit(self, **noise):
+        return stim.Circuit.generated(
+            "surface_code:rotated_memory_z", distance=3, rounds=self.ROUNDS, **noise
+        )
+
+    @staticmethod
+    def mirrored(coords):
+        x, y, t = (int(c) for c in coords)
+        return (6 - x, y, t)
+
+    def fired(self, circuit, mirror=False):
+        """(x, y, round) of every detector that fires, sorted."""
+        det = circuit.compile_detector_sampler().sample(1)[0]
+        coords = circuit.get_detector_coordinates()
+        out = []
+        for i in range(len(det)):
+            if det[i]:
+                out.append(self.mirrored(coords[i]) if mirror else tuple(int(c) for c in coords[i]))
+        return sorted(out)
+
+    def stim_with_error(self, qubit_xy, pauli, after_round):
+        """Stim's circuit with one error placed after its n-th round of checks.
+
+        The error is a noise channel with probability 1, like ours. A plain X
+        gate would not show up: Stim reports detection events relative to the
+        circuit's own noiseless run, and a gate is part of that run.
+        """
+        base = self.stim_circuit()
+        by_xy = {
+            (int(c[0]), int(c[1])): q for q, c in base.get_final_qubit_coordinates().items()
+        }
+        qubit = by_xy[(6 - qubit_xy[0], qubit_xy[1])]
+        out = stim.Circuit()
+        rounds_seen = 0
+        for ins in base.flattened():
+            out.append(ins)
+            if ins.name == "MR":  # Stim measures and resets its ancillas in one step
+                rounds_seen += 1
+                if rounds_seen == after_round:
+                    out.append(self.PAULI_CHANNEL[pauli], [qubit], 1.0)
+        return out
+
+    def test_same_size_as_stim(self):
+        ours = experiment.build_circuit(self.ROUNDS)
+        theirs = self.stim_circuit()
+        self.assertEqual(ours.num_detectors, theirs.num_detectors)
+        self.assertEqual(ours.num_observables, theirs.num_observables)
+
+    def test_every_single_error_fires_the_same_detectors_as_stim(self):
+        # 9 data qubits x 3 Paulis x 2 rounds = 54 cases.
+        for q in layout.DATA_QUBITS:
+            for pauli in "XYZ":
+                for r in (1, 2):
+                    with self.subTest(qubit=q.id, pauli=pauli, round=r):
+                        ours = experiment.build_circuit(
+                            self.ROUNDS, errors=[experiment.InjectedError(q.id, pauli, r)]
+                        )
+                        theirs = self.stim_with_error((q.x, q.y), pauli, r)
+                        ours_fired = self.fired(ours)
+                        # Every single error trips at least one check. Without this,
+                        # two circuits that both fire nothing would wrongly "agree".
+                        self.assertTrue(ours_fired)
+                        self.assertEqual(ours_fired, self.fired(theirs, mirror=True))
+
+    def test_same_noise_gives_the_same_list_of_possible_errors(self):
+        """With the same noise on the data qubits, both circuits must list the
+        same possible errors, each setting off the same detectors with the same
+        probability. This is exact, so it cannot pass or fail by chance.
+
+        Only data noise is compared. Stim's measurement noise also hits the
+        final data readout, while ours only hits the ancillas, so those two
+        models differ on purpose.
+        """
+        p = 0.01
+        ours = stim.Circuit()
+        for ins in experiment.build_circuit(self.ROUNDS, noise=p).flattened():
+            if ins.name != "X_ERROR":  # drop our ancilla measurement noise
+                ours.append(ins)
+        theirs = self.stim_circuit(before_round_data_depolarization=p)
+
+        def possible_errors(circuit, mirror):
+            coords = circuit.get_detector_coordinates()
+            errors = {}
+            for inst in circuit.detector_error_model().flattened():
+                if inst.type != "error":
+                    continue
+                dets, flips_logical = [], False
+                for t in inst.targets_copy():
+                    if t.is_relative_detector_id():
+                        c = coords[t.val]
+                        dets.append(self.mirrored(c) if mirror else tuple(int(v) for v in c))
+                    elif t.is_logical_observable_id():
+                        flips_logical = True
+                key = (frozenset(dets), flips_logical)
+                errors[key] = errors.get(key, 0) + inst.args_copy()[0]
+            return errors
+
+        mine, stims = possible_errors(ours, False), possible_errors(theirs, True)
+        self.assertEqual(set(mine), set(stims))
+        for key, prob in mine.items():
+            self.assertAlmostEqual(prob, stims[key], places=12)

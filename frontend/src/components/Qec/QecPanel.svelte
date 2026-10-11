@@ -24,6 +24,15 @@
 
 	const PAULIS: Pauli[] = ['X', 'Y', 'Z'];
 
+	// What the simulation leaves out, said on screen so a learner does not take
+	// the clean picture for real hardware. (Design criterion C12 in the report.)
+	const SIMPLIFICATIONS = [
+		'Distance 3 only.',
+		'Errors you place always happen. There is no random noise.',
+		'No gate or measurement errors in your run.',
+		'The decoder uses an assumed noise model, not one measured on real hardware.'
+	];
+
 	// Which checks notice each Pauli. Shown under the picker so the choice means
 	// something before the first run.
 	const CAUGHT_BY: Record<Pauli, string> = {
@@ -222,6 +231,13 @@
 			{:else}
 				<p class="opacity-70">None yet. Click a data qubit on the lattice.</p>
 			{/if}
+			<!-- Always shown. Placing errors by hand reveals the one thing real
+			     hardware never does, so we say so right where that truth is listed.
+			     (Design criterion C2 in the report.) -->
+			<p class="leading-snug opacity-70">
+				These are simulation ground truth. Real hardware never shows which physical error happened;
+				it only shows the checks.
+			</p>
 		</section>
 
 		<!-- Layer 3. Shown only on the last step, because the decoder works on the
@@ -261,5 +277,14 @@
 				{/if}
 			</section>
 		{/if}
+
+		<section class="flex flex-col gap-1">
+			<h3 class={HEADING}>What this simulation leaves out</h3>
+			<ul class="flex list-disc flex-col gap-0.5 pl-4 leading-snug opacity-70">
+				{#each SIMPLIFICATIONS as s (s)}
+					<li>{s}</li>
+				{/each}
+			</ul>
+		</section>
 	</aside>
 </div>
