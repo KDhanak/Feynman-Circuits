@@ -20,12 +20,13 @@
 		setRounds,
 		stepBy
 	} from '$lib/qec/actions';
+	import { matchingMarks } from '$lib/qec/matching';
 	import type { Pauli, TimelineSnapshot } from '$lib/qec/schema';
 
 	const PAULIS: Pauli[] = ['X', 'Y', 'Z'];
 
 	// What the simulation leaves out, said on screen so a learner does not take
-	// the clean picture for real hardware. (Design criterion C12 in the report.)
+	// the clean picture for real hardware.
 	const SIMPLIFICATIONS = [
 		'Distance 3 only.',
 		'Errors you place always happen. There is no random noise.',
@@ -58,6 +59,11 @@
 				.map(([id]) => id)
 		: [];
 	$: verdict = $qecResult?.inferred?.logical ?? null;
+	// The same pairings the lattice draws, in words. The lattice is flat, so it
+	// cannot show which round each end of a line came from. This list can.
+	$: pairings = $qecResult?.inferred
+		? matchingMarks($qecResult.inferred.matching, $qecResult.request.rounds)
+		: [];
 	$: ledger = sortedErrors($qecDraft.errors);
 	$: roundOptions = Array.from({ length: $qecDraft.rounds }, (_, i) => i);
 
@@ -232,8 +238,7 @@
 				<p class="opacity-70">None yet. Click a data qubit on the lattice.</p>
 			{/if}
 			<!-- Always shown. Placing errors by hand reveals the one thing real
-			     hardware never does, so we say so right where that truth is listed.
-			     (Design criterion C2 in the report.) -->
+			     hardware never does, so we say so right where that truth is listed. -->
 			<p class="leading-snug opacity-70">
 				These are simulation ground truth. Real hardware never shows which physical error happened;
 				it only shows the checks.
@@ -272,6 +277,18 @@
 							? 'Decoder was right. Its correction leaves the logical qubit correct.'
 							: 'Decoder was wrong. The logical qubit ends up corrupted.'}
 					</p>
+					<h4 class="mt-2 font-semibold">
+						How it paired the events <span class="opacity-60">(guess)</span>
+					</h4>
+					{#if pairings.length}
+						<ul class="flex list-disc flex-col gap-0.5 pl-4 leading-snug">
+							{#each pairings as p, i (i)}
+								<li>{p.label}</li>
+							{/each}
+						</ul>
+					{:else}
+						<p class="opacity-70">Nothing to pair: no check fired.</p>
+					{/if}
 				{:else}
 					<p class="opacity-70">Step to the end to see it.</p>
 				{/if}

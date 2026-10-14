@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { D3_LAYOUT, LATTICE_EXTENT } from '$lib/qec/layout';
-	import { currentSnapshot, highlightedCheck, qecRunning, visibleLayers } from '$lib/qec/stores';
+	import {
+		currentSnapshot,
+		highlightedCheck,
+		qecResult,
+		qecRunning,
+		visibleLayers
+	} from '$lib/qec/stores';
+	import { matchingMarks, type Point } from '$lib/qec/matching';
 	import { createEventDispatcher } from 'svelte';
 	import type { Check, InjectedError } from '$lib/qec/schema';
 
@@ -95,6 +102,51 @@
 		{}
 	);
 
+	// ── Layer 3: the decoder's guess ──────────────────────────────────────
+	// Only on the last step. The decoder reads the whole history in one go, so
+	// there is no decoder answer part-way through a run.
+	$: atDecode = $currentSnapshot?.phase === 'decode';
+	$: marks =
+		atDecode && $visibleLayers.inferred && $qecResult?.inferred
+			? matchingMarks($qecResult.inferred.matching, $qecResult.request.rounds)
+			: [];
+
+	// Lines stop at the edge of the ancilla dot instead of its centre, so a
+	// fired check stays visible under the end of the line.
+	const ANCILLA_GAP = 8;
+	const MARK_STYLE = 'stroke: var(--color-inferred)';
+
+	function trimmed(from: Point, to: Point, trimFrom: number, trimTo: number) {
+		const x1 = px(from.x);
+		const y1 = px(from.y);
+		const x2 = px(to.x);
+		const y2 = px(to.y);
+		const len = Math.hypot(x2 - x1, y2 - y1) || 1;
+		const ux = (x2 - x1) / len;
+		const uy = (y2 - y1) / len;
+		return {
+			x1: x1 + ux * trimFrom,
+			y1: y1 + uy * trimFrom,
+			x2: x2 - ux * trimTo,
+			y2: y2 - uy * trimTo,
+			// Direction across the line, for the short bar that marks the edge.
+			nx: -uy,
+			ny: ux
+		};
+	}
+
+	// The three layer toggles. Turning one off must leave the other two
+	// exactly as they were, which is why each one only touches its own flag.
+	const LAYERS = [
+		{ key: 'truth', text: 'injected error', note: 'truth' },
+		{ key: 'measured', text: 'detection event', note: 'measured' },
+		{ key: 'inferred', text: "decoder's guess", note: 'inferred' }
+	] as const;
+
+	function toggleLayer(key: (typeof LAYERS)[number]['key']) {
+		visibleLayers.update((v) => ({ ...v, [key]: !v[key] }));
+	}
+
 	function checkLabel(c: Check): string {
 		const kind = c.type === 'X' ? 'X-type' : 'Z-type';
 		return `${c.id}, ${kind} stabiliser on data qubits ${c.dataQubits.join(', ')}`;
@@ -145,38 +197,64 @@
 		<!-- Legend. Shown from the start, even when only some layers have data:
 		     the difference between the three layers is what we are teaching, so it
 		     is labelled before there is anything in it. -->
+		<!-- The three layer entries double as the layer toggles: the thing you
+		     switch off is the thing the swatch next to it shows. -->
 		<div class="flex flex-col gap-2.5 text-xs leading-snug">
-			<span class="flex items-start gap-1.5">
-				<span
-					class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-					style="background: var(--color-measured)"
-				></span>
-				<span>injected error <span class="opacity-60">(truth)</span></span>
-			</span>
-			{#if isPlanned && planned.length}
-				<span class="flex items-start gap-1.5">
-					<span
-						class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-dashed"
-						style="border-color: var(--color-measured)"
-					></span>
-					<span>placed, not run yet</span>
-				</span>
-			{/if}
-			<span class="flex items-start gap-1.5">
-				<span
-					class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border"
-					style="border-color: var(--color-check-z); background: var(--color-check-z)"
-				></span>
-				<span>detection event <span class="opacity-60">(measured)</span></span>
-			</span>
-			<span class="flex items-start gap-1.5">
+			{#each LAYERS as layer (layer.key)}
+				<label
+					class="flex cursor-pointer items-start gap-1.5"
+					class:opacity-50={!$visibleLayers[layer.key]}
+				>
+					<input
+						type="checkbox"
+						class="mt-0.5 h-3 w-3 shrink-0 cursor-pointer accent-qec-1"
+						checked={$visibleLayers[layer.key]}
+						on:change={() => toggleLayer(layer.key)}
+					/>
+					{#if layer.key === 'truth'}
+						<span
+							class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+							style="background: var(--color-measured)"
+						></span>
+					{:else if layer.key === 'measured'}
+						<span
+							class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border"
+							style="border-color: var(--color-check-z); background: var(--color-check-z)"
+						></span>
+					{:else}
+						<svg class="mt-0.5 h-2.5 w-3.5 shrink-0" viewBox="0 0 14 10" aria-hidden="true">
+							<line
+								x1="1"
+								y1="5"
+								x2="13"
+								y2="5"
+								stroke-width="2"
+								stroke-dasharray="3 2"
+								stroke-linecap="round"
+								style={MARK_STYLE}
+							/>
+						</svg>
+					{/if}
+					<span>{layer.text} <span class="opacity-60">({layer.note})</span></span>
+				</label>
+				{#if layer.key === 'truth' && isPlanned && planned.length}
+					<span class="flex items-start gap-1.5 pl-4.5">
+						<span
+							class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-dashed"
+							style="border-color: var(--color-measured)"
+						></span>
+						<span>placed, not run yet</span>
+					</span>
+				{/if}
+			{/each}
+			<span class="flex items-start gap-1.5 pl-4.5">
 				<span
 					class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border"
 					style="border-color: var(--color-check-x)"
 				></span>
 				<span>X-check</span>
 			</span>
-			<span class="flex items-start gap-1.5">
+			<span class="flex items-start gap-1.5 pl-4.5">
 				<span
 					class="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full border"
 					style="border-color: var(--color-check-z)"
@@ -251,6 +329,56 @@
 					>
 				</g>
 			{/each}
+
+			<!-- Layer 3 marks: dashed, in their own colour, and drawn nowhere else, so
+			     a guess can never be read as an error or a measurement. They let the
+			     mouse through, so hovering a check still works under them. -->
+			{#if marks.length}
+				<g data-layer="inferred" class="pointer-events-none" fill="none" style={MARK_STYLE}>
+					{#each marks as mark, i (i)}
+						{#if mark.kind === 'time'}
+							<circle
+								cx={px(mark.at.x)}
+								cy={px(mark.at.y)}
+								r="12"
+								stroke-width="2"
+								stroke-dasharray="4 3"
+							>
+								<title>{mark.label}</title>
+							</circle>
+						{:else}
+							{@const l = trimmed(
+								mark.from,
+								mark.to,
+								ANCILLA_GAP,
+								mark.kind === 'pair' ? ANCILLA_GAP : 0
+							)}
+							<line
+								x1={l.x1}
+								y1={l.y1}
+								x2={l.x2}
+								y2={l.y2}
+								stroke-width="2.5"
+								stroke-dasharray="6 4"
+								stroke-linecap="round"
+							>
+								<title>{mark.label}</title>
+							</line>
+							{#if mark.kind === 'boundary'}
+								<!-- A short bar across the end: "this chain runs out of the code". -->
+								<line
+									x1={l.x2 - l.nx * 8}
+									y1={l.y2 - l.ny * 8}
+									x2={l.x2 + l.nx * 8}
+									y2={l.y2 + l.ny * 8}
+									stroke-width="2.5"
+									stroke-linecap="round"
+								/>
+							{/if}
+						{/if}
+					{/each}
+				</g>
+			{/if}
 
 			<!-- Data qubits -->
 			{#each D3_LAYOUT.dataQubits as q (q.id)}

@@ -57,6 +57,12 @@
 	   change colour with it, or they would look like part of the QEC frame. */
 	--color-check-x: #a855f7;
 	--color-check-z: #2563eb;
+
+	/* The decoder's guess (layer 3) on the lattice. A plain slate, because every
+	   bright colour already means something there: orange is the truth, purple
+	   and blue are the checks, emerald is the QEC frame, red is danger. It is
+	   always drawn dashed too, so it stays apart even in greyscale. */
+	--color-inferred: #475569;
 }
 
 html.dark {
@@ -79,6 +85,7 @@ html.dark {
 	--color-qec-fg: #052e16;
 	--color-danger: #f87171;
 	--color-check-z: #06b6d4;
+	--color-inferred: #cbd5e1;
 
 	/* Accents — Cyan for dark mode */
 	--color-ternary-0: #cffafe;
