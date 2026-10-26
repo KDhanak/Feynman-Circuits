@@ -25,6 +25,7 @@ import { get } from 'svelte/store';
 import { QEC_LOGICAL_QUBITS, qecMode, qubitLimit } from '$lib/qec/stores';
 import { GATE_REGISTRY, isCliffordGate } from '$lib/quantum/gates';
 import type { UnitaryOperation } from '../IR/schema';
+import { MAX_COLUMNS } from '$lib/utils/constants';
 
 /**
  * Turning on QEC mode limits the palette to Clifford gates, because QEC runs
@@ -276,6 +277,53 @@ export function compactCircuit(): void {
 	pendingAntiControls.set(new Map());
 
 	showNotification('Circuit compacted!', 'success');
+}
+
+/**
+ * Whether every gate can move one column in the given direction. Moving left
+ * needs the first column to be empty, and moving right needs the last column
+ * to be empty, so no gate is ever pushed off the board. Control dots that are
+ * not attached to a gate yet count too, because they move with everything else.
+ */
+export function canShiftCircuit(
+	ir: CircuitIR,
+	direction: -1 | 1,
+	pending: Map<number, number[]>[] = [get(pendingControls), get(pendingAntiControls)]
+): boolean {
+	const columns = [
+		...ir.operations.map((op) => op.column),
+		...pending.flatMap((map) => [...map.keys()])
+	];
+	if (columns.length === 0) return false;
+	return direction === -1 ? Math.min(...columns) > 0 : Math.max(...columns) < MAX_COLUMNS - 1;
+}
+
+/**
+ * Moves every gate one column left (-1) or right (1). The gates keep their
+ * order, so the simulation result does not change. Moving right leaves the
+ * first column empty, which gives room to add a gate in front of the circuit.
+ * This is mainly for phones, where dragging the whole circuit is not possible.
+ */
+export function shiftCircuit(direction: -1 | 1): void {
+	if (!canShiftCircuit(get(circuitIR), direction)) return;
+
+	circuitIR.update((ir) => {
+		const next: CircuitIR = {
+			...ir,
+			operations: ir.operations.map(
+				(op) => ({ ...op, column: op.column + direction }) as CircuitOperation
+			)
+		};
+		triggerSimulation(next);
+		return next;
+	});
+
+	// Control dots that are not attached to a gate yet are stored by column
+	// number, so they have to move by the same amount as the gates.
+	const shiftKeys = (map: Map<number, number[]>) =>
+		new Map([...map].map(([col, qubits]) => [col + direction, qubits]));
+	pendingControls.update(shiftKeys);
+	pendingAntiControls.update(shiftKeys);
 }
 
 export function importOpenQasm(qasmText: string): void {
