@@ -325,12 +325,14 @@
 		     panel instead, so the bottom of the panel stays where it is. From `lg`
 		     up the panel takes all the height the page has left, as before. When
 		     nothing is shown below the board (results turned off on a phone), it
-		     is still a fixed height, just a taller one, to use that space. -->
+		     is still a fixed height, just a taller one, to use that space. It also
+		     takes over the results row's bottom margin, so its bottom edge lines
+		     up with the code panel when that is docked on the left. -->
 		<div
 			bind:this={boardEl}
 			data-tour="board"
 			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 flex {resultsRowEmpty
-				? 'h-[72vh]'
+				? 'h-[72vh] mb-1'
 				: 'h-[55vh]'} lg:h-auto lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
 		>
 			<CircuitLayout />
