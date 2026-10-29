@@ -6,6 +6,7 @@
 	import { triggerSimulation } from '$lib/circuit/dragDropUtils';
 	import { parsePiInput, formatRadiansAsPi } from '$lib/utils/piMath';
 	import { isMobile } from '$lib/stores/isMobile';
+	import Icon from '@iconify/svelte';
 
 	export let gate: UnitaryOperation;
 	export let x: number;
@@ -41,7 +42,7 @@
 	// Bigger buttons on touch screens. The desktop sizes are too small to tap
 	// easily.
 	$: fieldClass = `input-field text-sm ${$isMobile ? 'py-2.5' : 'py-1.5'}`;
-	$: buttonClass = `flex-1 text-sm ${$isMobile ? 'py-2.5' : 'py-1.5'}`;
+	$: iconBtnSize = $isMobile ? 'h-9 w-9' : 'h-7 w-7';
 
 	// Reset internal state whenever a different gate is opened
 	$: {
@@ -105,11 +106,33 @@
 		if (e.key === 'Escape') dispatch('close');
 	}}
 >
+	<!-- Save and cancel sit in the header as small icon buttons, so the card
+	     doesn't need a whole row of full-width buttons at the bottom. -->
 	<div
-		class="px-4 py-2 text-xs font-semibold border-b uppercase tracking-wide"
+		class="flex items-center justify-between gap-2 pl-4 pr-2 py-1.5 border-b"
 		style="border-color: var(--color-border)"
 	>
-		Edit {gate.gate.toUpperCase()} Gate
+		<span class="text-xs font-semibold uppercase tracking-wide">
+			Edit {gate.gate.toUpperCase()} Gate
+		</span>
+		<div class="flex items-center gap-1">
+			<button
+				class="icon-btn {iconBtnSize} text-ternary-1"
+				title="Apply"
+				aria-label="Apply"
+				on:click={apply}
+			>
+				<Icon icon="ph:check-bold" width="16" height="16" />
+			</button>
+			<button
+				class="icon-btn {iconBtnSize} text-text"
+				title="Cancel"
+				aria-label="Cancel"
+				on:click={() => dispatch('close')}
+			>
+				<Icon icon="ph:x-bold" width="16" height="16" />
+			</button>
+		</div>
 	</div>
 
 	{#if gate.gate === 'swap'}
@@ -157,9 +180,18 @@
 			{/if}
 		</div>
 	{/if}
-
-	<div class="flex gap-2 px-4 py-2.5 border-t" style="border-color: var(--color-border)">
-		<button class="btn-primary {buttonClass}" on:click={apply}>Apply</button>
-		<button class="btn-secondary {buttonClass}" on:click={() => dispatch('close')}>Cancel</button>
-	</div>
 </div>
+
+<style>
+	.icon-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.25rem;
+		cursor: pointer;
+		transition: background-color 100ms;
+	}
+	.icon-btn:hover {
+		background: var(--color-border);
+	}
+</style>

@@ -127,7 +127,17 @@ export interface GateSpec {
 	controlledQasm?: Record<number, string>; // special names for the controlled version, e.g. { 1: 'cx', 2: 'ccx' }
 	matrix?: (params: number[]) => Complex[][]; // left out for swap (the simulator handles swap on its own)
 	// Tooltip text for the palette: `quick` is the bold title, `detail` is the description.
-	tooltip: { quick: string; detail: string };
+	// `matrix` is the gate's matrix written out for people to read. It is display
+	// text only, so it must match the gate's `matrix` function. gates.test.ts checks this.
+	tooltip: { quick: string; detail: string; matrix: TooltipMatrix };
+}
+
+// A matrix as text for the tooltip. `scale` is a number written in front of
+// the brackets, e.g. 1/√2 for H. Write a power as e^{iθ}: the tooltip shows the
+// part inside the braces as a superscript.
+export interface TooltipMatrix {
+	scale?: string;
+	rows: string[][];
 }
 
 export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
@@ -143,7 +153,13 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		matrix: () => X_GATE.matrix,
 		tooltip: {
 			quick: 'Pauli-X (NOT)',
-			detail: 'Flips |0⟩ to |1⟩ and vice versa. The quantum equivalent of a classical NOT gate.'
+			detail: 'Flips |0⟩ to |1⟩ and vice versa. The quantum equivalent of a classical NOT gate.',
+			matrix: {
+				rows: [
+					['0', '1'],
+					['1', '0']
+				]
+			}
 		}
 	},
 	y: {
@@ -158,7 +174,13 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		tooltip: {
 			quick: 'Pauli-Y',
 			detail:
-				'Flips the qubit and adds a phase of i. Rotates 180° around the Y-axis of the Bloch sphere.'
+				'Flips the qubit and adds a phase of i. Rotates 180° around the Y-axis of the Bloch sphere.',
+			matrix: {
+				rows: [
+					['0', '−i'],
+					['i', '0']
+				]
+			}
 		}
 	},
 	z: {
@@ -173,7 +195,13 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		matrix: () => Z_GATE.matrix,
 		tooltip: {
 			quick: 'Pauli-Z',
-			detail: 'Leaves |0⟩ unchanged, flips the phase of |1⟩. Rotates 180° around the Z-axis.'
+			detail: 'Leaves |0⟩ unchanged, flips the phase of |1⟩. Rotates 180° around the Z-axis.',
+			matrix: {
+				rows: [
+					['1', '0'],
+					['0', '−1']
+				]
+			}
 		}
 	},
 	h: {
@@ -188,7 +216,14 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		tooltip: {
 			quick: 'Hadamard',
 			detail:
-				'Puts a qubit into equal superposition — a measurement gives |0⟩ or |1⟩ with 50/50 probability.'
+				'Puts a qubit into equal superposition — a measurement gives |0⟩ or |1⟩ with 50/50 probability.',
+			matrix: {
+				scale: '1/√2',
+				rows: [
+					['1', '1'],
+					['1', '−1']
+				]
+			}
 		}
 	},
 	s: {
@@ -200,7 +235,16 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		numParams: 0,
 		qasmName: 's',
 		matrix: () => S_GATE.matrix,
-		tooltip: { quick: 'S Gate (Phase)', detail: 'Adds a 90° phase shift to |1⟩. Equivalent to √Z.' }
+		tooltip: {
+			quick: 'S Gate (Phase)',
+			detail: 'Adds a 90° phase shift to |1⟩. Equivalent to √Z.',
+			matrix: {
+				rows: [
+					['1', '0'],
+					['0', 'i']
+				]
+			}
+		}
 	},
 	t: {
 		id: 't',
@@ -213,7 +257,13 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		matrix: () => T_GATE.matrix,
 		tooltip: {
 			quick: 'T Gate',
-			detail: 'Adds a 45° phase shift to |1⟩. Used heavily in fault-tolerant quantum computing.'
+			detail: 'Adds a 45° phase shift to |1⟩. Used heavily in fault-tolerant quantum computing.',
+			matrix: {
+				rows: [
+					['1', '0'],
+					['0', 'e^{iπ/4}']
+				]
+			}
 		}
 	},
 	p: {
@@ -228,7 +278,13 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		tooltip: {
 			quick: 'Phase P(θ)',
 			detail:
-				'Adds an arbitrary phase e^{iθ} to |1⟩. Generalizes Z, S, and T. Controlled-P is the building block of the Quantum Fourier Transform. Double-click to set the angle.'
+				'Adds an arbitrary phase e^{iθ} to |1⟩. Generalizes Z, S, and T. Controlled-P is the building block of the Quantum Fourier Transform. Double-click to set the angle.',
+			matrix: {
+				rows: [
+					['1', '0'],
+					['0', 'e^{iθ}']
+				]
+			}
 		}
 	},
 	rx: {
@@ -243,7 +299,13 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		tooltip: {
 			quick: 'X-Rotation',
 			detail:
-				'Rotates the qubit around the X-axis by a chosen angle θ. Double-click to set the angle.'
+				'Rotates the qubit around the X-axis by a chosen angle θ. Double-click to set the angle.',
+			matrix: {
+				rows: [
+					['cos(θ/2)', '−i sin(θ/2)'],
+					['−i sin(θ/2)', 'cos(θ/2)']
+				]
+			}
 		}
 	},
 	ry: {
@@ -258,7 +320,13 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		tooltip: {
 			quick: 'Y-Rotation',
 			detail:
-				'Rotates the qubit around the Y-axis by a chosen angle θ. Double-click to set the angle.'
+				'Rotates the qubit around the Y-axis by a chosen angle θ. Double-click to set the angle.',
+			matrix: {
+				rows: [
+					['cos(θ/2)', '−sin(θ/2)'],
+					['sin(θ/2)', 'cos(θ/2)']
+				]
+			}
 		}
 	},
 	rz: {
@@ -273,7 +341,13 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		tooltip: {
 			quick: 'Z-Rotation',
 			detail:
-				'Rotates the qubit around the Z-axis by a chosen angle θ. Double-click to set the angle.'
+				'Rotates the qubit around the Z-axis by a chosen angle θ. Double-click to set the angle.',
+			matrix: {
+				rows: [
+					['e^{−iθ/2}', '0'],
+					['0', 'e^{iθ/2}']
+				]
+			}
 		}
 	},
 	swap: {
@@ -286,7 +360,15 @@ export const GATE_REGISTRY: Record<CanonicalUnitaryGate, GateSpec> = {
 		qasmName: 'swap',
 		tooltip: {
 			quick: 'SWAP',
-			detail: 'Exchanges the states of two qubits. Drop both ends on the same column.'
+			detail: 'Exchanges the states of two qubits. Drop both ends on the same column.',
+			matrix: {
+				rows: [
+					['1', '0', '0', '0'],
+					['0', '0', '1', '0'],
+					['0', '1', '0', '0'],
+					['0', '0', '0', '1']
+				]
+			}
 		}
 	}
 };

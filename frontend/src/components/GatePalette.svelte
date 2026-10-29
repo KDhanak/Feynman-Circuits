@@ -7,7 +7,12 @@
 	import { applyBellPairPreset, compactCircuit, toggleQecMode } from '$lib/circuit/circuitActions';
 	import Tooltip from './Tooltip.svelte';
 	import { isMobile } from '$lib/stores/isMobile';
-	import { GATE_REGISTRY, UNITARY_GATE_IDS, paletteCategory } from '$lib/quantum/gates';
+	import {
+		GATE_REGISTRY,
+		UNITARY_GATE_IDS,
+		paletteCategory,
+		type TooltipMatrix
+	} from '$lib/quantum/gates';
 	import { qecMode, qubitLimit } from '$lib/qec/stores';
 
 	type PaletteTile = {
@@ -16,6 +21,7 @@
 		category: string;
 		quick: string;
 		detail: string;
+		matrix?: TooltipMatrix; // left out for Control, Anti-Control and Measure, which are not gates
 		// Can be used while QEC mode is on. Non-Clifford gates are blocked there
 		// because Stim, which runs QEC, cannot simulate them at all.
 		clifford: boolean;
@@ -75,7 +81,8 @@
 			clifford: spec.clifford,
 			singleQubit: spec.arity === 1,
 			quick: spec.tooltip.quick,
-			detail: spec.tooltip.detail
+			detail: spec.tooltip.detail,
+			matrix: spec.tooltip.matrix
 		};
 	};
 	const singleAndParametric = UNITARY_GATE_IDS.filter((id) => GATE_REGISTRY[id].arity === 1).map(
@@ -142,6 +149,7 @@
 		{/if}
 		<Tooltip
 			quick={gate.quick}
+			matrix={gate.matrix}
 			detail={blocked
 				? `${gate.detail}
 
