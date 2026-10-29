@@ -190,6 +190,23 @@
 		<label class="mt-4 flex items-center justify-between gap-4 cursor-pointer">
 			<span>
 				<span class="block text-sm font-medium" style="color: var(--color-text);"
+					>Show simulation results</span
+				>
+				<span class="block text-xs" style="color: var(--color-muted);">
+					Display the results panel below the circuit. Turn it off to give the board more room.
+				</span>
+			</span>
+			<input
+				type="checkbox"
+				class="toggle"
+				checked={$settings.showSimulationResults}
+				on:change={(e) => updateSettings({ showSimulationResults: e.currentTarget.checked })}
+			/>
+		</label>
+
+		<label class="mt-4 flex items-center justify-between gap-4 cursor-pointer">
+			<span>
+				<span class="block text-sm font-medium" style="color: var(--color-text);"
 					>Show Bloch sphere</span
 				>
 				<span class="block text-xs" style="color: var(--color-muted);">

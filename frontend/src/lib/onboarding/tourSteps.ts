@@ -17,8 +17,9 @@ export type TourStep = {
 	body: string;
 	/**
 	 * Skip this step quietly when the anchor isn't on the page. The code panel is
-	 * hidden on mobile, and it moves when docked on the left, so steps must handle
-	 * a missing anchor instead of leaving the user stuck on a step that can't show.
+	 * hidden on mobile, and it moves when docked on the left. The results panel can
+	 * be turned off in Settings. So steps must handle a missing anchor instead of
+	 * leaving the user stuck on a step that can't show.
 	 */
 	optional?: boolean;
 };
@@ -40,7 +41,8 @@ export const TOUR_STEPS: TourStep[] = [
 		id: 'results',
 		anchor: '[data-tour="results"]',
 		title: 'No Run button — that is the point',
-		body: 'The statevector re-simulates on every edit, so amplitudes and probabilities update as you drag — nothing to run, and no way to be looking at a stale result. Shown in Dirac notation with polar form; Settings has a bit-order toggle if you prefer q0 on the left to the Qiskit convention.'
+		body: 'The statevector re-simulates on every edit, so amplitudes and probabilities update as you drag — nothing to run, and no way to be looking at a stale result. Shown in Dirac notation with polar form; Settings has a bit-order toggle if you prefer q0 on the left to the Qiskit convention.',
+		optional: true
 	},
 	{
 		id: 'code',

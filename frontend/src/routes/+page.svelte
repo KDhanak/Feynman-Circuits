@@ -48,6 +48,9 @@
 	// layout so SimulationResult grows into the space the sphere would have used.
 	$: showBloch = $settings.showBlochSphere && !$isMobile;
 
+	// The results panel is optional too. Hiding it gives its space to the board.
+	$: showSim = $settings.showSimulationResults;
+
 	// QEC mode takes over the results row. The simulation results and the third
 	// panel both show a state vector, which is not what QEC mode is about, so they
 	// give their space to one wide surface code panel. That panel needs the width,
@@ -67,20 +70,38 @@
 	});
 	$: leftMode = $settings.codePanelPosition === 'left' && isWideScreen;
 
-	// Column layout for the results grid. When the code panel is on the left, it is
-	// not in this grid, so the grid only holds Sim (+ Bloch) in the narrower right
-	// column. In QEC mode there is one panel instead of two, so the third column is
-	// removed and the QEC panel takes its space.
+	// Which panels are in the results row. In QEC mode the QEC panel replaces
+	// Sim and Bloch. The code panel is only here when it is docked at the bottom.
+	$: rowHasSim = showSim && !qecTakeover;
+	$: rowHasBloch = showBloch && !qecTakeover;
+	$: rowHasCode = !$isMobile && !leftMode;
+	// With every panel turned off, the row is left out, along with its drag handle,
+	// and the board takes the whole height.
+	$: resultsRowEmpty = !rowHasSim && !rowHasBloch && !rowHasCode && !qecTakeover;
+
+	// Column layout for the results grid at ≥1024px. Each case is written out in
+	// full because Tailwind only builds classes it can find whole in the source.
+	// When the code panel is on the left it is not in this grid, so Sim and Bloch
+	// share the narrower right column. In QEC mode the code panel and the QEC
+	// panel share the row.
 	$: resultsGridCols = leftMode
-		? showBloch && !qecTakeover
+		? rowHasSim && rowHasBloch
 			? 'lg:grid-cols-2'
 			: 'lg:grid-cols-1'
-		: showBloch && !qecTakeover
-			? 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)_auto]'
-			: 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]';
-	// In the bottom layout with no Bloch sphere, Sim takes the full width. Not needed
+		: qecTakeover
+			? 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]'
+			: rowHasSim && rowHasBloch
+				? 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)_auto]'
+				: rowHasSim
+					? 'lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]'
+					: rowHasBloch
+						? 'lg:grid-cols-[minmax(0,1fr)_auto]'
+						: 'lg:grid-cols-1';
+	// Between 640 and 1024px the row is 2 columns, with Sim and Bloch side by side.
+	// When one of the two is hidden, the other takes the full width. Not needed
 	// when the code panel is on the left (Sim already fills its column there).
 	$: simSpan = !leftMode && !showBloch ? 'sm:col-span-2 lg:col-span-1' : '';
+	$: blochSpan = !rowHasSim ? 'sm:col-span-2 lg:col-span-1' : '';
 
 	// In bottom mode the board/results are 96% wide and centred, like the palette.
 	// In left mode they fill the right column so their right edge lines up with
@@ -302,15 +323,19 @@
 		     circuit name and the undo/redo buttons at its bottom edge further down
 		     the page with every wire. At a fixed height the wires scroll inside the
 		     panel instead, so the bottom of the panel stays where it is. From `lg`
-		     up the panel takes all the height the page has left, as before. -->
+		     up the panel takes all the height the page has left, as before. When
+		     nothing is shown below the board (results turned off on a phone), it
+		     is still a fixed height, just a taller one, to use that space. -->
 		<div
 			bind:this={boardEl}
 			data-tour="board"
-			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 flex h-[55vh] lg:h-auto lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
+			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 flex {resultsRowEmpty
+				? 'h-[72vh]'
+				: 'h-[55vh]'} lg:h-auto lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
 		>
 			<CircuitLayout />
 		</div>
-		{#if isWideScreen}
+		{#if isWideScreen && !resultsRowEmpty}
 			<!-- Drag handle: resize the results row. Saved when you let go -->
 			<div
 				role="slider"
@@ -355,60 +380,62 @@
 			handle exists and the board can give up the space. Below 1024px the
 			inline style is left out, so the `sm:auto-rows-[20.625rem]` class is used.
 		-->
-		<div
-			class="{contentWidth} {isWideScreen
-				? 'mt-0'
-				: 'mt-2'} mb-1 grid grid-cols-1 sm:grid-cols-2 sm:grid-flow-row-dense sm:auto-rows-[20.625rem] gap-2 shrink-0 {resultsGridCols}"
-			style={isWideScreen
-				? `grid-auto-rows: clamp(${MIN_RESULTS}px, ${resultsHeight}px, 60vh)`
-				: ''}
-		>
-			{#if !qecTakeover}
-				<div
-					data-tour="results"
-					class="shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-y-auto min-w-0 min-h-0 {simSpan}"
-				>
-					<SimulationResult />
-				</div>
-			{/if}
-			{#if !$isMobile && !leftMode}
-				<div
-					data-tour="code"
-					class="sm:col-span-2 lg:col-span-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden min-w-0 min-h-0"
-				>
-					<CircuitDataPanel />
-				</div>
-			{/if}
-			{#if qecTakeover}
-				<!--
+		{#if !resultsRowEmpty}
+			<div
+				class="{contentWidth} {isWideScreen
+					? 'mt-0'
+					: 'mt-2'} mb-1 grid grid-cols-1 sm:grid-cols-2 sm:grid-flow-row-dense sm:auto-rows-[20.625rem] gap-2 shrink-0 {resultsGridCols}"
+				style={isWideScreen
+					? `grid-auto-rows: clamp(${MIN_RESULTS}px, ${resultsHeight}px, 60vh)`
+					: ''}
+			>
+				{#if rowHasSim}
+					<div
+						data-tour="results"
+						class="shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-y-auto min-w-0 min-h-0 {simSpan}"
+					>
+						<SimulationResult />
+					</div>
+				{/if}
+				{#if rowHasCode}
+					<div
+						data-tour="code"
+						class="sm:col-span-2 lg:col-span-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden min-w-0 min-h-0"
+					>
+						<CircuitDataPanel />
+					</div>
+				{/if}
+				{#if qecTakeover}
+					<!--
 					QEC mode: one wide panel that replaces both the simulation results
 					and the third panel. It holds the whole QEC experiment:
 					the lattice, the controls, the injection ledger and the step control.
 					`sm:col-span-2` is needed below 1024px, where the row is a simple
 					2-column grid and a single item would otherwise only fill half of it.
 				-->
-				<Tooltip
-					class="sm:col-span-2 lg:col-span-1 min-w-0 min-h-0"
-					quick="Surface Code (distance 3)"
-					detail={QEC_TIP}
-				>
-					<div
-						data-tour="results"
-						class="w-full h-full shadow-sm shadow-qec-1 bg-qec-surface/20 rounded-sm p-4 overflow-hidden flex justify-center"
+					<Tooltip
+						class="sm:col-span-2 lg:col-span-1 min-w-0 min-h-0"
+						quick="Surface Code (distance 3)"
+						detail={QEC_TIP}
 					>
-						<QecPanel />
-					</div>
-				</Tooltip>
-			{:else if showBloch}
-				<Tooltip quick="Bloch Sphere" detail={BLOCH_TIP}>
-					<div
-						class="w-full h-full shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
-					>
-						<OverallBlochSphere />
-					</div>
-				</Tooltip>
-			{/if}
-		</div>
+						<div
+							data-tour="results"
+							class="w-full h-full shadow-sm shadow-qec-1 bg-qec-surface/20 rounded-sm p-4 overflow-hidden flex justify-center"
+						>
+							<QecPanel />
+						</div>
+					</Tooltip>
+				{:else if showBloch}
+					<Tooltip class={blochSpan} quick="Bloch Sphere" detail={BLOCH_TIP}>
+						<div
+							class="w-full h-full shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
+						>
+							<OverallBlochSphere />
+						</div>
+					</Tooltip>
+				{/if}
+			</div>
+		{/if}
 	{/snippet}
 
 	<!--

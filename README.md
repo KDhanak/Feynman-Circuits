@@ -59,7 +59,7 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 - Dark and light theme (or follow the system)
 - Fully responsive layout, with tap-to-place editing on touch devices
 - Guided onboarding tour for first-time users
-- Settings for the default results view (list or histogram), auto-save, and bit order — `q0` leftmost (textbook) or rightmost (Qiskit / IBM)
+- Settings for the default results view (list or histogram), auto-save, showing or hiding the results panel and Bloch sphere (hiding gives the board more room), and bit order — `q0` leftmost (textbook) or rightmost (Qiskit / IBM)
 - In-app feedback form
 
 ## Tech Stack

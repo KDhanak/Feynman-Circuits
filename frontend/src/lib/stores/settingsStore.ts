@@ -25,6 +25,8 @@ export type Settings = {
 	defaultResultView: ResultView;
 	probabilityDecimals: number;
 	showBlochSphere: boolean;
+	// Hiding the results panel gives its space to the circuit board.
+	showSimulationResults: boolean;
 	bitOrder: BitOrder;
 	codePanelPosition: CodePanelPosition;
 	// Wanted width (px) of the code panel when it is on the left. CSS keeps it within limits for each screen size.
@@ -40,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	defaultResultView: 'list',
 	probabilityDecimals: 2,
 	showBlochSphere: true,
+	showSimulationResults: true,
 	bitOrder: 'q0-right',
 	codePanelPosition: 'bottom',
 	codePanelWidthPx: 480,
