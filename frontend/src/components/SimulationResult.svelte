@@ -312,7 +312,7 @@
 			display: flex;
 			justify-content: space-between;
 			padding: 8px 10px;
-			border-bottom: 2px solid ${colors.secondary2};
+			border-bottom: 1px solid ${colors.border};
 			margin-bottom: 4px;
 			font-weight: 700;
 			color: ${colors.text};
@@ -325,11 +325,11 @@
 			font-size: 0.95rem;
 		}
 		.probabilities-container {
-			background: rgba(${hexToRgb(colors.ternary3)}, 0.15);
-			border-radius: 4px;
+			background: ${colors.surface ?? colors.bg};
+			border: 1px solid ${colors.border};
+			border-radius: 8px;
 			padding: 16px;
 			margin-top: 16px;
-			box-shadow: 0 1px 2px rgba(${hexToRgb(colors.ternary1)}, 0.3);
 		}
 		@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
 	</style>
@@ -461,8 +461,8 @@
 							x2={axisLeft + plotW}
 							y1={y}
 							y2={y}
-							stroke="var(--color-ternary-2)"
-							stroke-width={tick === 0 ? 1 : 0.5}
+							stroke={tick === 0 ? 'var(--color-border-strong)' : 'var(--color-border)'}
+							stroke-width={tick === 0 ? 1 : 0.75}
 						/>
 						<text
 							x={axisLeft - 3}
@@ -485,7 +485,7 @@
 							width={barW}
 							height={barH}
 							style="animation-delay: {i * 60}ms"
-							fill={item.prob > 0 ? barColor : 'var(--color-ternary-2)'}
+							fill={item.prob > 0 ? barColor : 'var(--color-border-strong)'}
 							rx="1.5"
 						/>
 						<!-- Value labels need about 34px of space to sit side by side without overlapping -->
@@ -643,7 +643,7 @@
 					{#each top3 as item, i (i)}
 						<div
 							class="flex justify-between items-center py-1 border-b text-sm font-mono"
-							style="border-color: var(--color-ternary-2);"
+							style="border-color: var(--color-border);"
 						>
 							<span
 								style="color: {item.prob > 0
@@ -662,12 +662,7 @@
 			{/if}
 
 			<!-- Full results button -->
-			<button
-				type="button"
-				class="mt-1 w-full px-4 py-2 cursor-pointer text-sm font-medium rounded-sm border"
-				style="color: var(--color-branding); border-color: var(--color-branding);"
-				on:click={openResultsInNewWindow}
-			>
+			<button type="button" class="btn-quiet mt-2 w-full !py-2" on:click={openResultsInNewWindow}>
 				View All {totalStates} States
 			</button>
 		</div>
@@ -836,8 +831,8 @@
 		width: 0.75rem;
 		height: 0.75rem;
 		border-radius: 9999px;
-		border: 1px solid var(--color-ternary-1);
-		color: var(--color-ternary-1);
+		border: 1px solid var(--color-border-strong);
+		color: var(--color-muted);
 		background: var(--color-surface);
 		font-size: 7px;
 		cursor: pointer;
@@ -887,7 +882,7 @@
 		display: flex;
 		justify-content: space-between;
 		padding: 0.12rem 0;
-		border-bottom: 1.5px solid var(--color-ternary-2);
+		border-bottom: 1px solid var(--color-border);
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;
 		font-size: 0.95rem;
 	}

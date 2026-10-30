@@ -798,8 +798,8 @@
 											? 'bg-measured/30 text-measured'
 											: $qecMode
 												? 'bg-qec-1/20 text-qec-1 ring-1 ring-qec-1/60'
-												: 'bg-ternary-3/30 text-ternary-1'
-									} ${wire.qubit >= 1 ? 'cursor-pointer shadow-sm shadow-ternary-1 active:shadow-none' : 'cursor-default'}`}
+												: 'ket-pill'
+									} ${wire.qubit >= 1 ? 'cursor-pointer' : 'cursor-default'}`}
 									role="button"
 									tabindex="0"
 									title={$qecMode
@@ -826,11 +826,9 @@
 								value={$circuitIR.qubitLabels?.[wire.qubit] ?? `Qubit ${wire.qubit}`}
 								on:input={(e) => updateQubitLabel(wire.qubit, (e.target as HTMLInputElement).value)}
 								placeholder="Label"
-								class={`qubit-label z-10 w-13 h-7 px-1.5 cursor-text text-[11px] border ${$qecMode ? 'border-qec-1/60' : 'border-ternary-0'} focus:scale-105 focus:shadow-sm focus:shadow-ternary-1 text-center rounded-sm focus:outline-none select-auto ${
-									measured
-										? 'bg-orange-100 border-orange-300 text-orange-900 focus:ring-orange-600 focus:border-orange-600'
-										: 'text-black input-field'
-								}`}
+								class={`qubit-label z-10 w-14 h-7 px-1.5 cursor-text text-[11px] text-center rounded-md focus:outline-none select-auto ${
+									measured ? 'qubit-label-measured' : ''
+								} ${$qecMode ? 'qubit-label-qec' : ''}`}
 							/>
 						</div>
 					{/each}
@@ -840,7 +838,7 @@
 							transition:slide={{ duration: 300 }}
 						>
 							<div
-								class="z-10 mr-2 flex h-7 shrink-0 select-none items-center justify-center rounded-sm bg-ternary-2/25 px-2 text-[13px] font-medium leading-none text-ternary-3 opacity-50"
+								class="ket-pill z-10 mr-2 flex h-7 shrink-0 select-none items-center justify-center rounded-sm px-2 text-[13px] leading-none opacity-60"
 							>
 								|0⟩
 							</div>
@@ -848,7 +846,8 @@
 								type="text"
 								value="Qubit {$circuitIR.registers.q}"
 								disabled
-								class="z-10 w-13 h-7 px-1.5 text-[11px] border border-dashed border-ternary-3 text-black text-center rounded-sm bg-purple-100 bg-opacity-30 shadow-lg opacity-50"
+								class="z-10 w-14 h-7 px-1.5 text-[11px] border border-dashed text-center rounded-md opacity-60"
+								style="border-color: var(--color-border-strong); color: var(--color-muted); background: transparent;"
 							/>
 						</div>
 					{/if}
@@ -874,7 +873,7 @@
 							<!-- Wire line -->
 							<div
 								class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform"
-								style="background-color: var(--color-muted);"
+								style="background-color: var(--color-wire);"
 							>
 								{#each Array(visibleColumns) as _, colIndex (colIndex)}
 									<div
@@ -967,7 +966,7 @@
 						>
 							<div
 								class="wire-container absolute left-0 rounded-full right-0 top-1/2 h-0.5 -translate-y-1/2 transform opacity-30"
-								style="background-color: var(--color-muted);"
+								style="background-color: var(--color-wire);"
 							>
 								{#each Array(visibleColumns) as _, colIndex (colIndex)}
 									<div
@@ -1089,6 +1088,35 @@
 />
 
 <style>
+	/* |0⟩ initial-state chip: quiet text on a faint tint, so the gates carry the colour. */
+	.ket-pill {
+		color: var(--color-muted);
+		background: var(--color-surface-2);
+		border: 1px solid var(--color-border);
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-weight: 500;
+	}
+	/* Qubit name: a borderless label until you hover or edit it. */
+	.qubit-label {
+		color: var(--color-muted);
+		background: transparent;
+		border: 1px solid transparent;
+	}
+	.qubit-label:hover {
+		border-color: var(--color-border);
+	}
+	.qubit-label:focus {
+		color: var(--color-text);
+		background: var(--color-surface);
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
+	}
+	.qubit-label-measured {
+		color: var(--color-measured);
+	}
+	.qubit-label-qec {
+		border-color: color-mix(in srgb, var(--color-qec-1) 40%, transparent);
+	}
 	.ghost-wire {
 		opacity: 0.6;
 	}

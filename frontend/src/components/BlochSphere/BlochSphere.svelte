@@ -237,9 +237,9 @@
 				     left, which is what makes a flat circle look like a ball. The light
 				     stays in the same place on screen while the camera turns, like it would in a room. -->
 				<radialGradient id="{uid}-shade" cx="50%" cy="50%" r="50%" fx="32%" fy="28%">
-					<stop offset="0%" stop-color="var(--color-surface)" stop-opacity="0.62" />
-					<stop offset="55%" stop-color="var(--color-surface)" stop-opacity="0.45" />
-					<stop offset="100%" stop-color="var(--color-secondary-2)" stop-opacity="0.4" />
+					<stop offset="0%" stop-color="var(--color-sphere-core)" stop-opacity="0.62" />
+					<stop offset="55%" stop-color="var(--color-sphere-core)" stop-opacity="0.45" />
+					<stop offset="100%" stop-color="var(--color-secondary-2)" stop-opacity="0.18" />
 				</radialGradient>
 			</defs>
 
@@ -394,22 +394,23 @@
 	}
 	.silhouette {
 		fill: none;
-		stroke: var(--color-secondary-2);
-		stroke-width: 2;
+		stroke: color-mix(in srgb, var(--color-secondary-2) 55%, var(--color-border-strong));
+		stroke-width: 1.5;
 	}
 	.equator {
 		fill: none;
-		stroke: var(--color-line);
+		stroke: var(--color-subtle);
 		stroke-width: 1;
 		stroke-dasharray: 3 3;
 	}
 	.axis {
-		stroke: var(--color-line);
+		stroke: var(--color-subtle);
 		stroke-width: 1;
 	}
 	.vector {
 		stroke: var(--color-ternary-1);
-		stroke-width: 2;
+		stroke-width: 2.5;
+		stroke-linecap: round;
 	}
 	.tip {
 		fill: var(--color-ternary-1);
@@ -436,8 +437,8 @@
 		margin-left: 0.6em;
 	}
 	.axis-label {
-		fill: var(--color-line);
-		font-weight: 700;
+		fill: var(--color-muted);
+		font-weight: 600;
 		pointer-events: none;
 	}
 	text.axis-label.behind {
