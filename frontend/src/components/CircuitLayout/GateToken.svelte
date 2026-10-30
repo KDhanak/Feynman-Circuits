@@ -17,7 +17,7 @@
 		deleteSelectedGates
 	} from '$lib/circuit/selection';
 	import { isMobile } from '$lib/stores/isMobile';
-	import { PARAMETRIC_GATE_IDS } from '$lib/quantum/gates';
+	import { PARAMETRIC_GATE_IDS, GATE_REGISTRY } from '$lib/quantum/gates';
 	import { createLongPress } from '$lib/circuit/touchUtils';
 	import { formatRadiansAsPi } from '$lib/utils/piMath';
 
@@ -37,6 +37,9 @@
 	// which is also how the edit box takes it. This is only for display. The real
 	// value is stored in the operation's `params`.
 	const isParametric = (g: string) => PARAMETRIC_GATE_IDS.includes(g as never);
+	// Colour family for the tile (see .gate-tile / [data-family] in app.css).
+	const familyOf = (g: string) =>
+		(GATE_REGISTRY as Record<string, { category: string }>)[g]?.category ?? 'multi';
 	const angleOf = (g: UnitaryOperation) => formatRadiansAsPi(g.params[0] ?? 0);
 
 	// Hover/long-press text that explains what tapping to edit would change.
@@ -119,16 +122,17 @@
 			on:touchmove={longPress.onTouchMove}
 			on:touchend={longPress.onTouchEnd}
 			on:touchcancel={longPress.cancel}
-			class={`gate z-10 cursor-grab select-none rounded-sm border border-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center ${
+			data-family={familyOf(gate.gate)}
+			class={`gate gate-tile z-10 cursor-grab select-none rounded-md flex items-center justify-center ${
 				gate.gate === 'swap'
-					? `bg-transparent border-dashed border-ternary-1 text-ternary-1 active:bg-secondary-3 active:text-white font-extralight ${$isMobile ? 'h-9 w-8' : 'h-11 w-10'}`
+					? `border-dashed font-extralight ${$isMobile ? 'h-9 w-8' : 'h-11 w-10'}`
 					: gate.gate === 'x'
-						? `bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-1.5 py-1.5' : 'px-2 py-2'}`
+						? `${$isMobile ? 'px-1.5 py-1.5' : 'px-2 py-2'}`
 						: isParametric(gate.gate)
 							? // Tighter padding than a plain gate: the angle adds a second line,
 								// and the column is only 58px wide (40px at its floor).
-								`bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-1.5 py-1' : 'px-2 py-1.5'}`
-							: `bg-surface text-text active:bg-ternary-1 ${$isMobile ? 'px-2.5 py-1.5 text-sm' : 'px-3 py-2 text-base'}`
+								`${$isMobile ? 'px-1.5 py-1' : 'px-2 py-1.5'}`
+							: `${$isMobile ? 'px-2.5 py-1.5 text-sm' : 'px-3 py-2 text-base'}`
 			}`}
 			class:selected={$selectedGateIds.has(gate.id)}
 			style="left: {(gate.column + 0.5) * columnWidth}px;"
@@ -174,10 +178,11 @@
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() =>
 				handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'CONTROL', qubit })}
-			class={`gate z-10 cursor-grab select-none rounded-sm ${$isMobile ? 'h-8 w-8' : 'h-11 w-10'} text-sm border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center`}
+			data-family="control"
+			class={`gate control-node z-10 cursor-grab select-none rounded-full ${$isMobile ? 'h-8 w-8' : 'h-10 w-10'} flex items-center justify-center`}
 			style="left: {(gate.column + 0.5) * columnWidth}px;"
 		>
-			<div class="w-3 h-3 rounded-full bg-text"></div>
+			<div class="w-3.5 h-3.5 rounded-full bg-current"></div>
 		</div>
 	{/if}
 
@@ -198,10 +203,11 @@
 			on:keydown={(e) => onKeyDown(e, gate.id)}
 			on:dblclick={() =>
 				handleDoubleClick({ source: 'wire', gateId: gate.id, gateType: 'ANTI_CONTROL', qubit })}
-			class={`gate z-10 cursor-grab select-none rounded-sm ${$isMobile ? 'h-8 w-8' : 'h-11 w-10'} text-sm border border-ternary-1 bg-surface active:bg-ternary-1 active:border-white shadow transition-colors duration-100 flex items-center justify-center`}
+			data-family="control"
+			class={`gate control-node z-10 cursor-grab select-none rounded-full ${$isMobile ? 'h-8 w-8' : 'h-10 w-10'} flex items-center justify-center`}
 			style="left: {(gate.column + 0.5) * columnWidth}px;"
 		>
-			<div class="w-3 h-3 rounded-full border border-text"></div>
+			<div class="w-3.5 h-3.5 rounded-full border-2 border-current"></div>
 		</div>
 	{/if}
 {:else if op.kind === 'measure'}
@@ -223,7 +229,8 @@
 				$isMobile ? onMobileTap(measureOp.id) : handleGateSelection(measureOp.id, e)}
 			on:keydown={(e) => e.key === 'Delete' && removeGate(measureOp.id)}
 			on:dblclick={() => handleDoubleClick({ source: 'wire', gateId: measureOp.id })}
-			class="gate z-10 cursor-grab select-none rounded-sm px-3 py-2 text-base border bg-orange-100 text-orange-700 active:bg-orange-400 border-orange-300 active:text-white active:border-white shadow transition-colors duration-100"
+			data-family="measure"
+			class="gate gate-tile z-10 cursor-grab select-none rounded-md px-3 py-2 text-base"
 			style="left: {(measureOp.column + 0.5) * columnWidth}px;"
 		>
 			M
@@ -258,8 +265,18 @@
 	}
 
 	.gate.selected {
-		box-shadow: 0 0 0 3px #3b82f6;
-		outline: 2px solid #1e40af;
-		outline-offset: -1px;
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 35%, transparent);
+		outline: 2px solid var(--color-accent);
+		outline-offset: 1px;
+	}
+
+	/* Control dots: a bare dot on the wire, like a circuit diagram, rather than a
+	   boxed button. The hit area stays the full 40px circle. */
+	.control-node {
+		color: var(--color-text);
+		background: transparent;
+	}
+	.control-node:hover {
+		background: color-mix(in srgb, var(--color-text) 8%, transparent);
 	}
 </style>

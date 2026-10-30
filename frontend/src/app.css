@@ -4,31 +4,56 @@
 @theme {
 	--font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 
-	/* Brand — purple quantum look */
-	--color-secondary-1: #e9d5ff;
-	--color-secondary-2: #a855f7;
-	--color-secondary-3: #7e22ce;
-	--color-secondary-4: #3b0764;
+	/* Brand — one violet family. Secondary (brand) and ternary (interactive) used
+	   to be purple and blue, two competing accents; they are now the same hue so
+	   the UI has a single accent colour. */
+	--color-secondary-1: #ede9fe;
+	--color-secondary-2: #8b5cf6;
+	--color-secondary-3: #6d28d9;
+	--color-secondary-4: #2e1065;
 
-	/* Accents — Vibrant Blue (interactive, selections, quantum highlights) */
-	--color-ternary-0: #dbeafe;
-	--color-ternary-1: #2563eb;
-	--color-ternary-2: #1d4ed8;
-	--color-ternary-3: #1e40af;
+	--color-ternary-0: #ede9fe;
+	--color-ternary-1: #7c3aed;
+	--color-ternary-2: #6d28d9;
+	--color-ternary-3: #5b21b6;
 
-	/* Light theme defaults */
-	--color-background: #d1dce6;
+	/* Light theme defaults — neutral slate base. Colour is reserved for meaning:
+	   brand purple for identity and primary actions, gate families on the board,
+	   orange for measurement. Panels themselves stay neutral. */
+	--color-background: #f4f5f8;
 	--color-surface: #ffffff;
+	--color-surface-2: #f8fafc;
 	--color-text: #0f172a;
 	--color-border: #e2e8f0;
-	--color-muted: #94a3b8;
+	--color-border-strong: #cbd5e1;
+	/* A real secondary-text grey (it was #000 here and #fff in dark mode, so
+	   "muted" was the highest-contrast colour on the page). */
+	--color-muted: #475569;
+	--color-subtle: #94a3b8;
 
 	/* Additional semantic colors */
-	--color-line: rgba(0, 0, 0, 0.45);
-	--color-measured: #f97316;
-	--color-probability: #2563eb;
-	--color-muted: #000000;
-	--color-branding: #7e22ce;
+	--color-line: #475569;
+	--color-wire: #94a3b8;
+	--color-measured: #ea580c;
+	--color-probability: #6d28d9;
+	--color-branding: #6d28d9;
+	--color-accent: #6d28d9;
+	--color-accent-hover: #5b21b6;
+	--color-accent-fg: #ffffff;
+	--color-success: #059669;
+
+	/* Gate families. The only saturated colours on the board, so a circuit can be
+	   read at a glance: Paulis rose, Hadamard sky, phase gates violet, rotations
+	   teal, controls and SWAP slate, measurement orange (--color-measured). */
+	--color-gate-pauli: #e11d48;
+	--color-gate-hadamard: #0284c7;
+	--color-gate-phase: #7c3aed;
+	--color-gate-rotation: #0d9488;
+	--color-gate-multi: #475569;
+
+	/* Bloch sphere shell centre. The surface colour in light mode; in dark mode a
+	   lifted tone, because a dark centre read as a hole in the ball. */
+	--color-sphere-core: #ffffff;
 
 	/* QEC — Emerald. Only for the QEC mode frame and buttons (the toggle, the QEC
 	   panel border). The lattice keeps its own data colours, where purple means
@@ -66,16 +91,31 @@
 }
 
 html.dark {
-	--color-background: #070913;
-	--color-surface: #0a111d;
-	--color-text: #e0e7ff;
-	--color-border: #1e293b;
-	--color-muted: #ffffff;
+	--color-background: #0b0d12;
+	--color-surface: #12151c;
+	--color-surface-2: #171b24;
+	--color-text: #e6e8ee;
+	--color-border: #232836;
+	--color-border-strong: #2f3647;
+	--color-muted: #a3acbd;
+	--color-subtle: #64748b;
 
-	--color-line: rgba(255, 255, 255, 0.9);
+	--color-line: #94a3b8;
+	--color-wire: #3c4559;
 	--color-measured: #fb923c;
-	--color-probability: #06b6d4;
-	--color-branding: #e9d5ff;
+	--color-probability: #a78bfa;
+	--color-branding: #c4b5fd;
+	--color-accent: #8b5cf6;
+	--color-accent-hover: #a78bfa;
+	--color-accent-fg: #ffffff;
+	--color-success: #34d399;
+
+	--color-gate-pauli: #fb7185;
+	--color-gate-hadamard: #38bdf8;
+	--color-gate-phase: #a78bfa;
+	--color-gate-rotation: #2dd4bf;
+	--color-gate-multi: #94a3b8;
+	--color-sphere-core: #2a2f3d;
 
 	/* Emerald flips for dark mode: a deep fill would disappear into the background,
 	   so the accent becomes the bright shade and the text on it becomes the dark
@@ -87,11 +127,17 @@ html.dark {
 	--color-check-z: #06b6d4;
 	--color-inferred: #cbd5e1;
 
-	/* Accents — Cyan for dark mode */
-	--color-ternary-0: #cffafe;
-	--color-ternary-1: #06b6d4;
-	--color-ternary-2: #0891b2;
-	--color-ternary-3: #0e7490;
+	--color-secondary-1: #2e1065;
+	--color-secondary-2: #a78bfa;
+	--color-secondary-3: #7c3aed;
+	--color-secondary-4: #ede9fe;
+
+	/* ternary-1 is used both as a fill under white text and as a line colour on
+	   the dark surface; #8b5cf6 is the shade that works for both. */
+	--color-ternary-0: #2a2440;
+	--color-ternary-1: #8b5cf6;
+	--color-ternary-2: #7c3aed;
+	--color-ternary-3: #6d28d9;
 }
 
 /* QEC theme. Switched on by QEC mode (the `qec` class on <html>). It swaps the
@@ -111,7 +157,14 @@ html.dark.qec {
 	--color-branding: #a7f3d0;
 }
 
-/* Smooth transitions */
+html,
+body {
+	background: var(--color-background);
+	color: var(--color-text);
+}
+
+/* Smooth theme transitions. Colours only: animating height on every element
+   made every layout change (adding a qubit, resizing panels) lag behind. */
 *,
 *::before,
 *::after {
@@ -120,10 +173,7 @@ html.dark.qec {
 		color 0.2s ease,
 		border-color 0.3s ease,
 		fill 0.3s ease,
-		stroke 0.3s ease,
-		height 0.3s ease,
-		min-height 0.3s ease,
-		max-height 0.3s ease;
+		stroke 0.3s ease;
 }
 
 /* ── Global scrollbar ─────────────────────────────────────── */
@@ -136,11 +186,11 @@ html.dark.qec {
 	border-radius: 20px;
 }
 ::-webkit-scrollbar-thumb {
-	background: var(--color-muted);
+	background: var(--color-border-strong);
 	border-radius: 20px;
 }
 ::-webkit-scrollbar-thumb:hover {
-	background: var(--color-secondary-1);
+	background: var(--color-subtle);
 }
 
 /* ── Theme-aware logo swap (CSS only, so the server and browser HTML always match) ── */
@@ -160,28 +210,100 @@ html.dark .logo-dark {
 /* ── Drop-target highlight (used by GatePalette dragenter) ── */
 .drop-target-active {
 	border-color: var(--color-ternary-2) !important;
-	background-color: rgba(6, 182, 212, 0.08);
+	background-color: color-mix(in srgb, var(--color-accent) 8%, transparent);
 }
 
 /* ── Shared button & input classes ───────────────────────── */
 @layer components {
+	/* Every workspace panel (palette, board, results, code, Bloch). Neutral on
+	   purpose: the content inside carries the colour, not the frame. */
+	.panel {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: 0.5rem;
+		box-shadow:
+			0 1px 2px rgb(15 23 42 / 0.04),
+			0 1px 3px rgb(15 23 42 / 0.03);
+	}
+	html.dark .panel {
+		box-shadow: none;
+	}
+	/* QEC mode: the frame turns emerald, so the mode is visible on every panel. */
+	html.qec .panel {
+		border-color: color-mix(in srgb, var(--color-qec-1) 45%, var(--color-border));
+		background: color-mix(in srgb, var(--color-qec-surface) 5%, var(--color-surface));
+	}
+
+	/* Gate tiles, on the palette and on the board. The tile reads its family
+	   colour from --gate, set by [data-family] below. */
+	.gate-tile {
+		--gate: var(--color-gate-multi);
+		color: var(--gate);
+		background: color-mix(in srgb, var(--gate) 10%, var(--color-surface));
+		border: 1px solid color-mix(in srgb, var(--gate) 45%, transparent);
+		font-weight: 600;
+		box-shadow: 0 1px 0 color-mix(in srgb, var(--gate) 25%, transparent);
+	}
+	.gate-tile:hover {
+		background: color-mix(in srgb, var(--gate) 18%, var(--color-surface));
+		border-color: var(--gate);
+	}
+	.gate-tile:active {
+		background: var(--gate);
+		color: var(--color-surface);
+		border-color: var(--gate);
+	}
+	[data-family='pauli'] {
+		--gate: var(--color-gate-pauli);
+	}
+	[data-family='hadamard'] {
+		--gate: var(--color-gate-hadamard);
+	}
+	[data-family='phase'] {
+		--gate: var(--color-gate-phase);
+	}
+	[data-family='rotation'] {
+		--gate: var(--color-gate-rotation);
+	}
+	[data-family='multi'],
+	[data-family='control'] {
+		--gate: var(--color-gate-multi);
+	}
+	[data-family='measure'] {
+		--gate: var(--color-measured);
+	}
+
+	/* Quiet secondary buttons (Bell Pair, Compact, toolbar pills). */
+	.btn-quiet {
+		@apply flex cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium transition-colors duration-100 disabled:cursor-not-allowed disabled:opacity-35;
+		color: var(--color-text);
+		background: var(--color-surface-2);
+		border: 1px solid var(--color-border);
+	}
+	.btn-quiet:hover:not(:disabled) {
+		border-color: var(--color-border-strong);
+		background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+	}
+	.btn-quiet:active:not(:disabled) {
+		background: color-mix(in srgb, var(--color-text) 10%, var(--color-surface));
+	}
+
 	.btn-primary {
-		@apply cursor-pointer rounded-sm border border-white bg-ternary-2 px-4 py-2 font-semibold text-white hover:bg-ternary-1 hover:border-ternary-1 active:border-ternary-3 active:text-ternary-3 disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-150;
+		@apply cursor-pointer rounded-md border border-transparent bg-accent px-4 py-2 font-semibold text-accent-fg hover:bg-accent-hover active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-150;
 	}
 	.btn-secondary {
-		@apply cursor-pointer rounded-sm border border-secondary-3 bg-white px-4 py-1 text-secondary-3 hover:bg-secondary-1 hover:text-secondary-4 active:border-white active:bg-secondary-4 active:text-white transition-colors duration-150;
+		@apply cursor-pointer rounded-md border border-border-strong bg-surface px-4 py-1 text-text hover:border-secondary-2 hover:text-secondary-3 active:opacity-80 transition-colors duration-150;
 	}
 	.btn-ghost {
 		@apply cursor-pointer text-sm font-medium text-secondary-3 hover:text-secondary-2 active:text-secondary-1 transition-colors duration-150;
 	}
 	.input-field {
-		@apply w-full rounded-sm border border-secondary-2 bg-white px-3 py-2 font-extralight text-black outline-none focus:border-secondary-3;
+		@apply w-full rounded-md border border-border bg-surface px-3 py-2 font-normal text-text outline-none focus:border-secondary-2 focus:ring-2 focus:ring-secondary-2/20;
 	}
 	.btn-highlight {
 		/* h-9 + text-sm to match the signed-in button and the header's icon
 		   buttons, so all four account states line up. */
-		@apply flex h-9 cursor-pointer items-center justify-center rounded-sm bg-transparent shadow-sm shadow-measured px-4 text-sm min-w-28 active:bg-measured active:text-white active:border active:border-white transition-colors duration-200 outline-none;
-		color: var(--color-text);
+		@apply flex h-9 cursor-pointer items-center justify-center rounded-md px-4 text-sm font-medium min-w-28 transition-colors duration-200 outline-none bg-accent text-accent-fg hover:bg-accent-hover active:opacity-90;
 	}
 	.btn-highlight-item {
 		@apply cursor-pointer w-full px-3 py-2 text-sm text-left bg-transparent  active:text-measured active:font-bold transition-colors duration-200;
@@ -242,4 +364,21 @@ html.dark .logo-dark {
 		opacity: 1;
 		transform: scale(1) translateY(0);
 	}
+}
+
+/* ── Toast ── A surface-coloured card with a coloured icon, instead of a solid
+   green/red slab that shouted over the header. */
+.toast {
+	background: var(--color-surface);
+	color: var(--color-text);
+	border: 1px solid var(--color-border);
+}
+.toast-success svg {
+	color: var(--color-success);
+}
+.toast-error {
+	border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border));
+}
+.toast-error svg {
+	color: var(--color-danger);
 }

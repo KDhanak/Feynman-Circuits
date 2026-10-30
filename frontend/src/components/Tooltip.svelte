@@ -16,6 +16,10 @@
 	export let quick: string;
 	export let detail: string = '';
 	export let matrix: TooltipMatrix | undefined = undefined;
+	// Hide the "i" badge until the wrapped element is hovered or focused (on
+	// devices with a mouse). Used on the gate palette, where a badge on every
+	// tile doubled the visual noise. Touch devices still always show it.
+	export let subtle = false;
 
 	// Extra classes for the wrapper. Needed when the tooltip's outer element IS part
 	// of the layout (for example a grid item) and the caller has to place it. It
@@ -72,7 +76,7 @@
 
 <svelte:window on:click={close} on:scroll={close} on:resize={() => visible && position()} />
 
-<div role="group" class="relative inline-flex {className}">
+<div role="group" class="tooltip-host relative inline-flex {className}" class:subtle>
 	<slot />
 
 	<!-- Info icon -->
@@ -80,8 +84,8 @@
 		type="button"
 		bind:this={triggerEl}
 		on:click={toggle}
-		class="absolute cursor-pointer -top-1.5 -right-1.5 z-10 flex items-center justify-center
-               w-4 h-4 rounded-full text-ternary-1 border border-ternary-1 text-[9px] font-bold leading-none bg-surface"
+		class="info-badge absolute cursor-pointer -top-1.5 -right-1.5 z-10 flex items-center justify-center
+               w-4 h-4 rounded-full text-[9px] font-bold leading-none"
 		aria-label="More info"
 	>
 		i
@@ -137,6 +141,25 @@
 </div>
 
 <style>
+	.info-badge {
+		color: var(--color-muted);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border-strong);
+		transition: opacity 0.15s ease;
+	}
+	.info-badge:hover {
+		color: var(--color-accent);
+		border-color: var(--color-accent);
+	}
+	@media (hover: hover) {
+		.subtle .info-badge {
+			opacity: 0;
+		}
+		.subtle:hover .info-badge,
+		.subtle:focus-within .info-badge {
+			opacity: 1;
+		}
+	}
 	/* Square brackets drawn with borders, so they always match the matrix height. */
 	.matrix {
 		border-left: 1px solid currentColor;
