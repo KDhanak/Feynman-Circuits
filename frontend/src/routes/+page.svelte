@@ -255,27 +255,30 @@
 
 <main
 	class="flex pb-20 sm:pb-0 min-h-screen lg:h-screen lg:overflow-hidden flex-col overflow-hidden items-center"
-	style="background: radial-gradient(at center, var(--color-background) 50%, var(--color-surface) 90%)"
+	style="background: var(--color-background)"
 >
 	<!-- Header -->
 	<header class="relative max-w-420 mx-auto w-[96%] flex items-center justify-between shrink-0">
-		<a href={resolve('/')} class="shrink-0">
+		<!-- One brand lockup on the left: the |Ψ⟩ mark plus the wordmark. The
+		     wordmark used to sit centred as a second, separate piece of branding. -->
+		<a href={resolve('/')} class="shrink-0 flex items-center gap-2.5 py-2">
 			<img
 				src="/feynman_circuits_logo_dark.svg"
 				alt="Feynman Circuits Logo"
-				class="logo-light h-16 sm:h-20 w-auto cursor-pointer"
+				class="logo-light h-12 sm:h-14 w-auto cursor-pointer"
 			/>
 			<img
 				src="/feynman_circuits_logo.svg"
 				alt="Feynman Circuits Logo"
-				class="logo-dark h-16 sm:h-20 w-auto cursor-pointer"
+				class="logo-dark h-12 sm:h-14 w-auto cursor-pointer"
 			/>
+			<span class="hidden sm:block h-6 w-px" style="background: var(--color-border-strong)"></span>
+			<h1 class="hidden sm:block text-[15px] font-semibold tracking-tight leading-none">
+				<span class="text-branding">Feynman</span><span style="color: var(--color-text);"
+					>Circuits</span
+				>
+			</h1>
 		</a>
-
-		<div class="hidden sm:flex flex-row">
-			<h1 class="mb-2 text-xl font-semibold text-secondary-2">FEYNMAN</h1>
-			<span class="mb-2 text-xl font-semibold" style="color: var(--color-text);">CIRCUITS</span>
-		</div>
 
 		<!-- The circuit name and save status are now on the board itself
 		     (WireDropeZone), centred between its two groups of buttons, so they show
@@ -288,7 +291,7 @@
 				on:click={openWelcome}
 				aria-label="Open the guided tour"
 				data-tour="help"
-				class="shrink-0 flex h-9 w-9 items-center justify-center rounded-sm cursor-pointer transition-colors hover:bg-secondary-3/30"
+				class="shrink-0 flex h-9 w-9 items-center justify-center rounded-sm cursor-pointer transition-colors hover:bg-text/5"
 			>
 				<Icon icon="ph:question-bold" width="20" height="20" style="color: var(--color-text)" />
 			</button>
@@ -296,7 +299,7 @@
 			<button
 				on:click={toggleTheme}
 				aria-label="Toggle theme"
-				class="shrink-0 flex h-9 w-9 items-center justify-center rounded-sm cursor-pointer transition-colors hover:bg-secondary-3/30"
+				class="shrink-0 flex h-9 w-9 items-center justify-center rounded-sm cursor-pointer transition-colors hover:bg-text/5"
 			>
 				<Icon
 					icon={$resolvedTheme === 'dark' ? 'ph:sun-bold' : 'ph:moon-bold'}
@@ -331,7 +334,7 @@
 		<div
 			bind:this={boardEl}
 			data-tour="board"
-			class="shadow-sm rounded-sm shadow-ternary-1 bg-ternary-3/20 flex {resultsRowEmpty
+			class="panel flex {resultsRowEmpty
 				? 'h-[72vh] mb-1'
 				: 'h-[55vh]'} lg:h-auto lg:flex-1 lg:min-h-0 overflow-hidden {contentWidth}"
 		>
@@ -392,17 +395,14 @@
 					: ''}
 			>
 				{#if rowHasSim}
-					<div
-						data-tour="results"
-						class="shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-y-auto min-w-0 min-h-0 {simSpan}"
-					>
+					<div data-tour="results" class="panel p-4 overflow-y-auto min-w-0 min-h-0 {simSpan}">
 						<SimulationResult />
 					</div>
 				{/if}
 				{#if rowHasCode}
 					<div
 						data-tour="code"
-						class="sm:col-span-2 lg:col-span-1 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden min-w-0 min-h-0"
+						class="sm:col-span-2 lg:col-span-1 panel p-4 overflow-hidden min-w-0 min-h-0"
 					>
 						<CircuitDataPanel />
 					</div>
@@ -422,16 +422,14 @@
 					>
 						<div
 							data-tour="results"
-							class="w-full h-full shadow-sm shadow-qec-1 bg-qec-surface/20 rounded-sm p-4 overflow-hidden flex justify-center"
+							class="w-full h-full panel p-4 overflow-hidden flex justify-center"
 						>
 							<QecPanel />
 						</div>
 					</Tooltip>
 				{:else if showBloch}
 					<Tooltip class={blochSpan} quick="Bloch Sphere" detail={BLOCH_TIP}>
-						<div
-							class="w-full h-full shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden flex justify-center"
-						>
+						<div class="w-full h-full panel p-4 overflow-hidden flex justify-center">
 							<OverallBlochSphere />
 						</div>
 					</Tooltip>
@@ -458,7 +456,7 @@
 		{#if leftMode}
 			<aside
 				data-tour="code"
-				class="shrink-0 mb-1 flex flex-col min-h-0 shadow-sm shadow-secondary-2 bg-secondary-3/20 rounded-sm p-4 overflow-hidden"
+				class="shrink-0 mb-1 flex flex-col min-h-0 panel p-4 overflow-hidden"
 				style="width: clamp({MIN_LEFT}px, {codePanelWidth}px, 65%)"
 			>
 				<CircuitDataPanel />
@@ -504,8 +502,8 @@
 			style="color: var(--color-muted);"
 			aria-label="Open feedback form"
 		>
-			<Icon icon="ph:chat-circle-text-bold" class="text-green-600" width="13" height="13" />
-			<span class="underline underline-offset-2 font-bold text-green-600">Feedback</span>
+			<Icon icon="ph:chat-circle-text-bold" width="13" height="13" />
+			<span class="underline underline-offset-2">Feedback</span>
 		</button>
 		<a
 			href={resolve('/privacy')}
@@ -532,10 +530,10 @@
 
 {#if $notification}
 	<div
-		class="fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-sm shadow-lg z-300 text-sm flex items-center gap-2 text-white {$notification.type ===
+		class="toast fixed top-4 left-1/2 -translate-x-1/2 px-3.5 py-2 rounded-md shadow-lg z-300 text-sm font-medium flex items-center gap-2 {$notification.type ===
 		'success'
-			? 'bg-green-500'
-			: 'bg-red-500'}"
+			? 'toast-success'
+			: 'toast-error'}"
 	>
 		<Icon
 			icon={$notification.type === 'success'

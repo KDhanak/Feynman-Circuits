@@ -125,7 +125,8 @@
 
 {#each connectors as line (line.key)}
 	<div
-		class="absolute w-0.5 bg-ternary-1 pointer-events-none z-10"
+		class="absolute w-0.5 pointer-events-none z-10"
+		style:background="var(--color-line)"
 		style="left: {line.left}px; top: {line.top}px; height: {line.height}px; transform: translateX(-50%);"
 	></div>
 {/each}

@@ -28,6 +28,8 @@
 		// Acts on one qubit. QEC mode has only one (the logical qubit), so
 		// anything that needs a second qubit is blocked there too.
 		singleQubit: boolean;
+		// Colour family (see .gate-tile / [data-family] in app.css).
+		family: string;
 	};
 
 	// Why a tile cannot be used in QEC mode, or null if it can.
@@ -46,6 +48,7 @@
 		category: 'multi',
 		clifford: true,
 		singleQubit: false,
+		family: 'control',
 		quick: 'Control',
 		detail:
 			'Makes the next gate conditional — it only fires if this qubit is |1⟩. Drop it on the same column as a gate.'
@@ -56,6 +59,7 @@
 		category: 'multi',
 		clifford: true,
 		singleQubit: false,
+		family: 'control',
 		quick: 'Anti-Control',
 		detail: 'Like Control, but fires when the qubit is |0⟩ instead of |1⟩.'
 	};
@@ -65,6 +69,7 @@
 		category: 'single',
 		clifford: true,
 		singleQubit: true,
+		family: 'measure',
 		quick: 'Measure',
 		detail:
 			"Collapses the qubit to a definite |0⟩ or |1⟩ using Born's rule. The outcome is random, weighted by probability. (In reality, its pseudo-random for a web simulator)"
@@ -80,6 +85,7 @@
 			category: paletteCategory(spec),
 			clifford: spec.clifford,
 			singleQubit: spec.arity === 1,
+			family: spec.category,
 			quick: spec.tooltip.quick,
 			detail: spec.tooltip.detail,
 			matrix: spec.tooltip.matrix
@@ -132,7 +138,7 @@
 		dragEnterCount--;
 		if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active');
 	}}
-	class="relative mb-2 max-w-420 mx-auto w-[96%] h-auto py-4 flex flex-wrap justify-center gap-3 rounded-sm shadow-sm shadow-secondary-2 bg-secondary-3/20"
+	class="panel relative mb-2 max-w-420 mx-auto w-[96%] h-auto py-3 px-3 flex flex-wrap justify-center items-center gap-2.5"
 	data-tour="palette"
 >
 	{#each gates as gate (gate.name)}
@@ -142,14 +148,15 @@
 		{@const blocked = reason !== null}
 		<!-- Separator before multi-qubit gates -->
 		{#if (gate.category === 'multi' || gate.category === 'two-qubit') && (gate.type === 'CONTROL' || gate.type === 'RZZ' || gate.type === 'SWAP')}
-			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
+			<div class="w-px h-7 self-center mx-1" style="background: var(--color-border-strong)"></div>
 		{/if}
 		{#if gate.category === 'parametric' && gate.type === 'RX'}
-			<div class="w-px h-8 bg-secondary-3 self-center mx-1"></div>
+			<div class="w-px h-7 self-center mx-1" style="background: var(--color-border-strong)"></div>
 		{/if}
 		<Tooltip
 			quick={gate.quick}
 			matrix={gate.matrix}
+			subtle
 			detail={blocked
 				? `${gate.detail}
 
@@ -182,22 +189,21 @@ Unavailable in QEC mode: ${reason}`
 				on:dblclick={() =>
 					!blocked && !$isMobile && handleDoubleClick({ source: 'palette', gateType: gate.type })}
 				on:click={() => !blocked && $isMobile && toggleArm(gate.type)}
-				class={`select-none ${$isMobile ? 'h-9 w-9' : 'h-11 w-11'} rounded-sm border text-text bg-surface flex items-center justify-center transition-colors duration-100 ${
+				data-family={gate.family}
+				class={`gate-tile select-none ${$isMobile ? 'h-9 w-9' : 'h-11 w-11'} rounded-md flex items-center justify-center transition-colors duration-100 ${
 					blocked
-						? 'cursor-not-allowed opacity-35 border-ternary-1 line-through'
-						: `cursor-grab active:bg-ternary-1 active:text-white active:border-white ${
-								$armedGate?.gateType === gate.type
-									? 'border-measured ring-2 ring-measured'
-									: 'border-ternary-1'
+						? 'cursor-not-allowed opacity-30 line-through'
+						: `cursor-grab ${
+								$armedGate?.gateType === gate.type ? 'ring-2 ring-offset-1 ring-measured' : ''
 							}`
 				}`}
 			>
 				{#if gate.type === 'CONTROL'}
-					<span class="h-3 w-3 rounded-full bg-text"></span>
+					<span class="h-3 w-3 rounded-full bg-current"></span>
 				{:else if gate.type === 'ANTI_CONTROL'}
-					<span class="h-3 w-3 rounded-full border border-text"></span>
+					<span class="h-3 w-3 rounded-full border-2 border-current"></span>
 				{:else if gate.type === 'MEASURE'}
-					<span class="text-text">
+					<span>
 						<Icon
 							icon="si:meter-fill"
 							width={$isMobile ? '16' : '20'}
@@ -216,21 +222,21 @@ Unavailable in QEC mode: ${reason}`
 						<line x1="14" y1="2" x2="14" y2="26" stroke="currentColor" stroke-width="2" />
 					</svg>
 				{:else}
-					<span class={gate.name.length > 2 ? 'text-[10px] leading-none' : ''}>{gate.name}</span>
+					<span
+						class={gate.name.length > 2 ? 'text-[10px] leading-none tracking-wide' : 'text-[15px]'}
+						>{gate.name}</span
+					>
 				{/if}
 			</div>
 		</Tooltip>
 	{/each}
 	<button
-		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-35"
+		class="btn-quiet h-9"
 		disabled={$qubitLimit < 2}
 		title={$qubitLimit < 2 ? 'Bell Pair needs two qubits: not available in QEC mode' : 'Bell Pair'}
 		on:click={applyBellPairPreset}>Bell Pair</button
 	>
-	<button
-		class="border rounded-sm bg-surface px-3 py-1 text-sm cursor-pointer text-text border-ternary-1 active:bg-ternary-1 active:text-white active:border-white shadow transition-colors duration-100 flex items-center justify-center"
-		on:click={compactCircuit}>Compact</button
-	>
+	<button class="btn-quiet h-9" on:click={compactCircuit}>Compact</button>
 
 	<!--
 		The QEC mode button is next to the palette instead of in the header: it
@@ -238,16 +244,14 @@ Unavailable in QEC mode: ${reason}`
 		line before it shows it is a different kind of button. Bell Pair and Compact
 		do something once, while this is a mode that stays on.
 	-->
-	<span class="w-px self-stretch" style="background: var(--color-border)"></span>
+	<span class="w-px h-7 self-center mx-1" style="background: var(--color-border-strong)"></span>
 	<button
 		on:click={toggleQecMode}
 		aria-pressed={$qecMode}
 		title={$qecMode
 			? 'QEC mode is on — only Clifford gates are available'
 			: 'QEC mode — restricts the palette to Clifford gates'}
-		class="flex cursor-pointer items-center gap-1.5 rounded-sm border px-3 py-1 text-sm transition-colors duration-100 {$qecMode
-			? 'bg-qec-1 border-qec-1 text-qec-fg shadow-sm shadow-qec-1'
-			: 'bg-surface text-text border-ternary-1 shadow'}"
+		class="btn-quiet h-9 {$qecMode ? 'qec-on' : ''}"
 	>
 		<Icon icon="ph:shield-check-bold" width="15" height="15" />
 		QEC
@@ -255,4 +259,10 @@ Unavailable in QEC mode: ${reason}`
 </div>
 
 <style>
+	/* QEC toggle when on: solid emerald, so the mode switch reads as "on". */
+	:global(.btn-quiet.qec-on) {
+		background: var(--color-qec-1);
+		border-color: var(--color-qec-1);
+		color: var(--color-qec-fg);
+	}
 </style>
