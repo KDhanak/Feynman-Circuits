@@ -40,10 +40,17 @@ export function triggerSimulation(ir: CircuitIR) {
 
 /*──────────────────────── helpers ───────────────────────*/
 
+// Whether an operation sits on this qubit's wire. A control or anti-control dot
+// takes up its cell just like a target does, so a new gate must not land on it.
+function usesQubit(op: CircuitOperation, qubit: number): boolean {
+	if ('targets' in op && (op.targets as number[]).includes(qubit)) return true;
+	if (op.kind !== 'unitary') return false;
+	const u = op as UnitaryOperation;
+	return u.controls.includes(qubit) || u.antiControls.includes(qubit);
+}
+
 export function findNextAvailableColumn(ir: CircuitIR, qubit: number): number {
-	const cols = ir.operations
-		.filter((op) => 'targets' in op && (op.targets as number[]).includes(qubit))
-		.map((op) => op.column);
+	const cols = ir.operations.filter((op) => usesQubit(op, qubit)).map((op) => op.column);
 	return cols.length ? Math.max(...cols) + 1 : 0;
 }
 
@@ -54,10 +61,7 @@ function canonicalGate(gateType: string): string {
 function isCellOccupied(ir: CircuitIR, col: number, qubit: number, excludeId?: string): boolean {
 	return ir.operations.some(
 		(op) =>
-			op.column === col &&
-			'targets' in op &&
-			(op.targets as number[]).includes(qubit) &&
-			(excludeId ? op.id !== excludeId : true)
+			op.column === col && usesQubit(op, qubit) && (excludeId ? op.id !== excludeId : true)
 	);
 }
 

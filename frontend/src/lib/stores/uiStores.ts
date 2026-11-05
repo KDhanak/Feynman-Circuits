@@ -34,6 +34,11 @@ export const selectedStepColumn = writable<number | null>(null);
 // straight into place.
 export const shiftingCircuit = writable<boolean>(false);
 
+// True while the board demo is playing. The demo makes real edits on the board,
+// so auto-save ignores the circuit while this is on: the demo's gates must
+// never be saved over the user's circuit.
+export const demoRunning = writable<boolean>(false);
+
 // Which explanation popup is open: a container's "i" badge (Tooltip) or an
 // underlined label (InfoText). They share this, so only one is open at a time.
 export const openTooltip = writable<symbol | null>(null);

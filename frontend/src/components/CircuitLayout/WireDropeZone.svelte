@@ -14,6 +14,7 @@
 		shiftingCircuit
 	} from '$lib/stores/uiStores';
 	import { session } from '$lib/auth/session';
+	import { startBoardDemo } from '$lib/demo/boardDemo';
 	import {
 		handleDrop,
 		handleDragOver,
@@ -717,6 +718,17 @@
 			title="Clear board — takes the gates off but keeps this circuit's name"
 		>
 			<Icon icon="material-symbols:restart-alt" width="20" height="20" />
+		</button>
+		<!-- Board demo: an animated hand shows every gesture and key on a
+		     practice board, then puts the user's circuit back. -->
+		<button
+			type="button"
+			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors hover:text-accent active:text-accent/70"
+			on:click|stopPropagation={startBoardDemo}
+			aria-label="Show me how"
+			title="Show me how — a hand demonstrates every gesture and key on the board"
+		>
+			<Icon icon="ph:hand-pointing-bold" width="18" height="18" />
 		</button>
 	</div>
 

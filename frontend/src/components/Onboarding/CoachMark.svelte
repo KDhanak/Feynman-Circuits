@@ -63,6 +63,11 @@
 	onDestroy(() => observer?.disconnect());
 
 	$: isLast = stepIndex === stepCount - 1;
+
+	// Text in `backticks` is drawn as a key cap, so shortcuts and symbols like
+	// the `i` badge stand out from the sentence. Splitting on the backticks
+	// leaves the key text at every odd index.
+	$: bodyParts = body.split('`');
 </script>
 
 <svelte:window on:resize={place} on:scroll={place} on:keydown={onKey} />
@@ -103,7 +108,9 @@
 		</button>
 	</div>
 
-	<p class="text-xs leading-relaxed" style="color: var(--color-muted);">{body}</p>
+	<p class="text-xs leading-relaxed" style="color: var(--color-muted);">
+		{#each bodyParts as part, i (i)}{#if i % 2 === 1}<kbd>{part}</kbd>{:else}{part}{/if}{/each}
+	</p>
 
 	<div class="mt-3 flex items-center justify-between gap-2">
 		<!-- Progress dots: simple, and they show that the tour is short. -->
@@ -146,5 +153,17 @@
 	   app and not like an add-on from some library. */
 	div[role='dialog'] {
 		background-color: var(--color-surface);
+	}
+	kbd {
+		display: inline-block;
+		padding: 0 0.3em;
+		border-radius: 0.25rem;
+		border: 1px solid var(--color-border-strong);
+		border-bottom-width: 2px;
+		background: var(--color-surface-2);
+		color: var(--color-text);
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.95em;
+		line-height: 1.4;
 	}
 </style>

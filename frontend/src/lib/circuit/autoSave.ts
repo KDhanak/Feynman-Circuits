@@ -8,7 +8,7 @@ import { showNotification } from '../utils/notificationUtils';
 import { get, writable } from 'svelte/store';
 import { upsertCircuit, getNextUntitledName } from '../api/circuitApi';
 import { session } from '$lib/auth/session';
-import { saveStatus } from '../stores/uiStores';
+import { demoRunning, saveStatus } from '../stores/uiStores';
 import { settings } from '../stores/settingsStore';
 
 const MAX_FAILURES = 3;
@@ -51,6 +51,9 @@ circuitIR.subscribe(() => {
 		autoSaveState.update((st) => ({ ...st, initialized: true }));
 		return;
 	}
+	// The board demo's edits (and putting the user's circuit back after it) are
+	// not the user editing, so they must not mark the circuit as changed.
+	if (get(demoRunning)) return;
 	// Any change to the store after a reset means the user is editing again. We
 	// track this even when the user is signed out: if someone builds a circuit (or
 	// opens one shared with them) while signed out and then signs in, they should
@@ -68,6 +71,9 @@ function startAutoSaveTimer(intervalMs: number) {
 	autoSaveTimer = setInterval(async () => {
 		if (!get(autoSaveState).isDirty) return;
 		if (!get(settings).autoSaveEnabled) return;
+		// A real edit made just before the demo started waits until it is over,
+		// so the save never catches the demo's gates on the board.
+		if (get(demoRunning)) return;
 		await attemptAutoSave();
 	}, intervalMs);
 }

@@ -217,6 +217,7 @@ Unavailable in QEC mode: ${reason}`
 		>
 			<div
 				title={blocked ? `${gate.quick}: not available in QEC mode` : gate.name}
+				data-palette-type={gate.type}
 				role="button"
 				aria-disabled={blocked}
 				tabindex={blocked ? -1 : 0}

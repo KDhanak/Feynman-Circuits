@@ -21,6 +21,7 @@
 	import FeedbackModal from '../components/FeedbackModal.svelte';
 	import Tooltip from '../components/Tooltip.svelte';
 	import OnboardingHost from '../components/Onboarding/OnboardingHost.svelte';
+	import DemoHand from '../components/Demo/DemoHand.svelte';
 	import { openWelcome } from '$lib/stores/onboardingStore';
 	import HandoffDialog from '../components/HandoffDialog.svelte';
 	import {
@@ -516,6 +517,7 @@
 </main>
 
 <OnboardingHost />
+<DemoHand />
 
 <HandoffDialog
 	handoff={pendingHandoff}

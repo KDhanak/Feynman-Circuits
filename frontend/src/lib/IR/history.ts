@@ -131,3 +131,26 @@ export function resetHistory(ir: CircuitIR) {
 	present = ir;
 	refreshFlags();
 }
+
+// The board demo borrows the board: it saves the whole history here, runs on
+// a clean board (where its own undo works like a real one), and then puts the
+// user's circuit and their undo/redo steps back exactly as they were.
+export type HistorySnapshot = { past: CircuitIR[]; future: CircuitIR[]; present: CircuitIR };
+
+export function snapshotHistory(): HistorySnapshot {
+	settleNow(); // an edit still waiting on its timer belongs in the snapshot
+	return { past: [...past], future: [...future], present };
+}
+
+export function restoreHistory(snap: HistorySnapshot) {
+	if (settleTimer) {
+		clearTimeout(settleTimer);
+		settleTimer = null;
+	}
+	waiting = null;
+	past.splice(0, past.length, ...snap.past);
+	future.splice(0, future.length, ...snap.future);
+	present = snap.present;
+	putBack(snap.present);
+	refreshFlags();
+}
