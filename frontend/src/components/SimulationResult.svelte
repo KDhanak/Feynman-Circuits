@@ -74,29 +74,32 @@
 
 	// `stateText` must already be in display order (pass it through displayBasis /
 	// displayFormattedState first). `order` maps each character position to its qubit.
+	// Works on a bare label ("01") or a full state ("(0.71)|00⟩ + (0.71)|11⟩"):
+	// every ket gets colored, and the amplitudes and " + " signs are kept.
 	function coloredStateHtml(
 		stateText: string,
 		measuredQubits: number[],
 		measuredColor: string,
 		order: number[]
 	): string {
-		let bitsStr = stateText;
-		const pipeIndex = stateText.indexOf('|');
-		if (pipeIndex !== -1) {
-			const closingIndex = stateText.indexOf('⟩');
-			bitsStr = stateText.substring(pipeIndex + 1, closingIndex);
-		}
+		const colorBits = (bitsStr: string) =>
+			Array.from(bitsStr)
+				.map((bit, i) => {
+					if (measuredQubits.includes(order[i] ?? i)) {
+						return `<span style="color:${measuredColor};font-weight:600;">${bit}</span>`;
+					}
+					return bit;
+				})
+				.join('');
 
-		const coloredBits = Array.from(bitsStr)
-			.map((bit, i) => {
-				if (measuredQubits.includes(order[i] ?? i)) {
-					return `<span style="color:${measuredColor};font-weight:600;">${bit}</span>`;
-				}
-				return bit;
-			})
-			.join('');
+		if (!stateText.includes('|')) return `|${colorBits(stateText)}⟩`;
+		return stateText.replace(/\|([01]+)⟩/g, (_, bits: string) => `|${colorBits(bits)}⟩`);
+	}
 
-		return `|${coloredBits}⟩`;
+	// Splits a state string into plain text and kets, so each ket's bits can be
+	// colored on their own. "(0.71)|00⟩ + (0.71)|11⟩" → ["(0.71)", "|00⟩", " + (0.71)", "|11⟩", ""]
+	function splitKets(stateText: string): string[] {
+		return stateText.split(/(\|[01]+⟩)/);
 	}
 
 	$: probabilitiesArray = toEntriesArray($simulationResult?.probabilities);
@@ -655,21 +658,17 @@
 				<InfoText quick="Quantum State" detail={QUANTUM_STATE_TIP}>Quantum State:</InfoText>
 				<span class="text-sm font-normal">
 					{#if $simulationResult.formattedState}
-						{@const stateText = displayFormattedState($simulationResult.formattedState)}
-						{@const pipeIndex = stateText.indexOf('|')}
-						{@const closingIndex = stateText.indexOf('⟩')}
-						{@const bitsStr = stateText.substring(pipeIndex + 1, closingIndex)}
-						{stateText.substring(0, pipeIndex + 1)}
-						{#each Array.from(bitsStr) as bit, i (i)}
-							<span
-								style={$simulationResult.measuredQubits?.includes(qubitOrder[i] ?? i)
-									? 'color: var(--color-measured); font-weight: 600;'
-									: ''}
-							>
-								{bit}
-							</span>
+						{#each splitKets(displayFormattedState($simulationResult.formattedState)) as part, p (p)}
+							{#if /^\|[01]+⟩$/.test(part)}
+								|{#each Array.from(part.slice(1, -1)) as bit, i (i)}<span
+										style={$simulationResult.measuredQubits?.includes(qubitOrder[i] ?? i)
+											? 'color: var(--color-measured); font-weight: 600;'
+											: ''}>{bit}</span
+									>{/each}⟩
+							{:else}
+								{part}
+							{/if}
 						{/each}
-						⟩
 					{:else}
 						Calculating...
 					{/if}

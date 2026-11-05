@@ -302,7 +302,8 @@ export function canShiftCircuit(
  * Moves every gate one column left (-1) or right (1). The gates keep their
  * order, so the simulation result does not change. Moving right leaves the
  * first column empty, which gives room to add a gate in front of the circuit.
- * This is mainly for phones, where dragging the whole circuit is not possible.
+ * The board shows it on every screen size. On a phone it is the only way,
+ * because dragging the whole circuit is not possible there.
  */
 export function shiftCircuit(direction: -1 | 1): void {
 	if (!canShiftCircuit(get(circuitIR), direction)) return;

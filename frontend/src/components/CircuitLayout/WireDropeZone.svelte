@@ -1011,44 +1011,43 @@
 					</div>
 				{/if}
 			</div>
-			<!-- Mobile: move every gate one column left or right. A phone cannot
-			     drag a box around the whole circuit, so without these there is no
-			     way to make room in front of the first gate. It sits under the
-			     wires so it moves down with them as qubits are added. -->
-			{#if $isMobile}
-				<div class="flex justify-center pb-2">
-					<div
-						class="flex items-center gap-1 backdrop-blur-lg rounded-sm shadow-sm"
-						style="color: var(--color-text);"
+			<!-- Move every gate one column left or right, on every screen size. It
+			     is the quick way to make room in front of the first gate (and on a
+			     phone, which cannot drag a box around the whole circuit, the only
+			     way). It sits under the wires so it moves down with them as qubits
+			     are added. -->
+			<div class="flex justify-center pb-2">
+				<div
+					class="flex items-center gap-1 backdrop-blur-lg rounded-sm shadow-sm"
+					style="color: var(--color-text);"
+				>
+					<button
+						type="button"
+						class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-not-allowed disabled:opacity-40"
+						on:click|stopPropagation={() => shiftCircuit(-1)}
+						disabled={!canShiftLeft}
+						aria-label="Move all gates one column left"
+						title={canShiftLeft
+							? 'Move all gates one column left'
+							: 'The first column is not empty'}
 					>
-						<button
-							type="button"
-							class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-not-allowed disabled:opacity-40"
-							on:click|stopPropagation={() => shiftCircuit(-1)}
-							disabled={!canShiftLeft}
-							aria-label="Move all gates one column left"
-							title={canShiftLeft
-								? 'Move all gates one column left'
-								: 'The first column is not empty'}
-						>
-							<Icon icon="ph:arrow-left-bold" width="18" height="18" />
-						</button>
-						<span class="select-none text-[11px]" style="color: var(--color-muted);">Move all</span>
-						<button
-							type="button"
-							class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-not-allowed disabled:opacity-40"
-							on:click|stopPropagation={() => shiftCircuit(1)}
-							disabled={!canShiftRight}
-							aria-label="Move all gates one column right"
-							title={canShiftRight
-								? 'Move all gates one column right'
-								: 'The last column is not empty'}
-						>
-							<Icon icon="ph:arrow-right-bold" width="18" height="18" />
-						</button>
-					</div>
+						<Icon icon="ph:arrow-left-bold" width="18" height="18" />
+					</button>
+					<span class="select-none text-[11px]" style="color: var(--color-muted);">Move all</span>
+					<button
+						type="button"
+						class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-not-allowed disabled:opacity-40"
+						on:click|stopPropagation={() => shiftCircuit(1)}
+						disabled={!canShiftRight}
+						aria-label="Move all gates one column right"
+						title={canShiftRight
+							? 'Move all gates one column right'
+							: 'The last column is not empty'}
+					>
+						<Icon icon="ph:arrow-right-bold" width="18" height="18" />
+					</button>
 				</div>
-			{/if}
+			</div>
 			<!-- In QEC mode the panel below runs its own demo. Nothing placed on
 			     these wires is sent to it yet, so say so quietly, so the user does
 			     not expect their gates to show up there. -->
