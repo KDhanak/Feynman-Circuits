@@ -7,34 +7,26 @@
 	import Icon from '@iconify/svelte';
 	import { browser } from '$app/environment';
 	import StepsView from './StepsView.svelte';
+	import InfoText from './InfoText.svelte';
 	import type { ResultView } from '$lib/stores/settingsStore';
+
+	// What each underlined label explains.
+	const MEASURED_TIP =
+		"These qubits have been collapsed to a definite 0 or 1 using Born's rule. Their state is no longer in superposition — further gates applied to them will have no quantum effect.";
+	const CLASSICAL_TIP =
+		'The definite 0 or 1 outcome recorded after measuring each qubit. This is the result a real quantum computer would return to your classical program.';
+	const TOP_STATES_TIP =
+		'The three most probable measurement outcomes. For the full probability distribution across all states, click "View All States" below.';
+	const QUANTUM_STATE_TIP =
+		'The full state of your qubits in Dirac notation. Each |x⟩ term is a possible outcome — the coefficient in front is its probability amplitude.';
+	const PROBABILITIES_TIP =
+		'The chance of measuring each possible bit string. All values sum to 100%. States with 0% are theoretically possible but will never occur in practice.';
 
 	const VIEWS: { value: ResultView; label: string; icon: string }[] = [
 		{ value: 'list', label: 'List', icon: 'ph:list-bold' },
 		{ value: 'histogram', label: 'Histogram', icon: 'ph:chart-bar-bold' },
 		{ value: 'steps', label: 'Steps: the calculation column by column', icon: 'ph:function-bold' }
 	];
-
-	let activeTooltip: { quick: string; detail: string; side: 'top' | 'left' } | null = null;
-	let tooltipX = 0;
-	let tooltipY = 0;
-
-	function showTooltip(e: MouseEvent, quick: string, detail: string, side: 'top' | 'left' = 'top') {
-		e.stopPropagation();
-		if (activeTooltip?.quick === quick) {
-			activeTooltip = null;
-			return;
-		}
-		const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-		if (side === 'left') {
-			tooltipX = rect.right;
-			tooltipY = rect.top + rect.height / 2;
-		} else {
-			tooltipX = rect.left + rect.width / 2;
-			tooltipY = rect.top;
-		}
-		activeTooltip = { quick, detail, side };
-	}
 
 	let popupWindow: Window | null = null;
 	let popupRebuildTimer: ReturnType<typeof setTimeout> | undefined;
@@ -124,6 +116,14 @@
 			? Array.from({ length: numQubits }, (_, i) => i) // q0 q1 … q(n-1)
 			: Array.from({ length: numQubits }, (_, i) => numQubits - 1 - i); // q(n-1) … q0
 	$: legendLabels = qubitOrder.map((q) => `q${q}`);
+	// What the legend's popup says. It follows the bit-order setting, so it always
+	// names the side q0 is really on.
+	$: legendDetail =
+		legendLabels.length < 2
+			? 'The state label shows q0, the only qubit.'
+			: `Each character of a state label is one qubit, in this order: |${legendLabels.join(' ')}⟩. ` +
+				`q0 is the top wire on the board, and it is the ${bitOrder === 'q0-left' ? 'left' : 'right'}-most character. ` +
+				'You can flip this order in Settings → Bit order.';
 
 	function displayBasis(basis: string): string {
 		return bitOrder === 'q0-left' ? Array.from(basis).reverse().join('') : basis;
@@ -145,6 +145,7 @@
 	// Past 3 qubits the full basis is too wide to plot, so only the most likely
 	// states get bars; the popup window still lists every state.
 	const HISTOGRAM_TOP_N = 10;
+	const HISTOGRAM_TIP = `Each bar shows the probability of measuring that bit string. Taller bars are more likely outcomes. Beyond 3 qubits only the top ${HISTOGRAM_TOP_N} states are plotted — click "View All States" for the full list.`;
 	$: histogramStates = shouldShowPopupButton
 		? [...probabilitiesArray].sort((a, b) => b.prob - a.prob).slice(0, HISTOGRAM_TOP_N)
 		: probabilitiesArray;
@@ -423,8 +424,6 @@
 	});
 </script>
 
-<svelte:window on:click={() => (activeTooltip = null)} />
-
 <div class="h-full flex flex-col" style="color: var(--color-text)">
 	<!-- View switch: list, histogram, or the step-by-step calculation -->
 	<div
@@ -540,26 +539,16 @@
 			{/if}
 		</div>
 		<div class="flex flex-col items-center gap-1">
-			<p class="bit-legend" title="Each character in a state label is this qubit.">
-				|{legendLabels.join(' ')}⟩
-			</p>
+			<InfoText class="bit-legend" quick="Reading a state label" detail={legendDetail}
+				>|{legendLabels.join(' ')}⟩</InfoText
+			>
 			<div class="flex items-center justify-center gap-1.5">
-				<button
-					type="button"
-					class="info-btn"
-					on:click={(e) =>
-						showTooltip(
-							e,
-							'Probability Histogram',
-							`Each bar shows the probability of measuring that bit string. Taller bars are more likely outcomes. Beyond 3 qubits only the top ${HISTOGRAM_TOP_N} states are plotted — click "View All States" for the full list.`,
-							'left'
-						)}
-					aria-label="More info">i</button
-				>
 				<p class="text-xs text-center" style="color: var(--color-muted);">
-					{histogramStates.length === probabilitiesArray.length
-						? `Showing all ${histogramStates.length} states.`
-						: `Showing top ${histogramStates.length} states.`}
+					<InfoText quick="Probability Histogram" detail={HISTOGRAM_TIP}
+						>{histogramStates.length === probabilitiesArray.length
+							? `Showing all ${histogramStates.length} states.`
+							: `Showing top ${histogramStates.length} states.`}</InfoText
+					>
 				</p>
 			</div>
 		</div>
@@ -595,31 +584,20 @@
 			<!-- Measured qubits -->
 			{#if ($simulationResult.measuredQubits ?? []).length > 0}
 				<p class="text-sm font-medium flex items-center gap-1.5">
-					Measured:
+					<InfoText quick="Measured Qubits" detail={MEASURED_TIP}>Measured:</InfoText>
 					<span
 						class="font-semibold px-1.5 py-0.5 rounded text-sm"
 						style="color: var(--color-measured); background: color-mix(in srgb, var(--color-measured) 15%, transparent);"
 					>
 						{($simulationResult.measuredQubits ?? []).map((q) => `q${q}`).join(', ')}
 					</span>
-					<button
-						type="button"
-						class="info-btn"
-						on:click={(e) =>
-							showTooltip(
-								e,
-								'Measured Qubits',
-								"These qubits have been collapsed to a definite 0 or 1 using Born's rule. Their state is no longer in superposition — further gates applied to them will have no quantum effect."
-							)}
-						aria-label="More info">i</button
-					>
 				</p>
 			{/if}
 
 			<!-- Classical bits -->
 			{#if ($simulationResult.classicalBits?.size ?? 0) > 0}
 				<p class="text-sm font-medium flex items-center gap-1.5">
-					Classical:
+					<InfoText quick="Classical Bits" detail={CLASSICAL_TIP}>Classical:</InfoText>
 					<span
 						class="font-semibold px-1.5 py-0.5 rounded text-sm"
 						style="color: var(--color-measured); background: color-mix(in srgb, var(--color-measured) 15%, transparent);"
@@ -628,17 +606,6 @@
 							.map(([q, v]) => `q${q}=${v}`)
 							.join(', ')}
 					</span>
-					<button
-						type="button"
-						class="info-btn"
-						on:click={(e) =>
-							showTooltip(
-								e,
-								'Classical Bits',
-								'The definite 0 or 1 outcome recorded after measuring each qubit. This is the result a real quantum computer would return to your classical program.'
-							)}
-						aria-label="More info">i</button
-					>
 				</p>
 			{/if}
 
@@ -647,21 +614,12 @@
 				<div>
 					<div class="flex items-center justify-between gap-1.5 mb-1">
 						<div class="flex items-center gap-1.5">
-							<button
-								type="button"
-								class="info-btn"
-								on:click={(e) =>
-									showTooltip(
-										e,
-										'Top States',
-										'The three most probable measurement outcomes. For the full probability distribution across all states, click "View All States" below.'
-									)}
-								aria-label="More info">i</button
-							>
-							<p class="text-sm font-medium" style="color: var(--color-muted);">Top states</p>
+							<p class="text-sm font-medium" style="color: var(--color-muted);">
+								<InfoText quick="Top States" detail={TOP_STATES_TIP}>Top states</InfoText>
+							</p>
 						</div>
-						<span class="bit-legend" title="Each character in a state label is this qubit."
-							>|{legendLabels.join(' ')}⟩</span
+						<InfoText class="bit-legend" quick="Reading a state label" detail={legendDetail}
+							>|{legendLabels.join(' ')}⟩</InfoText
 						>
 					</div>
 					{#each top3 as item, i (i)}
@@ -693,20 +651,8 @@
 	{:else}
 		<!-- Compact inline view for 1-2 qubits -->
 		<div class="flex items-center gap-1.5 flex-wrap">
-			<button
-				type="button"
-				class="info-btn"
-				on:click={(e) =>
-					showTooltip(
-						e,
-						'Quantum State',
-						'The full state of your qubits in Dirac notation. Each |x⟩ term is a possible outcome — the coefficient in front is its probability amplitude.',
-						'left'
-					)}
-				aria-label="More info">i</button
-			>
 			<p class="text-base font-medium">
-				Quantum State:
+				<InfoText quick="Quantum State" detail={QUANTUM_STATE_TIP}>Quantum State:</InfoText>
 				<span class="text-sm font-normal">
 					{#if $simulationResult.formattedState}
 						{@const stateText = displayFormattedState($simulationResult.formattedState)}
@@ -733,30 +679,23 @@
 
 		{#if $simulationResult.measuredQubits && $simulationResult.measuredQubits.length > 0}
 			<div class="flex items-center gap-1.5 mt-3">
-				<p class="text-md font-medium">Measured Qubits:</p>
+				<p class="text-md font-medium">
+					<InfoText quick="Measured Qubits" detail={MEASURED_TIP}>Measured Qubits:</InfoText>
+				</p>
 				<span
 					class="font-semibold px-2 py-1 rounded"
 					style="color: var(--color-measured); background-color: color-mix(in srgb, var(--color-measured) 15%, transparent);"
 				>
 					{$simulationResult.measuredQubits.map((q) => `q${q}`).join(', ')}
 				</span>
-				<button
-					type="button"
-					class="info-btn"
-					on:click={(e) =>
-						showTooltip(
-							e,
-							'Measured Qubits',
-							"These qubits have been collapsed to a definite 0 or 1 using Born's rule. Their state is no longer in superposition — further gates applied to them will have no quantum effect."
-						)}
-					aria-label="More info">i</button
-				>
 			</div>
 		{/if}
 
 		{#if $simulationResult.classicalBits && $simulationResult.classicalBits.size > 0}
 			<div class="flex items-center gap-1.5 mt-3">
-				<p class="text-md font-medium">Classical bits:</p>
+				<p class="text-md font-medium">
+					<InfoText quick="Classical Bits" detail={CLASSICAL_TIP}>Classical bits:</InfoText>
+				</p>
 				<span
 					class="font-semibold px-2 py-1 rounded"
 					style="color: var(--color-measured); background-color: color-mix(in srgb, var(--color-measured) 15%, transparent);"
@@ -765,40 +704,17 @@
 						.map(([qubit, value]) => `q${qubit} = ${value}`)
 						.join(', ')}
 				</span>
-				<button
-					type="button"
-					class="info-btn"
-					on:click={(e) =>
-						showTooltip(
-							e,
-							'Classical Bits',
-							'The definite 0 or 1 outcome recorded after measuring each qubit. This is the result a real quantum computer would return to your classical program.'
-						)}
-					aria-label="More info">i</button
-				>
 			</div>
 		{/if}
 
 		<div class="flex items-center justify-between gap-1.5 mt-5">
 			<div class="flex items-center gap-1.5">
-				<button
-					type="button"
-					class="info-btn"
-					on:click={(e) =>
-						showTooltip(
-							e,
-							'Probabilities',
-							'The chance of measuring each possible bit string. All values sum to 100%. States with 0% are theoretically possible but will never occur in practice.',
-							'left'
-						)}
-					aria-label="More info">i</button
-				>
-				<p class="text-md font-medium">Probabilities:</p>
+				<p class="text-md font-medium">
+					<InfoText quick="Probabilities" detail={PROBABILITIES_TIP}>Probabilities:</InfoText>
+				</p>
 			</div>
-			<span
-				class="bit-legend"
-				title="Each character in a state label is this qubit — the top wire is q0."
-				>|{legendLabels.join(' ')}⟩</span
+			<InfoText class="bit-legend" quick="Reading a state label" detail={legendDetail}
+				>|{legendLabels.join(' ')}⟩</InfoText
 			>
 		</div>
 
@@ -831,39 +747,7 @@
 	{/if}
 </div>
 
-{#if activeTooltip}
-	<div
-		class="fixed z-200 w-72 rounded-md shadow-lg px-3 py-2 text-xs pointer-events-none"
-		style="left: {tooltipX}px; top: {tooltipY}px;
-			   transform: {activeTooltip.side === 'left'
-			? 'translate(8px, -50%)'
-			: 'translate(-50%, calc(-100% - 8px))'};
-			   background-color: var(--color-surface);
-			   border: 1px solid var(--color-border);
-			   color: var(--color-text);"
-	>
-		<p class="font-semibold mb-0.5">{activeTooltip.quick}</p>
-		<p style="color: var(--color-muted);">{activeTooltip.detail}</p>
-	</div>
-{/if}
-
 <style>
-	.info-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 0.75rem;
-		height: 0.75rem;
-		border-radius: 9999px;
-		border: 1px solid var(--color-border-strong);
-		color: var(--color-muted);
-		background: var(--color-surface);
-		font-size: 7px;
-		cursor: pointer;
-		flex-shrink: 0;
-		margin-bottom: 10px;
-	}
-
 	.histogram-bar {
 		transform-box: fill-box;
 		transform-origin: bottom center;
@@ -881,13 +765,12 @@
 		}
 	}
 
-	.bit-legend {
+	:global(.bit-legend) {
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;
 		font-size: 0.8rem;
 		letter-spacing: 0.05em;
 		color: var(--color-muted);
 		opacity: 0.85;
-		cursor: help;
 	}
 
 	.prob-columns {

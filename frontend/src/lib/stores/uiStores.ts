@@ -27,3 +27,7 @@ export const saveStatus = writable<'idle' | 'saving' | 'saved' | 'error'>('idle'
 // The column picked in the step-by-step results view. The board highlights it.
 // Null when that view is not open.
 export const selectedStepColumn = writable<number | null>(null);
+
+// Which explanation popup is open: a container's "i" badge (Tooltip) or an
+// underlined label (InfoText). They share this, so only one is open at a time.
+export const openTooltip = writable<symbol | null>(null);

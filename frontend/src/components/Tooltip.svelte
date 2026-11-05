@@ -1,15 +1,13 @@
-<script lang="ts" context="module">
-	import { writable } from 'svelte/store';
-
-	// Which tooltip is open, shared by every Tooltip on the page. Only one can be
-	// open at a time. Each click on an info icon stops the click from reaching
-	// the window (so the gate drag logic doesn't see it), so the window click
-	// handler alone could not close the tooltip that was open before.
-	const openTooltip = writable<symbol | null>(null);
-</script>
-
 <script lang="ts">
+	// The "i" badge on a whole container, such as a palette gate or a panel.
+	// A label in running text uses InfoText instead.
+	//
+	// Only one popup can be open at a time (openTooltip is shared). Each click on
+	// an info icon stops the click from reaching the window (so the gate drag
+	// logic doesn't see it), so the window click handler alone could not close
+	// the popup that was open before.
 	import { tick } from 'svelte';
+	import { openTooltip } from '$lib/stores/uiStores';
 	import { positionPopover } from '$lib/utils/positionPopover';
 	import type { TooltipMatrix } from '$lib/quantum/gates';
 	import MatrixView from './MatrixView.svelte';
@@ -139,17 +137,5 @@
 		.subtle:focus-within .info-badge {
 			opacity: 1;
 		}
-	}
-	/* Square brackets drawn with borders, so they always match the matrix height. */
-	.matrix {
-		border-left: 1px solid currentColor;
-		border-right: 1px solid currentColor;
-		padding-top: 2px;
-		padding-bottom: 2px;
-		background:
-			linear-gradient(currentColor, currentColor) top left / 4px 1px no-repeat,
-			linear-gradient(currentColor, currentColor) bottom left / 4px 1px no-repeat,
-			linear-gradient(currentColor, currentColor) top right / 4px 1px no-repeat,
-			linear-gradient(currentColor, currentColor) bottom right / 4px 1px no-repeat;
 	}
 </style>
