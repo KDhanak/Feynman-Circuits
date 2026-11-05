@@ -173,7 +173,26 @@ export async function saveThenStartNewCircuit(): Promise<void> {
 	startNewCircuit();
 }
 
-export function applyBellPairPreset(): void {
+export type BellState = 'phi+' | 'phi-' | 'psi+' | 'psi-';
+
+export const BELL_LABELS: Record<BellState, string> = {
+	'phi+': 'Φ⁺',
+	'phi-': 'Φ⁻',
+	'psi+': 'Ψ⁺',
+	'psi-': 'Ψ⁻'
+};
+
+// Which qubits get an X first. All four Bell states come from the same H + CNOT
+// circuit. The only difference is the starting state |q0 q1⟩:
+// |00⟩ → Φ⁺, |10⟩ → Φ⁻, |01⟩ → Ψ⁺, |11⟩ → Ψ⁻.
+const BELL_FLIPS: Record<BellState, { q0: boolean; q1: boolean }> = {
+	'phi+': { q0: false, q1: false },
+	'phi-': { q0: true, q1: false },
+	'psi+': { q0: false, q1: true },
+	'psi-': { q0: true, q1: true }
+};
+
+export function applyBellPairPreset(state: BellState = 'phi+'): void {
 	// A Bell pair needs two qubits, and QEC mode works on one logical qubit.
 	if (get(qubitLimit) < 2) {
 		showNotification('Bell Pair needs two qubits. QEC mode works on one logical qubit.', 'error');
@@ -183,38 +202,39 @@ export function applyBellPairPreset(): void {
 		setNumQubitsIR(2);
 	}
 
+	const flips = BELL_FLIPS[state];
+	const gate = (
+		name: 'h' | 'x',
+		column: number,
+		target: number,
+		controls: number[] = []
+	): UnitaryOperation => ({
+		id: crypto.randomUUID(),
+		kind: 'unitary',
+		gate: name,
+		column,
+		targets: [target],
+		controls,
+		antiControls: [],
+		params: []
+	});
+
 	circuitIR.update((ir) => {
 		const col = Math.max(findNextAvailableColumn(ir, 0), findNextAvailableColumn(ir, 1));
-		const next: CircuitIR = {
-			...ir,
-			operations: [
-				...ir.operations,
-				{
-					id: crypto.randomUUID(),
-					kind: 'unitary',
-					gate: 'h',
-					column: col,
-					targets: [0],
-					controls: [],
-					antiControls: [],
-					params: []
-				},
-				{
-					id: crypto.randomUUID(),
-					kind: 'unitary',
-					gate: 'x',
-					column: col + 1,
-					targets: [1],
-					controls: [0],
-					antiControls: [],
-					params: []
-				}
-			]
-		};
+		// The X on q0 has to come before the H. The X on q1 only has to come
+		// before the CNOT, so it can share the H's column.
+		const hCol = flips.q0 ? col + 1 : col;
+		const ops = [
+			...(flips.q0 ? [gate('x', col, 0)] : []),
+			...(flips.q1 ? [gate('x', col, 1)] : []),
+			gate('h', hCol, 0),
+			gate('x', hCol + 1, 1, [0])
+		];
+		const next: CircuitIR = { ...ir, operations: [...ir.operations, ...ops] };
 		triggerSimulation(next);
 		return next;
 	});
-	showNotification('Bell pair circuit applied!', 'success');
+	showNotification(`Bell pair ${BELL_LABELS[state]} circuit applied!`, 'success');
 }
 
 /**

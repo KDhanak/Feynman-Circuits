@@ -4,7 +4,13 @@
 	import { isDragging, armedGate } from '$lib/stores/uiStores';
 	import { clearSelection } from '$lib/circuit/selection';
 	import Icon from '@iconify/svelte';
-	import { applyBellPairPreset, compactCircuit, toggleQecMode } from '$lib/circuit/circuitActions';
+	import {
+		applyBellPairPreset,
+		BELL_LABELS,
+		compactCircuit,
+		toggleQecMode,
+		type BellState
+	} from '$lib/circuit/circuitActions';
 	import Tooltip from './Tooltip.svelte';
 	import { isMobile } from '$lib/stores/isMobile';
 	import {
@@ -106,6 +112,47 @@
 		MEASURE_TILE
 	];
 
+	// The four Bell states, in the order the menu and the tooltip pages show them.
+	const BELL_STATES: { id: BellState; formula: string; detail: string }[] = [
+		{
+			id: 'phi+',
+			formula: '(|00⟩ + |11⟩)/√2',
+			detail:
+				'The two qubits always agree: measuring both gives 00 or 11, each half the time. Built from |00⟩ with H on q0, then CNOT from q0 to q1.'
+		},
+		{
+			id: 'phi-',
+			formula: '(|00⟩ − |11⟩)/√2',
+			detail:
+				'The qubits still always agree, but there is a minus sign between the two parts. The sign does not change the odds; it is a phase you only see after more gates. Built with X on q0 first, then H and CNOT.'
+		},
+		{
+			id: 'psi+',
+			formula: '(|01⟩ + |10⟩)/√2',
+			detail:
+				'The two qubits always disagree: measuring both gives 01 or 10, each half the time. Built with X on q1 first, then H on q0 and CNOT.'
+		},
+		{
+			id: 'psi-',
+			formula: '(|01⟩ − |10⟩)/√2',
+			detail:
+				'The qubits always disagree, with a minus sign between the parts. This is the "singlet": swapping the two qubits only flips its overall sign. Built with X on both qubits first, then H and CNOT.'
+		}
+	];
+	const BELL_PAGES = BELL_STATES.map((s) => ({
+		quick: `Bell Pair ${BELL_LABELS[s.id]} = ${s.formula}`,
+		detail: s.detail
+	}));
+
+	let bellState: BellState = 'phi+';
+	let bellMenuOpen = false;
+
+	function chooseBell(state: BellState) {
+		bellState = state;
+		bellMenuOpen = false;
+		applyBellPairPreset(state);
+	}
+
 	let dragEnterCount = 0;
 
 	// Mobile tap-to-place: tapping a gate selects it (tapping it again unselects it).
@@ -120,6 +167,11 @@
 		);
 	}
 </script>
+
+<svelte:window
+	on:click={() => (bellMenuOpen = false)}
+	on:keydown={(e) => e.key === 'Escape' && (bellMenuOpen = false)}
+/>
 
 <div
 	aria-label="Quantum Circuit Gate Palette"
@@ -230,12 +282,58 @@ Unavailable in QEC mode: ${reason}`
 			</div>
 		</Tooltip>
 	{/each}
-	<button
-		class="btn-quiet h-9"
-		disabled={$qubitLimit < 2}
-		title={$qubitLimit < 2 ? 'Bell Pair needs two qubits: not available in QEC mode' : 'Bell Pair'}
-		on:click={applyBellPairPreset}>Bell Pair</button
-	>
+	<!-- Split button: the main part adds the chosen Bell state, the arrow picks
+	     which one. Picking from the menu adds it straight away too. -->
+	<Tooltip quick="Bell Pair" pages={BELL_PAGES} subtle>
+		<div class="relative inline-flex">
+			<button
+				class="btn-quiet h-9 rounded-r-none"
+				disabled={$qubitLimit < 2}
+				title={$qubitLimit < 2
+					? 'Bell Pair needs two qubits: not available in QEC mode'
+					: `Bell Pair ${BELL_LABELS[bellState]}`}
+				on:click={() => applyBellPairPreset(bellState)}
+			>
+				Bell Pair <span class="font-semibold">{BELL_LABELS[bellState]}</span>
+			</button>
+			<button
+				class="btn-quiet h-9 !px-1.5 rounded-l-none border-l-0"
+				disabled={$qubitLimit < 2}
+				aria-haspopup="menu"
+				aria-expanded={bellMenuOpen}
+				aria-label="Choose Bell state"
+				title="Choose Bell state"
+				on:click|stopPropagation={() => (bellMenuOpen = !bellMenuOpen)}
+			>
+				<Icon icon="ph:caret-down-bold" width="12" height="12" />
+			</button>
+
+			{#if bellMenuOpen}
+				<!-- z-250: above the board, which is z-50 and comes later on the page
+				     (so it would win a tie), and below the toast (z-300). -->
+				<div
+					class="absolute left-0 top-full z-250 mt-1 flex min-w-full flex-col overflow-hidden whitespace-nowrap rounded-md shadow-lg"
+					style="background: var(--color-surface); border: 1px solid var(--color-border);"
+					role="menu"
+				>
+					{#each BELL_STATES as s (s.id)}
+						<button
+							type="button"
+							role="menuitemradio"
+							aria-checked={s.id === bellState}
+							class="ctx-menu-item last:border-b-0 !py-2"
+							on:click={() => chooseBell(s.id)}
+						>
+							<span class="w-6 font-semibold" class:text-accent={s.id === bellState}
+								>{BELL_LABELS[s.id]}</span
+							>
+							<span class="text-xs text-muted">{s.formula}</span>
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</Tooltip>
 	<button class="btn-quiet h-9" on:click={compactCircuit}>Compact</button>
 
 	<!--
