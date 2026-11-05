@@ -15,12 +15,21 @@
 	// *screen*, so we add the scroll amount to turn them into positions inside
 	// boardEl. Otherwise the lines would be off by scrollLeft when the track is
 	// scrolled. (boardEl doesn't scroll up/down, so scrollTop is 0.)
+	//
+	// For x we use the gate's own `left` style when it has one. That is where the
+	// gate is going, not where it is right now. During a "Move all" slide the
+	// gate is still on its way, so measuring it would put the line at the old
+	// column. (A gate's `left` is its centre, because it is moved back by half
+	// its width with translate(-50%).)
 	function getCenter(el: Element, boardRect: DOMRect) {
 		const r = (el as HTMLElement).getBoundingClientRect();
 		const scrollLeft = boardEl?.scrollLeft ?? 0;
 		const scrollTop = boardEl?.scrollTop ?? 0;
+		const styleLeft = parseFloat((el as HTMLElement).style.left);
 		return {
-			x: r.left - boardRect.left + scrollLeft + r.width / 2,
+			x: Number.isFinite(styleLeft)
+				? styleLeft
+				: r.left - boardRect.left + scrollLeft + r.width / 2,
 			y: r.top - boardRect.top + scrollTop + r.height / 2
 		};
 	}
@@ -125,7 +134,7 @@
 
 {#each connectors as line (line.key)}
 	<div
-		class="absolute w-0.5 pointer-events-none z-10"
+		class="connector absolute w-0.5 pointer-events-none z-10"
 		style:background="var(--color-line)"
 		style="left: {line.left}px; top: {line.top}px; height: {line.height}px; transform: translateX(-50%);"
 	></div>

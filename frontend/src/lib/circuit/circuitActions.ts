@@ -26,6 +26,7 @@ import { QEC_LOGICAL_QUBITS, qecMode, qubitLimit } from '$lib/qec/stores';
 import { GATE_REGISTRY, isCliffordGate } from '$lib/quantum/gates';
 import type { UnitaryOperation } from '../IR/schema';
 import { MAX_COLUMNS } from '$lib/utils/constants';
+import { shiftingCircuit } from '$lib/stores/uiStores';
 
 /**
  * Turning on QEC mode limits the palette to Clifford gates, because QEC runs
@@ -325,8 +326,18 @@ export function canShiftCircuit(
  * The board shows it on every screen size. On a phone it is the only way,
  * because dragging the whole circuit is not possible there.
  */
+// Must be at least as long as the slide in WireDropeZone's `.shifting` CSS.
+const SHIFT_ANIMATION_MS = 250;
+let shiftTimer: ReturnType<typeof setTimeout> | undefined;
+
 export function shiftCircuit(direction: -1 | 1): void {
 	if (!canShiftCircuit(get(circuitIR), direction)) return;
+
+	// Turn the slide on before the columns change, so the new positions animate.
+	// A quick second click restarts the timer, so the slide stays on for it too.
+	shiftingCircuit.set(true);
+	clearTimeout(shiftTimer);
+	shiftTimer = setTimeout(() => shiftingCircuit.set(false), SHIFT_ANIMATION_MS);
 
 	circuitIR.update((ir) => {
 		const next: CircuitIR = {

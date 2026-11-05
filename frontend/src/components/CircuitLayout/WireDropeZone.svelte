@@ -10,7 +10,8 @@
 		isDragging,
 		armedGate,
 		saveStatus,
-		selectedStepColumn
+		selectedStepColumn,
+		shiftingCircuit
 	} from '$lib/stores/uiStores';
 	import { session } from '$lib/auth/session';
 	import {
@@ -861,6 +862,7 @@
 				<!-- CENTER: scrollable gate track -->
 				<div
 					class="relative flex flex-1 flex-col gap-1 overflow-x-auto"
+					class:shifting={$shiftingCircuit}
 					bind:this={centerEl}
 					bind:clientWidth={centerWidth}
 					on:scroll={() => connectorLayer?.recomputeConnectorsSync()}
@@ -1102,6 +1104,19 @@
 />
 
 <style>
+	/* "Move all": gates and their connector lines slide one column instead of
+	   jumping. Only on while shiftingCircuit is set, so dragging stays instant.
+	   Keep the time under SHIFT_ANIMATION_MS in circuitActions.ts. */
+	.shifting :global(.gate),
+	.shifting :global(.connector) {
+		transition: left 200ms ease-out;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.shifting :global(.gate),
+		.shifting :global(.connector) {
+			transition: none;
+		}
+	}
 	/* |0⟩ initial-state chip: quiet text on a faint tint, so the gates carry the colour. */
 	.ket-pill {
 		color: var(--color-muted);

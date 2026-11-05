@@ -28,6 +28,12 @@ export const saveStatus = writable<'idle' | 'saving' | 'saved' | 'error'>('idle'
 // Null when that view is not open.
 export const selectedStepColumn = writable<number | null>(null);
 
+// True for a moment after "Move all" shifts the circuit. While it is on, the
+// board slides gates and connector lines to their new column instead of
+// jumping. It is off the rest of the time, so a dragged gate still drops
+// straight into place.
+export const shiftingCircuit = writable<boolean>(false);
+
 // Which explanation popup is open: a container's "i" badge (Tooltip) or an
 // underlined label (InfoText). They share this, so only one is open at a time.
 export const openTooltip = writable<symbol | null>(null);
