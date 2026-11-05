@@ -219,3 +219,40 @@ export function computeMultiControlledUMatrixWithAntiControls(
 	}
 	return matrix;
 }
+
+// The identity matrix of size dim × dim (leaves every state unchanged).
+export function identityMatrix(dim: number): Complex[][] {
+	return Array.from({ length: dim }, (_, i) =>
+		Array.from({ length: dim }, (_, j) => createComplex(i === j ? 1 : 0, 0))
+	);
+}
+
+// Matrix product a · b. Used to join the gates of one column into a single matrix.
+export function multiplyMatrices(a: Complex[][], b: Complex[][]): Complex[][] {
+	const dim = a.length;
+	return Array.from({ length: dim }, (_, i) =>
+		Array.from({ length: dim }, (_, j) => {
+			let sum = createComplex(0, 0);
+			for (let k = 0; k < dim; k++) sum = add(sum, multiply(a[i][k], b[k][j]));
+			return sum;
+		})
+	);
+}
+
+// The SWAP of qubits q1 and q2 as a full matrix. The simulator swaps amplitudes
+// directly instead, so this is only used to show the column as a matrix.
+// It is a permutation matrix: it moves the amplitude of each basis state to the
+// basis state with the two bits exchanged.
+export function swapMatrix(q1: number, q2: number, numQubits: number): Complex[][] {
+	const dim = 1 << numQubits;
+	const result = Array.from({ length: dim }, () =>
+		Array.from({ length: dim }, () => createComplex(0, 0))
+	);
+	for (let i = 0; i < dim; i++) {
+		const b1 = (i >> q1) & 1;
+		const b2 = (i >> q2) & 1;
+		const j = b1 === b2 ? i : i ^ (1 << q1) ^ (1 << q2);
+		result[j][i] = createComplex(1, 0);
+	}
+	return result;
+}

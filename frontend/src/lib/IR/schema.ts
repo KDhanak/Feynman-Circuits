@@ -1,4 +1,5 @@
 import { type BlochVector } from '../quantum/bloch';
+import { type Complex } from '../quantum/complex';
 
 export type CanonicalUnitaryGate =
 	| 'x'
@@ -71,6 +72,35 @@ export interface SimulationResult {
 	blochVectors?: BlochVector[];
 	measuredQubits?: number[];
 	classicalBits?: Map<number, number>;
+	// What happened in each column, for the step-by-step view. Recorded during
+	// the same run as the results above, so a random measurement outcome shown
+	// in the steps is the same one the results use.
+	steps?: SimulationStep[];
+}
+
+// One column of the circuit, as the simulator ran it.
+export interface SimulationStep {
+	column: number;
+	before: Complex[]; // state vector going into the column
+	after: Complex[]; // state vector coming out of it
+	ops: StepOperation[];
+	measurements: StepMeasurement[];
+	// The whole column as one matrix, so that after = matrix · before. Only kept
+	// for small registers (a 3-qubit column is 8×8). It is null when the column
+	// has a measurement, because a measurement is not a matrix multiplication.
+	matrix: Complex[][] | null;
+}
+
+export interface StepOperation {
+	op: UnitaryOperation;
+	// The gate was not applied because its target had already been measured.
+	skipped: boolean;
+}
+
+export interface StepMeasurement {
+	qubit: number;
+	prob0: number; // Born-rule chance of reading 0, before the collapse
+	outcome: number;
 }
 
 export interface GateData {

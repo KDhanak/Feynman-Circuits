@@ -19,7 +19,8 @@
 
 	const resultViewOptions: { value: ResultView; label: string; icon: string }[] = [
 		{ value: 'list', label: 'List', icon: 'ph:list-bold' },
-		{ value: 'histogram', label: 'Histogram', icon: 'ph:chart-bar-bold' }
+		{ value: 'histogram', label: 'Histogram', icon: 'ph:chart-bar-bold' },
+		{ value: 'steps', label: 'Steps', icon: 'ph:function-bold' }
 	];
 
 	const bitOrderOptions: { value: BitOrder; label: string; hint: string }[] = [
@@ -122,7 +123,7 @@
 		<div class="mb-2 text-sm font-medium" style="color: var(--color-text);">
 			Default results view
 		</div>
-		<div class="grid grid-cols-2 gap-2">
+		<div class="grid grid-cols-3 gap-2">
 			{#each resultViewOptions as opt (opt)}
 				<button
 					type="button"

@@ -23,3 +23,7 @@ export const notification = writable<{ message: string; type: 'success' | 'error
 
 // Auto-save status
 export const saveStatus = writable<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+// The column picked in the step-by-step results view. The board highlights it.
+// Null when that view is not open.
+export const selectedStepColumn = writable<number | null>(null);

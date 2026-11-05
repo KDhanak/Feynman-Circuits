@@ -1,6 +1,11 @@
 import type { CircuitIR, UnitaryOperation } from '../IR/schema';
 import { circuitIR } from '../IR/stores';
-import type { SimulationResult } from '../IR/schema';
+import type {
+	SimulationResult,
+	SimulationStep,
+	StepMeasurement,
+	StepOperation
+} from '../IR/schema';
 import { simulationResult } from '../IR/stores';
 import {
 	createComplex,
@@ -15,7 +20,10 @@ import {
 	applyMatrix,
 	extendGateMatrix,
 	computeMultiControlledUMatrix,
-	computeMultiControlledUMatrixWithAntiControls
+	computeMultiControlledUMatrixWithAntiControls,
+	identityMatrix,
+	multiplyMatrices,
+	swapMatrix
 } from '../quantum/matrix';
 import { GATE_REGISTRY } from '../quantum/gates';
 import { get } from 'svelte/store';
@@ -30,7 +38,7 @@ export function collapseQubit(
 	state: QuantumState,
 	qubit: number,
 	numQubits: number
-): { newState: QuantumState; outcome: number } {
+): { newState: QuantumState; outcome: number; prob0: number } {
 	const dim = 1 << numQubits;
 	// We number the bits the same way as Qiskit/OpenQASM: qubit q is bit number q
 	// in the state (q0 is the smallest bit, the rightmost one in the label).
@@ -57,7 +65,8 @@ export function collapseQubit(
 
 	return {
 		newState: newState.map((amp) => scale(amp, 1 / norm)),
-		outcome
+		outcome,
+		prob0
 	};
 }
 
@@ -89,6 +98,11 @@ function getGateMatrix(op: UnitaryOperation, numQubits: number): Complex[][] | n
 	}
 }
 
+// The step-by-step view shows each column as one full matrix only up to this
+// many qubits. 3 qubits gives an 8×8 matrix, which still fits on screen. Above
+// that the matrix is not kept at all, which also saves memory.
+export const MAX_STEP_MATRIX_QUBITS = 3;
+
 // ─────────────────────────────────────────────────────────────
 // One simulator for everything (works for 1 qubit AND many qubits)
 // ─────────────────────────────────────────────────────────────
@@ -106,6 +120,8 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 
 	const measuredQubits = new Set<number>();
 	const classicalBits = new Map<number, number>();
+	const steps: SimulationStep[] = [];
+	const keepMatrix = numQubits <= MAX_STEP_MATRIX_QUBITS;
 
 	const maxColumn = ir.operations.length
 		? Math.max(...ir.operations.map((op) => op.column)) + 1
@@ -114,6 +130,14 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 	for (let colIndex = 0; colIndex < maxColumn; colIndex++) {
 		const colOps = ir.operations.filter((op) => op.column === colIndex);
 
+		// Record of this column for the step-by-step view. The gates in one column
+		// act on different qubits, so their matrices can be multiplied together
+		// into one matrix for the whole column.
+		const before = state;
+		const stepOps: StepOperation[] = [];
+		const stepMeasurements: StepMeasurement[] = [];
+		let columnMatrix: Complex[][] | null = keepMatrix ? identityMatrix(dim) : null;
+
 		for (const op of colOps) {
 			if (op.kind === 'measure') {
 				for (const target of op.targets) {
@@ -121,14 +145,20 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 					const result = collapseQubit(state, target, numQubits);
 					state = result.newState;
 					classicalBits.set(target, result.outcome);
+					stepMeasurements.push({ qubit: target, prob0: result.prob0, outcome: result.outcome });
 				}
+				columnMatrix = null; // a measurement is not a matrix multiplication
 				continue;
 			}
 
 			if (op.kind === 'reset' || op.kind === 'barrier') continue;
 
 			if (op.kind === 'unitary') {
-				if (measuredQubits.has(op.targets[0])) continue; // skip gates on measured qubits
+				// skip gates on measured qubits
+				if (measuredQubits.has(op.targets[0])) {
+					stepOps.push({ op, skipped: true });
+					continue;
+				}
 
 				let matrix: Complex[][] | null;
 
@@ -149,6 +179,9 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 						}
 					}
 					state = swapped;
+					stepOps.push({ op, skipped: false });
+					if (columnMatrix)
+						columnMatrix = multiplyMatrices(swapMatrix(p1, p2, numQubits), columnMatrix);
 					continue;
 				} else {
 					matrix = getGateMatrix(op, numQubits);
@@ -156,7 +189,20 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 				}
 
 				state = applyMatrix(matrix, state);
+				stepOps.push({ op, skipped: false });
+				if (columnMatrix) columnMatrix = multiplyMatrices(matrix, columnMatrix);
 			}
+		}
+
+		if (stepOps.length > 0 || stepMeasurements.length > 0) {
+			steps.push({
+				column: colIndex,
+				before,
+				after: state,
+				ops: stepOps,
+				measurements: stepMeasurements,
+				matrix: columnMatrix
+			});
 		}
 	}
 
@@ -178,7 +224,8 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 		formattedStatePolar,
 		blochVectors,
 		measuredQubits: Array.from(measuredQubits).sort((a, b) => a - b),
-		classicalBits
+		classicalBits,
+		steps
 	};
 }
 

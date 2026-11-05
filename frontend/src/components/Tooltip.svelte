@@ -12,6 +12,7 @@
 	import { tick } from 'svelte';
 	import { positionPopover } from '$lib/utils/positionPopover';
 	import type { TooltipMatrix } from '$lib/quantum/gates';
+	import MatrixView from './MatrixView.svelte';
 
 	export let quick: string;
 	export let detail: string = '';
@@ -62,12 +63,6 @@
 	function close() {
 		if (visible) openTooltip.set(null);
 	}
-
-	// Splits "e^{iθ}" into the plain part and the superscript part.
-	function splitPower(entry: string): { base: string; power: string } {
-		const m = entry.match(/^(.*)\^\{(.*)\}$/);
-		return m ? { base: m[1], power: m[2] } : { base: entry, power: '' };
-	}
 </script>
 
 <svelte:window on:click={close} on:scroll={close} on:resize={() => visible && position()} />
@@ -110,43 +105,13 @@
 				<div class="relative shrink-0" style:width="{matrixWidth}px">
 					<div
 						bind:this={matrixEl}
-						class="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 w-max text-muted"
+						class="absolute right-0 top-1/2 -translate-y-1/2 w-max text-muted"
 						aria-label="Gate matrix"
 					>
-						{#if matrix.scale}
-							<span class="text-[10px] whitespace-nowrap">{matrix.scale}</span>
-						{/if}
-						<div
-							class="matrix grid gap-x-2 gap-y-0.5 px-1.5 text-[10px] leading-none whitespace-nowrap"
-							style:grid-template-columns="repeat({matrix.rows[0].length}, auto)"
-						>
-							{#each matrix.rows as row, r (r)}
-								{#each row as entry, col (col)}
-									{@const { base, power } = splitPower(entry)}
-									<span class="text-center"
-										>{base}{#if power}<sup class="text-[8px]">{power}</sup>{/if}</span
-									>
-								{/each}
-							{/each}
-						</div>
+						<MatrixView rows={matrix.rows} scale={matrix.scale} />
 					</div>
 				</div>
 			{/if}
 		</div>
 	{/if}
 </div>
-
-<style>
-	/* Square brackets drawn with borders, so they always match the matrix height. */
-	.matrix {
-		border-left: 1px solid currentColor;
-		border-right: 1px solid currentColor;
-		padding-top: 2px;
-		padding-bottom: 2px;
-		background:
-			linear-gradient(currentColor, currentColor) top left / 4px 1px no-repeat,
-			linear-gradient(currentColor, currentColor) bottom left / 4px 1px no-repeat,
-			linear-gradient(currentColor, currentColor) top right / 4px 1px no-repeat,
-			linear-gradient(currentColor, currentColor) bottom right / 4px 1px no-repeat;
-	}
-</style>

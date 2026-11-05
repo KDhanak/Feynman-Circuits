@@ -6,6 +6,14 @@
 	import { fade } from 'svelte/transition';
 	import Icon from '@iconify/svelte';
 	import { browser } from '$app/environment';
+	import StepsView from './StepsView.svelte';
+	import type { ResultView } from '$lib/stores/settingsStore';
+
+	const VIEWS: { value: ResultView; label: string; icon: string }[] = [
+		{ value: 'list', label: 'List', icon: 'ph:list-bold' },
+		{ value: 'histogram', label: 'Histogram', icon: 'ph:chart-bar-bold' },
+		{ value: 'steps', label: 'Steps: the calculation column by column', icon: 'ph:function-bold' }
+	];
 
 	let activeTooltip: { quick: string; detail: string; side: 'top' | 'left' } | null = null;
 	let tooltipX = 0;
@@ -131,6 +139,7 @@
 	}
 
 	$: showHistogram = $settings.defaultResultView === 'histogram';
+	$: showSteps = $settings.defaultResultView === 'steps';
 	$: isMeasured = ($simulationResult.measuredQubits ?? []).length > 0;
 	$: barColor = isMeasured ? 'var(--color-measured)' : 'var(--color-probability)';
 	// Past 3 qubits the full basis is too wide to plot, so only the most likely
@@ -417,20 +426,35 @@
 <svelte:window on:click={() => (activeTooltip = null)} />
 
 <div class="h-full flex flex-col" style="color: var(--color-text)">
-	<!-- View toggle -->
-	<div class="flex items-center justify-end px-3 pt-2 shrink-0">
-		<button
-			type="button"
-			on:click={() => updateSettings({ defaultResultView: showHistogram ? 'list' : 'histogram' })}
-			class="p-1 rounded cursor-pointer transition-colors"
-			style="color: var(--color-muted);"
-			title={showHistogram ? 'Switch to list view' : 'Switch to histogram'}
-		>
-			<Icon icon={showHistogram ? 'ph:list-bold' : 'ph:chart-bar-bold'} width="20" height="20" />
-		</button>
+	<!-- View switch: list, histogram, or the step-by-step calculation -->
+	<div
+		class="flex items-center justify-end gap-0.5 px-3 pt-2 shrink-0"
+		role="group"
+		aria-label="Results view"
+	>
+		{#each VIEWS as view (view.value)}
+			{@const active = $settings.defaultResultView === view.value}
+			<button
+				type="button"
+				on:click={() => updateSettings({ defaultResultView: view.value })}
+				class="p-1 rounded cursor-pointer transition-colors"
+				style="color: {active
+					? 'var(--color-ternary-1)'
+					: 'var(--color-muted)'}; background: {active
+					? 'color-mix(in srgb, var(--color-ternary-1) 12%, transparent)'
+					: 'transparent'};"
+				title={view.label}
+				aria-label={view.label}
+				aria-pressed={active}
+			>
+				<Icon icon={view.icon} width="20" height="20" />
+			</button>
+		{/each}
 	</div>
 
-	{#if showHistogram}
+	{#if showSteps}
+		<StepsView />
+	{:else if showHistogram}
 		<!-- Histogram view — every state up to 3 qubits, top 10 beyond that -->
 		{@const n = histogramStates.length}
 		{@const slotW = n > 0 ? plotW / n : plotW}

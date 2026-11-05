@@ -1,0 +1,260 @@
+<script lang="ts">
+	// The calculation, one column at a time. For the chosen column it shows the
+	// column as one operator, the state before and after it, and the matrix
+	// multiplication that turns one into the other. All of it comes from the
+	// record the simulator keeps while it runs (SimulationResult.steps), so it
+	// is always the same run as the results.
+	import { onDestroy } from 'svelte';
+	import Icon from '@iconify/svelte';
+	import { simulationResult } from '$lib/IR/stores';
+	import type { SimulationStep } from '$lib/IR/schema';
+	import { settings } from '$lib/stores/settingsStore';
+	import { selectedStepColumn } from '$lib/stores/uiStores';
+	import { MAX_STEP_MATRIX_QUBITS } from '$lib/circuit/simulator';
+	import {
+		describeOperation,
+		displayIndexOrder,
+		displayQubitOrder,
+		gateMatrix,
+		ketTerms,
+		matrixText,
+		operatorLine,
+		subscript,
+		vectorText,
+		basisLabel,
+		type KetTerm
+	} from '$lib/circuit/steps';
+	import MatrixView from './MatrixView.svelte';
+
+	$: steps = $simulationResult.steps ?? [];
+	$: bitOrder = $settings.bitOrder;
+
+	// Which step is open. It is stored as a column (shared with the board, which
+	// highlights it), so editing the circuit keeps you on the same column. If
+	// that column is now empty, it moves to the nearest step before it.
+	function pickIndex(list: SimulationStep[], column: number | null): number {
+		if (list.length === 0) return -1;
+		if (column === null) return 0;
+		const exact = list.findIndex((s) => s.column === column);
+		if (exact >= 0) return exact;
+		let best = 0;
+		list.forEach((s, k) => {
+			if (s.column <= column) best = k;
+		});
+		return best;
+	}
+	$: index = pickIndex(steps, $selectedStepColumn);
+	$: step = index >= 0 ? steps[index] : null;
+	$: if (step && step.column !== $selectedStepColumn) selectedStepColumn.set(step.column);
+	onDestroy(() => selectedStepColumn.set(null));
+
+	function go(delta: number) {
+		const next = steps[index + delta];
+		if (next) selectedStepColumn.set(next.column);
+	}
+
+	$: n = step ? Math.log2(step.before.length) : 0;
+	$: order = displayIndexOrder(n, bitOrder);
+	$: wireOrder = displayQubitOrder(n, bitOrder)
+		.map((q) => `q${q}`)
+		.join(' ⊗ ');
+	$: applied = step ? step.ops.filter((o) => !o.skipped) : [];
+	$: psiIn = `ψ${subscript(index)}`;
+	$: psiOut = `ψ${subscript(index + 1)}`;
+	$: uName = `U${subscript(index + 1)}`;
+	$: beforeTerms = step ? ketTerms(step.before, n, bitOrder, step.after) : [];
+	$: afterTerms = step ? ketTerms(step.after, n, bitOrder, step.before) : [];
+	$: rowLabels = order.map((i) => `|${basisLabel(i, n, bitOrder)}⟩`);
+	// The entries of the "after" vector that the column changed.
+	$: changedRows = new Set(
+		step
+			? order
+					.map((i, r) => [i, r])
+					.filter(
+						([i]) =>
+							Math.abs(step.before[i].re - step.after[i].re) > 1e-9 ||
+							Math.abs(step.before[i].im - step.after[i].im) > 1e-9
+					)
+					.map(([, r]) => `${r},0`)
+			: []
+	);
+
+	// The sign written before a term: none for a positive first term.
+	const termSign = (t: KetTerm, k: number) => (k > 0 || t.sign === '−' ? ` ${t.sign} ` : '');
+
+	const percent = (p: number) => `${(p * 100).toFixed($settings.probabilityDecimals)}%`;
+</script>
+
+<div class="flex flex-col gap-3 px-1 pb-2 text-sm">
+	{#if !step}
+		<p class="text-center text-sm mt-6" style="color: var(--color-muted);">
+			Add a gate to see the calculation, one column at a time.
+		</p>
+	{:else}
+		<!-- Step picker -->
+		<div class="flex items-center justify-center gap-3">
+			<button
+				type="button"
+				class="step-btn"
+				disabled={index === 0}
+				on:click={() => go(-1)}
+				aria-label="Previous column"
+				title="Previous column"
+			>
+				<Icon icon="ph:caret-left-bold" width="16" height="16" />
+			</button>
+			<div class="text-center leading-tight">
+				<p class="font-semibold">Column {step.column + 1}</p>
+				<p class="text-xs" style="color: var(--color-muted);">
+					Step {index + 1} of {steps.length}
+				</p>
+			</div>
+			<button
+				type="button"
+				class="step-btn"
+				disabled={index === steps.length - 1}
+				on:click={() => go(1)}
+				aria-label="Next column"
+				title="Next column"
+			>
+				<Icon icon="ph:caret-right-bold" width="16" height="16" />
+			</button>
+		</div>
+
+		<!-- The column as one operator -->
+		{#if applied.length > 0}
+			<div class="font-mono text-[13px] leading-relaxed">
+				<p>|{psiOut}⟩ = {uName} |{psiIn}⟩</p>
+				<p>
+					{uName} =
+					<span class="font-semibold" style="color: var(--color-branding);"
+						>{operatorLine(step.ops, n, bitOrder)}</span
+					>
+				</p>
+				{#if n > 1}
+					<p class="text-[11px]" style="color: var(--color-muted);">⊗ order: {wireOrder}</p>
+				{/if}
+			</div>
+		{/if}
+
+		<ul class="text-xs list-disc pl-4 space-y-0.5">
+			{#each step.ops as { op, skipped } (op.id)}
+				<li style={skipped ? 'color: var(--color-muted);' : ''}>
+					{describeOperation(op)}{#if skipped}
+						— skipped, q{op.targets[0]} was already measured{/if}
+				</li>
+			{/each}
+			{#each step.measurements as m (m.qubit)}
+				<li>Measure q{m.qubit}</li>
+			{/each}
+		</ul>
+
+		<!-- State before and after -->
+		<div class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 font-mono text-xs items-baseline">
+			<span style="color: var(--color-muted);">before</span>
+			<span class="wrap-break-word"
+				>|{psiIn}⟩ =
+				{#each beforeTerms as t, k (t.label)}
+					<span class:changed={t.changed}>{termSign(t, k)}{t.coefficient}|{t.label}⟩</span>
+				{/each}</span
+			>
+			<span style="color: var(--color-muted);">after</span>
+			<span class="wrap-break-word"
+				>|{psiOut}⟩ =
+				{#each afterTerms as t, k (t.label)}
+					<span class:changed={t.changed}>{termSign(t, k)}{t.coefficient}|{t.label}⟩</span>
+				{/each}</span
+			>
+		</div>
+
+		<!-- Measurement: Born's rule, then collapse -->
+		{#each step.measurements as m (m.qubit)}
+			<div
+				class="rounded-sm border px-2.5 py-2 text-xs space-y-1"
+				style="border-color: color-mix(in srgb, var(--color-measured) 50%, transparent);"
+			>
+				<p class="font-semibold" style="color: var(--color-measured);">
+					Measuring q{m.qubit} is random, not a matrix multiplication
+				</p>
+				<p class="font-mono">
+					P(0) = {percent(m.prob0)}, P(1) = {percent(1 - m.prob0)} → read
+					<span class="font-semibold" style="color: var(--color-measured);">{m.outcome}</span>
+				</p>
+				<p class="font-mono">
+					|ψ′⟩ = P{subscript(m.outcome)} |ψ⟩ / √P({m.outcome})
+				</p>
+				<p style="color: var(--color-muted);">
+					Keep only the terms where q{m.qubit} = {m.outcome}, then rescale them so the probabilities
+					add up to 1 again.
+				</p>
+			</div>
+		{/each}
+
+		<!-- The matrices -->
+		{#if step.matrix}
+			<details open class="text-xs">
+				<summary class="cursor-pointer select-none font-medium">
+					Full matrix ({step.matrix.length}×{step.matrix.length}): {uName} · |{psiIn}⟩ = |{psiOut}⟩
+				</summary>
+				<div class="mt-2 overflow-x-auto pb-1">
+					<!-- In a narrow panel the vectors wrap below the matrix instead of
+					     going off the edge, so the result always stays in view. -->
+					<div class="flex flex-wrap items-center gap-2 font-mono">
+						<MatrixView size="md" rows={matrixText(step.matrix, order)} {rowLabels} />
+						<MatrixView size="md" rows={vectorText(step.before, order)} />
+						<span>=</span>
+						<MatrixView size="md" rows={vectorText(step.after, order)} highlight={changedRows} />
+					</div>
+				</div>
+				<p class="mt-1" style="color: var(--color-muted);">
+					Row r of the result is row r of {uName} times the column {psiIn}: multiply each pair of
+					numbers and add them up.
+				</p>
+			</details>
+		{:else if applied.length > 0}
+			<div class="text-xs">
+				<p class="font-medium mb-1.5">Gate matrices</p>
+				<div class="flex flex-wrap gap-4">
+					{#each applied as { op } (op.id)}
+						{@const g = gateMatrix(op)}
+						<div class="flex flex-col gap-1">
+							<span class="font-mono">{g.title}{g.note ? `, ${g.note}` : ''}</span>
+							<MatrixView size="md" rows={g.matrix.rows} scale={g.matrix.scale} />
+						</div>
+					{/each}
+				</div>
+				<p class="mt-1.5" style="color: var(--color-muted);">
+					{#if step.measurements.length > 0}
+						This column also measures, so it has no single matrix.
+					{:else}
+						The full matrix for {n} qubits is {1 << n}×{1 << n}, too big to read, so only each
+						gate's own matrix is shown. The full matrix is shown up to {MAX_STEP_MATRIX_QUBITS}
+						qubits.
+					{/if}
+				</p>
+			</div>
+		{/if}
+	{/if}
+</div>
+
+<style>
+	.changed {
+		color: var(--color-probability);
+		font-weight: 600;
+	}
+	.step-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 0.25rem;
+		border: 1px solid var(--color-ternary-1);
+		color: var(--color-ternary-1);
+		cursor: pointer;
+	}
+	.step-btn:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+	}
+</style>

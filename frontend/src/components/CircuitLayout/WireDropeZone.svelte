@@ -5,7 +5,13 @@
 	import { get } from 'svelte/store';
 	import { slide } from 'svelte/transition';
 	import { simulationResult, circuitIR, currentCircuitName } from '$lib/IR/stores';
-	import { circuitLayout, isDragging, armedGate, saveStatus } from '$lib/stores/uiStores';
+	import {
+		circuitLayout,
+		isDragging,
+		armedGate,
+		saveStatus,
+		selectedStepColumn
+	} from '$lib/stores/uiStores';
 	import { session } from '$lib/auth/session';
 	import {
 		handleDrop,
@@ -862,6 +868,15 @@
 				>
 					<!-- Connectors -->
 					<ConnectorLayer bind:this={connectorLayer} boardEl={centerEl} />
+					<!-- The column open in the Steps results view. It sits behind the gates
+					     and lets every click through, so editing works the same. -->
+					{#if $selectedStepColumn !== null}
+						<div
+							class="step-column-highlight pointer-events-none absolute top-0 bottom-0 rounded-sm"
+							style="left: {$selectedStepColumn * columnWidth}px; width: {columnWidth}px"
+							aria-hidden="true"
+						></div>
+					{/if}
 					{#each wires as wire (wire.id)}
 						<div
 							role="row"
@@ -1147,5 +1162,10 @@
 
 	.selection-box {
 		box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.1);
+	}
+	.step-column-highlight {
+		background: color-mix(in srgb, var(--color-branding) 14%, transparent);
+		outline: 1px dashed color-mix(in srgb, var(--color-branding) 60%, transparent);
+		outline-offset: -1px;
 	}
 </style>

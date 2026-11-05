@@ -1,7 +1,8 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-export type ResultView = 'list' | 'histogram';
+// 'steps' shows the calculation column by column instead of the final result.
+export type ResultView = 'list' | 'histogram' | 'steps';
 
 // How basis-state labels are written in the results panel. Inside, the simulator
 // always uses the same bit order (q0 is the smallest bit). This setting only
