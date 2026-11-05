@@ -1,4 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
+import { tick } from 'svelte';
 import { browser } from '$app/environment';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
@@ -41,17 +42,50 @@ if (browser) {
 
 	// Follow OS changes while in 'system' mode.
 	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-		if (get(theme) === 'system') applyResolved(resolve('system'));
+		if (get(theme) === 'system') smoothly(() => applyResolved(resolve('system')));
 	});
 } else {
 	applyResolved(resolve(getInitial()));
 }
 
+/**
+ * Runs a theme change as one cross-fade.
+ *
+ * Without this, every element on the page fades its own colours (the
+ * transition rule on * in app.css). That is thousands of separate animations
+ * at once, so the switch stutters, and the code editor switches straight away
+ * while the rest is still fading. A View Transition instead takes a picture of
+ * the old page, makes the change, and fades the old picture into the new page.
+ * The browser does that fade as one layer, so it stays smooth however big the
+ * circuit is. While it runs, the per-element fades are turned off
+ * (html.theme-switching in app.css).
+ *
+ * Browsers without View Transitions, and users who ask for reduced motion,
+ * get the change straight away.
+ */
+function smoothly(change: () => void) {
+	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	if (!document.startViewTransition || reduceMotion) {
+		change();
+		return;
+	}
+	const root = document.documentElement;
+	root.classList.add('theme-switching');
+	const transition = document.startViewTransition(async () => {
+		change();
+		// Let Svelte redraw (the header icon, the code editor's theme) before the
+		// new picture is taken.
+		await tick();
+	});
+	transition.finished.finally(() => root.classList.remove('theme-switching'));
+}
+
 export function setTheme(pref: ThemePreference) {
-	theme.set(pref);
+	if (!browser || pref === get(theme)) return theme.set(pref);
+	smoothly(() => theme.set(pref));
 }
 
 export function toggleTheme() {
 	// Header button: switch between light and dark, and save it as the user's choice.
-	theme.update((pref) => (resolve(pref) === 'dark' ? 'light' : 'dark'));
+	setTheme(resolve(get(theme)) === 'dark' ? 'light' : 'dark');
 }

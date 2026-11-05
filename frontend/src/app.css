@@ -176,6 +176,21 @@ body {
 		stroke 0.3s ease;
 }
 
+/* While the theme switches, the whole page cross-fades as one picture (see
+   smoothly() in themeStore.ts), so the per-element fades above are turned
+   off. Running both would bring back the stutter. */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+	transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 0.3s;
+	animation-timing-function: ease;
+}
+
 /* ── Global scrollbar ─────────────────────────────────────── */
 ::-webkit-scrollbar {
 	width: 7px;

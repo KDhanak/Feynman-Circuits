@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { theme, type ThemePreference } from '$lib/stores/themeStore';
+	import { setTheme, theme, type ThemePreference } from '$lib/stores/themeStore';
 	import {
 		settings,
 		updateSettings,
@@ -44,7 +44,7 @@
 			{#each themeOptions as opt (opt)}
 				<button
 					type="button"
-					on:click={() => theme.set(opt.value)}
+					on:click={() => setTheme(opt.value)}
 					class="flex flex-col items-center justify-center gap-1 rounded-sm border py-3 text-sm font-medium cursor-pointer transition-colors"
 					style="border-color: {$theme === opt.value
 						? 'var(--color-ternary-1)'
