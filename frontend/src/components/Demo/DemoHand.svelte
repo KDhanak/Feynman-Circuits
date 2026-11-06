@@ -43,6 +43,17 @@
 	// what the hand is showing.
 	let viewportHeight = 800;
 	$: captionAtTop = $hand.visible && $hand.y > viewportHeight * 0.62;
+
+	// Puts the carried gate copy inside the element. The copy is a real element,
+	// not HTML text, so no {@html} is needed.
+	function holdCopy(target: HTMLElement, copy: HTMLElement) {
+		target.replaceChildren(copy);
+		return {
+			update(next: HTMLElement) {
+				target.replaceChildren(next);
+			}
+		};
+	}
 </script>
 
 <svelte:window bind:innerHeight={viewportHeight} />
@@ -67,8 +78,8 @@
 			transition:fade={{ duration: 200 }}
 		>
 			{#if $hand.carrying}
-				<!-- A copy of the gate being dragged, made from the app's own markup. -->
-				<div class="carried">{@html $hand.carrying}</div>
+				<!-- A copy of the gate being dragged, cloned from the board. -->
+				<div class="carried" use:holdCopy={$hand.carrying}></div>
 			{/if}
 
 			{#key $hand.clicks}
@@ -85,8 +96,7 @@
 			{/if}
 			{#if $hand.keys.length}
 				<span class="keys" transition:fade={{ duration: 120 }}>
-					{#each $hand.keys as key, i (i)}{#if i > 0}<span class="plus">+</span>{/if}<kbd
-							>{key}</kbd
+					{#each $hand.keys as key, i (i)}{#if i > 0}<span class="plus">+</span>{/if}<kbd>{key}</kbd
 						>{/each}
 				</span>
 			{/if}
@@ -108,7 +118,8 @@
 							{$caption.title}
 						</h2>
 						<p class="mt-0.5 text-xs leading-relaxed" style="color: var(--color-muted);">
-							{#each bodyParts as part, i (i)}{#if i % 2 === 1}<kbd>{part}</kbd>{:else}{part}{/if}{/each}
+							{#each bodyParts as part, i (i)}{#if i % 2 === 1}<kbd>{part}</kbd
+									>{:else}{part}{/if}{/each}
 						</p>
 					</div>
 				{/key}

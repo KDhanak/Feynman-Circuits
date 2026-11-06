@@ -60,8 +60,7 @@ function canonicalGate(gateType: string): string {
 
 function isCellOccupied(ir: CircuitIR, col: number, qubit: number, excludeId?: string): boolean {
 	return ir.operations.some(
-		(op) =>
-			op.column === col && usesQubit(op, qubit) && (excludeId ? op.id !== excludeId : true)
+		(op) => op.column === col && usesQubit(op, qubit) && (excludeId ? op.id !== excludeId : true)
 	);
 }
 

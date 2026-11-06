@@ -49,8 +49,8 @@ export type HandState = {
 	visible: boolean;
 	/** Finger pressed down: drawn a little smaller. */
 	pressed: boolean;
-	/** HTML copy of the gate being dragged, drawn under the finger. */
-	carrying: string | null;
+	/** A copy of the gate being dragged, drawn under the finger. */
+	carrying: HTMLElement | null;
 	/** Goes up by one for every click, which plays one ripple. */
 	clicks: number;
 	/** A press-and-hold is running: drawn as a ring filling up. */
@@ -117,10 +117,7 @@ const paletteTile = (type: string) =>
 	must(document.querySelector(`[data-palette-type="${type}"]`), `the ${type} palette tile`);
 
 const gateEl = (id: string) =>
-	must(
-		document.querySelector(`[data-gate-id="${id}"][data-type="GATE"]`),
-		`the gate on the board`
-	);
+	must(document.querySelector(`[data-gate-id="${id}"][data-type="GATE"]`), `the gate on the board`);
 
 const button = (label: string) =>
 	must(document.querySelector<HTMLElement>(`[aria-label="${label}"]`), `the ${label} button`);
@@ -146,7 +143,7 @@ function newOpId(before: CircuitIR): string {
 
 // A copy of a gate's look for the hand to carry. data-* attributes are taken
 // off, so nothing that searches the board for a gate can find the copy.
-function carryCopy(el: Element): string {
+function carryCopy(el: Element): HTMLElement {
 	const c = el.cloneNode(true) as HTMLElement;
 	for (const attr of [...c.attributes]) {
 		if (attr.name.startsWith('data-') && attr.name !== 'data-family') c.removeAttribute(attr.name);
@@ -156,7 +153,7 @@ function carryCopy(el: Element): string {
 	c.style.left = '0';
 	c.style.top = '0';
 	c.style.transform = 'translate(-50%, -50%)';
-	return c.outerHTML;
+	return c;
 }
 
 // ── What the hand can do ─────────────────────────────────────
