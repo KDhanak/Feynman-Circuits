@@ -42,7 +42,7 @@ Step 3 currently arrives without step 2, so the tool shows a solution to a probl
 
 ## Verified existing architecture
 
-- **Truth/IR layer** (`frontend/src/lib/IR/`): `schema.ts` (`CircuitIR` = flat op list keyed by `column`), `stores.ts` (writable stores `circuitIR`, `simulationResult`), `operations.ts` (mutators), `validate.ts`. Pure math in `frontend/src/lib/quantum/`. Hand-written dense statevector simulator `frontend/src/lib/circuit/simulator.ts`, capped at 8 qubits (`MAX_QUBITS` in `lib/utils/constants.ts`; d=3 needs 17 → another reason Stim does the QEC simulation).
+- **Truth/IR layer** (`frontend/src/lib/IR/`): `schema.ts` (`CircuitIR` = flat op list keyed by `column`), `stores.ts` (writable stores `circuitIR`, `simulationResult`), `operations.ts` (mutators), `validate.ts`. Pure math in `frontend/src/lib/quantum/`. Hand-written dense statevector simulator `frontend/src/lib/circuit/simulator.ts`, capped at 12 qubits (`MAX_QUBITS` in `lib/utils/constants.ts`; d=3 needs 17 → another reason Stim does the QEC simulation).
 - **UI boundary**: `frontend/src/lib/` has no Svelte components/DOM logic; UI lives in `frontend/src/components/` + `frontend/src/routes/`, consuming stores via `$store` auto-subscription. The lib layer's only Svelte dependency is `svelte/store`.
 - **Svelte 5 in legacy style** (writable stores + `export let` props, not runes). Follow that style.
 - **Backend is Django + DRF** (`backend/`, apps `accounts`, `circuits`, `qec`; dormant `jobs` not in `INSTALLED_APPS`). Frontend calls it via axios (`frontend/src/lib/api/axios.ts`, `circuitApi.ts`, `qecApi.ts`).

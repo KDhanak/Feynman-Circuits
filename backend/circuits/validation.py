@@ -29,7 +29,7 @@ VALID_KINDS = {'unitary', 'measure', 'reset', 'barrier'}
 VALID_VERSION = '1.0'
 
 # Same values as MAX_QUBITS and MAX_COLUMNS in frontend/src/lib/utils/constants.ts.
-MAX_QUBITS = 8
+MAX_QUBITS = 12
 MAX_COLUMNS = 29
 # The fullest a valid circuit can be: every qubit used in every column.
 MAX_OPERATIONS = MAX_QUBITS * (MAX_COLUMNS + 1)

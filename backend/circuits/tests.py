@@ -19,7 +19,7 @@ from .models import Circuit
 User = get_user_model()
 
 # The smallest circuit IR that the serializer's validate_ir accepts: version
-# 1.0, a valid qubit count (1 to 8), and one operation using a real gate id.
+# 1.0, a valid qubit count (1 to 12), and one operation using a real gate id.
 # The operation field is `targets`. An earlier version of this test data used
 # `qubits`, which the schema never had. Validation was loose enough to let an
 # operation with no targets through, until circuits/validation.py made it stricter.

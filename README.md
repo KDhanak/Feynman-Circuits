@@ -15,7 +15,7 @@ A browser-based quantum circuit simulator built from scratch — no Qiskit, no P
 - **New circuit** saves the circuit you are on to your library first, then hands you a fresh board — so starting over never overwrites what you had open
 - **Clear board** takes the gates off but keeps the circuit's name, so it stays the same circuit
 - Import and export circuits as JSON, OpenQASM 2.0 / 3.0, Qiskit Python, or Q#
-- Up to 8 qubits and 29 columns
+- Up to 12 qubits and 29 columns
 
 **Gates**
 | Category | Gates |

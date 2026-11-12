@@ -2,7 +2,7 @@ export const LABEL_WIDTH = 80;
 export const COLUMN_WIDTH = 58; // ideal / maximum column width
 export const GATE_OFFSET = LABEL_WIDTH + 44; // 124
 export const MAX_COLUMNS = 29; // the most columns a circuit can ever have
-export const MAX_QUBITS = 8;
+export const MAX_QUBITS = 12;
 
 // Drop zone sizes. The board only draws as many columns as the circuit needs
 // (the used columns plus a few empty ones to drop into), sized to fit the

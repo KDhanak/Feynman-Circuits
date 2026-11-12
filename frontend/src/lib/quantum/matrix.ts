@@ -37,6 +37,50 @@ export function applyMatrix(matrix: Complex[][], state: QuantumState): QuantumSt
 	return result; // Return the new quantum state
 }
 
+/**
+ * Applies a 2×2 gate U to one target qubit, straight on the state, with any
+ * controls (must be 1) and anti-controls (must be 0). It gives the same result
+ * as building the full 2ⁿ×2ⁿ matrix and multiplying, but never builds it.
+ *
+ * Why: the full matrix has 4ⁿ entries, so each extra qubit made every gate
+ * about 4× slower and 10 qubits already took seconds. Here each gate only
+ * visits the 2ⁿ amplitudes once, in pairs: every pair differs only in the
+ * target bit, and U mixes the two.
+ */
+export function applyGate(
+	state: QuantumState,
+	U: Complex[][],
+	target: number,
+	controls: number[] = [],
+	antiControls: number[] = []
+): QuantumState {
+	const result = state.slice();
+	const tMask = 1 << target;
+	let cMask = 0;
+	for (const c of controls) cMask |= 1 << c;
+	let aMask = 0;
+	for (const a of antiControls) aMask |= 1 << a;
+	const [[u00, u01], [u10, u11]] = U;
+
+	for (let i0 = 0; i0 < state.length; i0++) {
+		// Visit each pair once, from its member with the target bit at 0.
+		if (i0 & tMask) continue;
+		if ((i0 & cMask) !== cMask || (i0 & aMask) !== 0) continue;
+		const i1 = i0 | tMask;
+		const a = state[i0];
+		const b = state[i1];
+		result[i0] = {
+			re: u00.re * a.re - u00.im * a.im + u01.re * b.re - u01.im * b.im,
+			im: u00.re * a.im + u00.im * a.re + u01.re * b.im + u01.im * b.re
+		};
+		result[i1] = {
+			re: u10.re * a.re - u10.im * a.im + u11.re * b.re - u11.im * b.im,
+			im: u10.re * a.im + u10.im * a.re + u11.re * b.im + u11.im * b.re
+		};
+	}
+	return result;
+}
+
 // Works out the tensor product of two quantum states, joining them into one bigger state
 // Parameters:
 // - state1: First QuantumState (array of Complex numbers)

@@ -17,7 +17,7 @@ import {
 } from '../quantum/complex';
 import { type QuantumState, createState } from '../quantum/vector';
 import {
-	applyMatrix,
+	applyGate,
 	extendGateMatrix,
 	computeMultiControlledUMatrix,
 	computeMultiControlledUMatrixWithAntiControls,
@@ -160,8 +160,6 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 					continue;
 				}
 
-				let matrix: Complex[][] | null;
-
 				if (op.gate === 'swap') {
 					if (op.targets.length !== 2) continue;
 					const [q1, q2] = op.targets;
@@ -183,14 +181,17 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 					if (columnMatrix)
 						columnMatrix = multiplyMatrices(swapMatrix(p1, p2, numQubits), columnMatrix);
 					continue;
-				} else {
-					matrix = getGateMatrix(op, numQubits);
-					if (!matrix) continue; // unknown or unsupported gate
 				}
 
-				state = applyMatrix(matrix, state);
+				const U = GATE_REGISTRY[op.gate]?.matrix?.(op.params);
+				if (!U) continue; // unknown or unsupported gate
+				state = applyGate(state, U, op.targets[0], op.controls, op.antiControls);
 				stepOps.push({ op, skipped: false });
-				if (columnMatrix) columnMatrix = multiplyMatrices(matrix, columnMatrix);
+				// The full matrix is only for the Steps view, and only built when it is small.
+				if (columnMatrix) {
+					const matrix = getGateMatrix(op, numQubits);
+					columnMatrix = matrix ? multiplyMatrices(matrix, columnMatrix) : null;
+				}
 			}
 		}
 

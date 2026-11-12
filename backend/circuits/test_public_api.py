@@ -14,6 +14,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Circuit
 from .public_views import PublicCircuitDetailView
+from .validation import MAX_OPERATIONS
 
 User = get_user_model()
 
@@ -206,7 +207,7 @@ class IRValidationHardeningTests(APITestCase):
             "kind": "unitary", "gate": "h", "column": 0,
             "targets": [0], "controls": [], "antiControls": [], "params": [],
         }
-        resp = self._post({**BELL_IR, "operations": [dict(op) for _ in range(241)]})
+        resp = self._post({**BELL_IR, "operations": [dict(op) for _ in range(MAX_OPERATIONS + 1)]})
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_rejects_duplicate_operation_ids(self):
