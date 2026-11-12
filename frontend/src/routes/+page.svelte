@@ -9,12 +9,12 @@
 	import { startBoardDemo } from '$lib/demo/boardDemo';
 	import { settings, updateSettings } from '$lib/stores/settingsStore';
 	import { isMobile } from '$lib/stores/isMobile';
-	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
+	import StateSphere from '../components/BlochSphere/StateSphere.svelte';
 	import QecPanel from '../components/Qec/QecPanel.svelte';
 	import CircuitLayout from '../components/CircuitLayout/CircuitLayout.svelte';
 	import CircuitDataPanel from '../components/CircuitDataPanel.svelte';
 	import Icon from '@iconify/svelte';
-	import { currentCircuitId, currentCircuitName } from '$lib/IR/stores';
+	import { circuitIR, currentCircuitId, currentCircuitName } from '$lib/IR/stores';
 	import { qecMode } from '$lib/qec/stores';
 	import { notification } from '$lib/stores/uiStores';
 	import '$lib/circuit/autoSave';
@@ -42,7 +42,11 @@
 
 	// Panel explanations. Kept here instead of in the HTML because they are long and
 	// have apostrophes, which HTML attributes in the template handle badly.
-	const BLOCH_TIP = `Each qubit's state reduces to a vector r = (⟨X⟩, ⟨Y⟩, ⟨Z⟩): the north pole is |0⟩, the south pole is |1⟩, and the equator is superposition. This sphere plots the average of those vectors across the register, so it is exact for one qubit and only a summary for more — |01⟩ and a Bell pair both average to the centre. |r| = 1 means a pure state; |r| < 1 means mixed, which for a single qubit signals entanglement with the others.`;
+	const BLOCH_TIP = `A qubit's state is a vector r = (⟨X⟩, ⟨Y⟩, ⟨Z⟩): the north pole is |0⟩, the south pole is |1⟩, and the equator is superposition. |r| = 1 means a pure state; |r| < 1 means mixed, which for a single qubit signals entanglement with others.`;
+	const QSPHERE_TIP = `The whole state of the register, the way IBM Quantum Composer draws it. Every basis state with a chance of being measured is a dot: |00…0⟩ at the north pole, |11…1⟩ at the south pole, and the rest on rings in between by how many 1s they have. A dot's size is its probability and its colour is its phase, measured from the most likely state. Unlike an average of Bloch vectors, it keeps entanglement: a Bell pair shows two dots, at the two poles. Hover a dot for its numbers; drag to turn the sphere.`;
+	$: sphereQubits = $circuitIR.registers.q;
+	$: sphereTipTitle = sphereQubits <= 1 ? 'Bloch Sphere' : 'Q-sphere';
+	$: sphereTip = sphereQubits <= 1 ? BLOCH_TIP : QSPHERE_TIP;
 
 	const QEC_TIP = `A rotated distance-3 surface code: nine data qubits hold ONE logical qubit, and eight ancillas keep checking the stabilisers around them, never the data itself, which would destroy the state. Click a data qubit to place an error, press Run, then step through the rounds to see which checks notice it and whether the decoder gets it right. Your circuit above is not encoded into this code: this is a separate experiment on one protected qubit.`;
 
@@ -446,9 +450,9 @@
 						</div>
 					</Tooltip>
 				{:else if showBloch}
-					<Tooltip class={blochSpan} quick="Bloch Sphere" detail={BLOCH_TIP}>
+					<Tooltip class={blochSpan} quick={sphereTipTitle} detail={sphereTip}>
 						<div class="w-full h-full panel p-4 overflow-hidden flex justify-center">
-							<OverallBlochSphere />
+							<StateSphere />
 						</div>
 					</Tooltip>
 				{/if}

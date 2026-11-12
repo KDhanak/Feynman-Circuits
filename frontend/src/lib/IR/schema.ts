@@ -87,6 +87,8 @@ export interface SimulationResult {
 	formattedQuantumStateApproximate?: string;
 	formattedStatePolar?: string;
 	blochVectors?: BlochVector[];
+	// The final state vector (q0 is the smallest bit). The Q-sphere draws it.
+	state?: Complex[];
 	measuredQubits?: number[];
 	classicalBits?: Map<number, number>;
 	// What happened in each column, for the step-by-step view. Recorded during

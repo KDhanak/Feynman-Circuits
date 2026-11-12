@@ -224,6 +224,7 @@ export function simulateMultipleQubits(ir: CircuitIR): SimulationResult {
 		formattedState,
 		formattedStatePolar,
 		blochVectors,
+		state,
 		measuredQubits: Array.from(measuredQubits).sort((a, b) => a - b),
 		classicalBits,
 		steps
@@ -253,6 +254,7 @@ export function resetCircuit() {
 	simulationResult.set({
 		probabilities,
 		formattedState: `1.00|${'0'.repeat(qubits)}⟩`,
-		blochVectors
+		blochVectors,
+		state: Array.from({ length: 1 << qubits }, (_, i) => createComplex(i === 0 ? 1 : 0, 0))
 	});
 }

@@ -66,28 +66,3 @@ export function computeBlochVectorsFromState(state: Complex[], numQubits: number
 		computeBlochVectorForQubit(state, numQubits, q)
 	);
 }
-
-/**
- * The average of all the qubits' Bloch vectors (x with x, y with y, z with z).
- * This is the same as the Bloch vector of the average single-qubit state (1/n)·Σ ρ_q.
- *
- * For a 1-qubit circuit this is exactly that qubit's state. For more qubits it
- * is only a summary, not the full n-qubit state, because that state doesn't fit
- * on one sphere. Good to know: |01⟩ averages to the centre even though it is
- * pure and fully known, and a Bell pair also sits at the centre because both of
- * its reduced states are maximally mixed. So the length of the arrow tells you
- * about the average, not about how pure the circuit is.
- */
-export function computeOverallBlochVector(vectors: BlochVector[]): BlochVector {
-	if (!vectors.length) {
-		return { qubit: -1, x: 0, y: 0, z: 1, magnitude: 1 };
-	}
-
-	const n = vectors.length;
-	const x = vectors.reduce((sum, v) => sum + v.x, 0) / n;
-	const y = vectors.reduce((sum, v) => sum + v.y, 0) / n;
-	const z = vectors.reduce((sum, v) => sum + v.z, 0) / n;
-	const magnitude = Math.min(1, Math.sqrt(x * x + y * y + z * z));
-
-	return { qubit: -1, x, y, z, magnitude };
-}

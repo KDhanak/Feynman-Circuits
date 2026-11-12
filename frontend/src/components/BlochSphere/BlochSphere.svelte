@@ -7,6 +7,15 @@
 <script lang="ts">
 	import type { BlochVector } from '$lib/quantum/bloch';
 	import Icon from '@iconify/svelte';
+	import {
+		DEFAULT_AZIMUTH,
+		DEFAULT_ELEVATION,
+		MAX_ELEVATION,
+		arcPath,
+		camera,
+		depthOf,
+		project
+	} from '$lib/quantum/sphereView';
 
 	export let vector: BlochVector;
 	export let size = 150;
@@ -26,40 +35,15 @@
 	// can go, from any camera angle, is LABEL_RADIUS·R plus half its own text.
 	$: R = size * 0.4;
 
-	// Orthographic projection (a flat view with no perspective) of a unit sphere,
-	// seen from height angle θ above the equator, turned by angle α around it:
-	//   screen right = −sinα·x + cosα·y
-	//   screen up    = −sinθ·(cosα·x + sinα·y) + cosθ·z
-	// Everything drawn comes from these two angles, which is what keeps the axes,
-	// the equator and the outline lined up: the equator becomes an ellipse with
-	// half-widths R and |sinθ|·R (so the ±x/±y tips land exactly on it), and the
-	// poles land at cosθ·R, just inside the outline, as they should.
-	//
-	// `right`, `up` and the view direction are three directions at right angles
-	// to each other:
-	//   view = right × up = (cosθ·cosα, cosθ·sinα, sinθ)
-	// which points at the camera. So a point's dot product with `view` is its
-	// depth, positive towards the viewer. That is what `depthOf` returns, and it
-	// decides which half of each line is drawn behind the ball.
-	const DEFAULT_ELEVATION = Math.asin(0.35);
-	const DEFAULT_AZIMUTH = (20 * Math.PI) / 180;
-	// Stop just before the poles: at exactly ±90° the turning angle stops meaning
-	// anything (the equator squashes into a line) and dragging feels stuck.
-	const MAX_ELEVATION = (85 * Math.PI) / 180;
-
+	// The camera maths (projection, depth, drag limits) is shared with the
+	// Q-sphere, in sphereView.ts, which also explains how it works.
 	let elevation = DEFAULT_ELEVATION;
 	let azimuth = DEFAULT_AZIMUTH;
 
 	// Put into one object so the reactive statements below depend on `cam`. It is
 	// the same reason `centre`/`radius` are passed in as arguments: Svelte doesn't
 	// track a value that is only used inside the function body.
-	$: cam = {
-		sinTilt: Math.sin(elevation),
-		cosTilt: Math.cos(elevation),
-		sinAz: Math.sin(azimuth),
-		cosAz: Math.cos(azimuth)
-	};
-	type Camera = typeof cam;
+	$: cam = camera(elevation, azimuth);
 
 	// Labels sit just outside the silhouette; >1 pushes them out, <1 pulls them in.
 	const LABEL_RADIUS = 1.12;
@@ -72,16 +56,6 @@
 
 	function clamp(n: number, min: number, max: number): number {
 		return Math.max(min, Math.min(max, n));
-	}
-
-	function project(x: number, y: number, z: number, centre: number, radius: number, c: Camera) {
-		const right = -c.sinAz * x + c.cosAz * y;
-		const up = -c.sinTilt * (c.cosAz * x + c.sinAz * y) + c.cosTilt * z;
-		return { x: centre + right * radius, y: centre - up * radius };
-	}
-
-	function depthOf(x: number, y: number, z: number, c: Camera): number {
-		return c.cosTilt * (c.cosAz * x + c.sinAz * y) + c.sinTilt * z;
 	}
 
 	$: tip = project(vector.x, vector.y, vector.z, CENTER, R, cam);
@@ -124,12 +98,8 @@
 	// one while the camera is above the equator, the bottom one when it is below.
 	$: equatorRy = R * Math.abs(cam.sinTilt);
 	$: farSweep = cam.sinTilt >= 0 ? 1 : 0;
-	$: equatorFar = arcPath(CENTER, R, equatorRy, farSweep);
-	$: equatorNear = arcPath(CENTER, R, equatorRy, 1 - farSweep);
-
-	function arcPath(centre: number, rx: number, ry: number, sweep: number): string {
-		return `M ${centre - rx} ${centre} A ${rx} ${ry} 0 0 ${sweep} ${centre + rx} ${centre}`;
-	}
+	$: equatorFar = arcPath(CENTER, CENTER, R, equatorRy, farSweep);
+	$: equatorNear = arcPath(CENTER, CENTER, R, equatorRy, 1 - farSweep);
 
 	// Kept close to proportional: a minimum size that is too big pushes the labels
 	// past the edge on the smallest spheres, where there is the least room.
