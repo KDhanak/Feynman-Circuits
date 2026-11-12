@@ -123,20 +123,29 @@ describe('zones move with the circuit', () => {
 	});
 });
 
-it('the Grover example opens with its three zones', () => {
-	const grover = exampleCircuit(EXAMPLES.find((e) => e.id === 'grover')!);
-	expect(validateCanonicalIR(grover).valid).toBe(true);
-	expect(grover.zones?.map((z) => z.name)).toEqual([
-		'Superposition',
-		'Oracle: marks 11',
-		'Diffuser: amplifies 11'
-	]);
-	// Every gate sits inside a zone.
-	for (const op of grover.operations) {
-		expect(grover.zones?.some((z) => z.startColumn <= op.column && op.column <= z.endColumn)).toBe(
-			true
-		);
-	}
+describe('example zones', () => {
+	it.each(EXAMPLES.map((e) => [e.name, e] as const))(
+		'%s opens with valid zones, and every gate is inside one',
+		(_, example) => {
+			const ir = exampleCircuit(example);
+			expect(validateCanonicalIR(ir).valid).toBe(true);
+			expect(ir.zones?.length).toBeGreaterThan(1);
+			for (const op of ir.operations) {
+				expect(ir.zones?.some((z) => z.startColumn <= op.column && op.column <= z.endColumn)).toBe(
+					true
+				);
+			}
+		}
+	);
+
+	it('Grover is split into superposition, oracle and diffuser', () => {
+		const grover = exampleCircuit(EXAMPLES.find((e) => e.id === 'grover')!);
+		expect(grover.zones?.map((z) => z.name)).toEqual([
+			'Superposition',
+			'Oracle: marks 11',
+			'Diffuser: amplifies 11'
+		]);
+	});
 });
 
 describe('zone name tags', () => {

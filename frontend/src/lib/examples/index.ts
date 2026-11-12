@@ -51,6 +51,10 @@ export const EXAMPLES: Example[] = [
 		summary: 'Three qubits that always agree',
 		detail:
 			'A Bell pair stretched to three qubits: (|000⟩ + |111⟩)/√2. H puts q0 in superposition, then each CNOT passes the link one qubit further. Measuring gives 000 or 111, never a mix, and each qubit on its own is a 50/50 coin.',
+		zones: [
+			{ name: 'Superposition', startColumn: 0, endColumn: 0 },
+			{ name: 'Entangle: pass the link along', startColumn: 1, endColumn: 2 }
+		],
 		build: () => [
 			op('h', 0, [0]),
 			op('x', 1, [1], { controls: [0] }),
@@ -64,6 +68,11 @@ export const EXAMPLES: Example[] = [
 		summary: 'Two bits sent with one qubit',
 		detail:
 			'Alice and Bob share a Bell pair (columns 1–2). Alice encodes two bits by acting only on her qubit, q0: X sends the first bit, Z the second. Here both are on, so the message is 11. Bob undoes the Bell pair (CNOT, then H) and reads 11 with certainty. Delete the X or the Z to send 01, 10 or 00.',
+		zones: [
+			{ name: 'Share a Bell pair', startColumn: 0, endColumn: 1 },
+			{ name: 'Alice encodes 11', startColumn: 2, endColumn: 3 },
+			{ name: 'Bob decodes', startColumn: 4, endColumn: 5 }
+		],
 		build: () => [
 			op('h', 0, [0]),
 			op('x', 1, [1], { controls: [0] }),
@@ -80,6 +89,11 @@ export const EXAMPLES: Example[] = [
 		summary: 'Constant or balanced, in one run',
 		detail:
 			'Is a hidden function f(x) the same for every input (constant) or different for half of them (balanced)? A classical computer has to try more than one input; this circuit needs one run. The CNOT in the middle is the hidden function, here f(x) = x, which is balanced. q0 ends at 1, which means balanced. Delete the CNOT to make f constant, and q0 ends at 0.',
+		zones: [
+			{ name: 'Prepare inputs', startColumn: 0, endColumn: 1 },
+			{ name: 'Oracle: f(x) = x', startColumn: 2, endColumn: 2 },
+			{ name: 'Interfere and read q0', startColumn: 3, endColumn: 3 }
+		],
 		build: () => [
 			op('x', 0, [1]),
 			op('h', 1, [0]),
@@ -123,14 +137,20 @@ export const EXAMPLES: Example[] = [
 		summary: "Moves q0's state onto q2",
 		detail:
 			"RY(π/3) gives q0 a state to send, one that measures 1 a quarter of the time. q1 and q2 become a Bell pair, then q0 and q1 are entangled and turned back. The last two gates are the corrections: X on q2 if q1 is 1, Z on q2 if q0 is 1. Compare q2's Bloch sphere with q0's at the start: it's the same state. q0's own state is gone, so nothing was copied.",
+		zones: [
+			{ name: 'State to send', startColumn: 0, endColumn: 0 },
+			{ name: 'Bell pair q1–q2', startColumn: 1, endColumn: 2 },
+			{ name: 'Bell-basis change on q0, q1', startColumn: 3, endColumn: 4 },
+			{ name: 'Corrections on q2', startColumn: 5, endColumn: 6 }
+		],
 		build: () => [
 			op('ry', 0, [0], { param: Math.PI / 3 }),
-			op('h', 0, [1]),
-			op('x', 1, [2], { controls: [1] }),
-			op('x', 2, [1], { controls: [0] }),
-			op('h', 3, [0]),
-			op('x', 4, [2], { controls: [1] }),
-			op('z', 5, [2], { controls: [0] })
+			op('h', 1, [1]),
+			op('x', 2, [2], { controls: [1] }),
+			op('x', 3, [1], { controls: [0] }),
+			op('h', 4, [0]),
+			op('x', 5, [2], { controls: [1] }),
+			op('z', 6, [2], { controls: [0] })
 		]
 	},
 	{
@@ -140,6 +160,13 @@ export const EXAMPLES: Example[] = [
 		summary: 'The Quantum Fourier Transform on 3 qubits',
 		detail:
 			'The QFT is the core of phase estimation and of Shor’s algorithm. It turns a number into phases: every outcome becomes equally likely, and the number is stored in how fast the phase turns from one qubit to the next. The input here is X on q2. Look at the Bloch spheres afterwards: all three arrows are on the equator, each turned by a different angle. The SWAP at the end puts the qubits back in the usual order.',
+		zones: [
+			{ name: 'Input: x = 1', startColumn: 0, endColumn: 0 },
+			{ name: 'q0: H, then phases from q1, q2', startColumn: 1, endColumn: 3 },
+			{ name: 'q1: H, then a phase from q2', startColumn: 4, endColumn: 5 },
+			{ name: 'q2: H', startColumn: 6, endColumn: 6 },
+			{ name: 'Reverse the qubit order', startColumn: 7, endColumn: 7 }
+		],
 		build: () => [
 			op('x', 0, [2]),
 			op('h', 1, [0]),
