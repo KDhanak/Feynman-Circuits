@@ -1,7 +1,7 @@
 import type { StepOperation, UnitaryOperation } from '../IR/schema';
 import type { BitOrder } from '../stores/settingsStore';
 import { type Complex, isNearZero } from '../quantum/complex';
-import { GATE_REGISTRY, type TooltipMatrix } from '../quantum/gates';
+import { GATE_REGISTRY } from '../quantum/gates';
 import { formatRadiansAsPi } from '../utils/piMath';
 
 // ─────────────────────────────────────────────────────────────
@@ -114,6 +114,100 @@ export function operatorLine(ops: StepOperation[], numQubits: number, bitOrder: 
 	return factors.map((f) => (f.includes('⊗') ? `(${f})` : f)).join(' · ');
 }
 
+// The biggest factor whose matrix is written out: 3 qubits is 8×8.
+export const MAX_FACTOR_QUBITS = 3;
+
+/** One factor of the column's operator, small enough to open on its own. */
+export interface OperatorFactor {
+	key: string;
+	label: string; // e.g. "H", "I", "CX(q0 → q1)"
+	qubits: number[]; // the qubits it acts on, in screen order
+	// Its matrix on those qubits only, with the smallest of them as the lowest
+	// bit, like the simulator. Null when it acts on more than MAX_FACTOR_QUBITS.
+	matrix: Complex[][] | null;
+	note?: string; // e.g. "θ = π/2"
+}
+
+const ONE = { re: 1, im: 0 };
+const ZERO = { re: 0, im: 0 };
+const IDENTITY_2: Complex[][] = [
+	[ONE, ZERO],
+	[ZERO, ONE]
+];
+
+// The matrix of a multi-qubit operation on just the qubits it touches. Column
+// c is where basis state c goes, so each column is filled in by running the
+// operation on that one basis state.
+function localMatrix(op: UnitaryOperation, qubits: number[]): Complex[][] | null {
+	if (qubits.length > MAX_FACTOR_QUBITS) return null;
+	const dim = 1 << qubits.length;
+	const bit = (q: number) => 1 << qubits.indexOf(q);
+	const m: Complex[][] = Array.from({ length: dim }, () => Array(dim).fill(ZERO));
+	for (let c = 0; c < dim; c++) {
+		if (op.gate === 'swap') {
+			const [a, b] = op.targets.map(bit);
+			const swapped = !(c & a) === !(c & b) ? c : c ^ a ^ b;
+			m[swapped][c] = ONE;
+			continue;
+		}
+		const fires =
+			op.controls.every((q) => c & bit(q)) && op.antiControls.every((q) => !(c & bit(q)));
+		if (!fires) {
+			m[c][c] = ONE;
+			continue;
+		}
+		const t = bit(op.targets[0]);
+		const u = GATE_REGISTRY[op.gate].matrix!(op.params);
+		const inBit = c & t ? 1 : 0;
+		for (const outBit of [0, 1]) m[(c & ~t) | (outBit ? t : 0)][c] = u[outBit][inBit];
+	}
+	return m;
+}
+
+/**
+ * The column's operator as separate factors, so each one can be opened and
+ * read on its own, however many qubits the circuit has. `tensor` is the ⊗
+ * product of single-qubit gates (I on every idle wire), in screen order.
+ * `products` are the multi-qubit operations, each one more factor beside it.
+ * Same split as operatorLine.
+ */
+export function operatorFactors(
+	ops: StepOperation[],
+	numQubits: number,
+	bitOrder: BitOrder
+): { tensor: OperatorFactor[]; products: OperatorFactor[] } {
+	const applied = ops.filter((o) => !o.skipped).map((o) => o.op);
+	const singles = new Map(
+		applied.filter((op) => !isMultiQubit(op)).map((op) => [op.targets[0], op])
+	);
+	const tensor: OperatorFactor[] =
+		singles.size === 0
+			? []
+			: displayQubitOrder(numQubits, bitOrder).map((q) => {
+					const op = singles.get(q);
+					const spec = op ? GATE_REGISTRY[op.gate] : null;
+					return {
+						key: `q${q}`,
+						label: op ? gateName(op) : 'I',
+						qubits: [q],
+						matrix: op ? spec!.matrix!(op.params) : IDENTITY_2,
+						note: op ? undefined : 'nothing happens on this wire'
+					};
+				});
+	const products = applied.filter(isMultiQubit).map((op) => {
+		const qubits = [...new Set([...op.targets, ...op.controls, ...op.antiControls])].sort(
+			(a, b) => a - b
+		);
+		return {
+			key: op.id,
+			label: multiQubitFactor(op),
+			qubits: displayQubitOrder(qubits.length, bitOrder).map((j) => qubits[j]),
+			matrix: localMatrix(op, qubits)
+		};
+	});
+	return { tensor, products };
+}
+
 export interface KetTerm {
 	sign: '+' | '−';
 	coefficient: string;
@@ -163,22 +257,6 @@ export function matrixText(matrix: Complex[][], order: number[]): string[][] {
 // A state as a one-column matrix, in screen order.
 export function vectorText(state: Complex[], order: number[]): string[][] {
 	return order.map((i) => [formatAmplitude(state[i])]);
-}
-
-// The small matrix of the gate itself, for registers too big to show the full
-// matrix. For a controlled gate it is the matrix of the gate being controlled.
-export function gateMatrix(op: UnitaryOperation): {
-	title: string;
-	matrix: TooltipMatrix;
-	note?: string;
-} {
-	const spec = GATE_REGISTRY[op.gate];
-	const controlled = op.controls.length > 0 || op.antiControls.length > 0;
-	return {
-		title: controlled ? `U = ${spec.label}` : spec.label,
-		matrix: spec.tooltip.matrix,
-		note: spec.numParams > 0 ? `θ = ${formatRadiansAsPi(op.params[0] ?? 0)}` : undefined
-	};
 }
 
 // Index digits for ψ₀, ψ₁, …

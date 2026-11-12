@@ -15,14 +15,14 @@
 		describeOperation,
 		displayIndexOrder,
 		displayQubitOrder,
-		gateMatrix,
 		ketTerms,
 		matrixText,
-		operatorLine,
+		operatorFactors,
 		subscript,
 		vectorText,
 		basisLabel,
-		type KetTerm
+		type KetTerm,
+		type OperatorFactor
 	} from '$lib/circuit/steps';
 	import MatrixView from './MatrixView.svelte';
 
@@ -79,11 +79,30 @@
 			: []
 	);
 
+	// The factors of the column's operator, and the one opened to show its
+	// matrix. It is kept by key, so it stays open while the circuit is edited,
+	// and closes by itself when that factor is no longer in the column.
+	$: factors = step
+		? operatorFactors(step.ops, n, bitOrder)
+		: { tensor: [] as OperatorFactor[], products: [] as OperatorFactor[] };
+	let openKey: string | null = null;
+	$: openFactor = [...factors.tensor, ...factors.products].find((f) => f.key === openKey) ?? null;
+
 	// The sign written before a term: none for a positive first term.
 	const termSign = (t: KetTerm, k: number) => (k > 0 || t.sign === '−' ? ` ${t.sign} ` : '');
 
 	const percent = (p: number) => `${(p * 100).toFixed($settings.probabilityDecimals)}%`;
 </script>
+
+{#snippet factorButton(f: OperatorFactor)}
+	<button
+		type="button"
+		class="factor-btn"
+		aria-pressed={openKey === f.key}
+		title="Show the matrix of {f.label}"
+		on:click={() => (openKey = openKey === f.key ? null : f.key)}>{f.label}</button
+	>
+{/snippet}
 
 <div class="flex flex-col gap-3 px-1 pb-2 text-sm">
 	{#if !step}
@@ -125,16 +144,76 @@
 		{#if applied.length > 0}
 			<div class="font-mono text-[13px] leading-relaxed">
 				<p>|{psiOut}⟩ = {uName} |{psiIn}⟩</p>
-				<p>
-					{uName} =
-					<span class="font-semibold" style="color: var(--color-branding);"
-						>{operatorLine(step.ops, n, bitOrder)}</span
-					>
+				<!-- Each factor is a button that opens its own matrix below. -->
+				<p class="flex flex-wrap items-center gap-x-1 gap-y-1">
+					<span>{uName} =</span>
+					{#if factors.tensor.length && factors.products.length}<span>(</span>{/if}
+					{#each factors.tensor as f, k (f.key)}
+						{#if k > 0}<span>⊗</span>{/if}
+						{@render factorButton(f)}
+					{/each}
+					{#if factors.tensor.length && factors.products.length}<span>)</span>{/if}
+					{#each factors.products as f, k (f.key)}
+						{#if k > 0 || factors.tensor.length}<span>·</span>{/if}
+						{@render factorButton(f)}
+					{/each}
 				</p>
 				{#if n > 1}
 					<p class="text-[11px]" style="color: var(--color-muted);">⊗ order: {wireOrder}</p>
 				{/if}
+				{#if !openFactor}
+					<p class="text-[11px]" style="color: var(--color-muted);">
+						Click a factor to see its matrix.
+					</p>
+				{/if}
 			</div>
+
+			{#if openFactor}
+				{@const qs = openFactor.qubits.map((q) => `q${q}`).join(' ')}
+				<div class="factor-panel text-xs">
+					<div class="flex items-start justify-between gap-2">
+						<p class="font-mono">
+							<span class="font-semibold" style="color: var(--color-branding);"
+								>{openFactor.label}</span
+							>
+							on {qs}{#if openFactor.note}<span style="color: var(--color-muted);"
+									>, {openFactor.note}</span
+								>{/if}
+						</p>
+						<button
+							type="button"
+							class="close-btn"
+							on:click={() => (openKey = null)}
+							aria-label="Close this matrix"
+							title="Close"
+						>
+							<Icon icon="ph:x-bold" width="12" height="12" />
+						</button>
+					</div>
+					{#if openFactor.matrix}
+						{@const k = openFactor.qubits.length}
+						{@const localOrder = displayIndexOrder(k, bitOrder)}
+						<div class="mt-2 overflow-x-auto pb-1 font-mono">
+							<MatrixView
+								size="md"
+								rows={matrixText(openFactor.matrix, localOrder)}
+								rowLabels={localOrder.map((i) => `|${basisLabel(i, k, bitOrder)}⟩`)}
+							/>
+						</div>
+						{#if k > 1}
+							<p class="mt-1" style="color: var(--color-muted);">
+								Rows and columns are the states of {qs}, written in that order. The other qubits are
+								left as they are.
+							</p>
+						{/if}
+					{:else}
+						<p class="mt-1" style="color: var(--color-muted);">
+							It acts on {openFactor.qubits.length} qubits, so its matrix is {1 <<
+								openFactor.qubits.length}×{1 << openFactor.qubits.length}, too big to read here.
+						</p>
+					{/if}
+				</div>
+			{/if}
 		{/if}
 
 		<ul class="text-xs list-disc pl-4 space-y-0.5">
@@ -212,27 +291,15 @@
 				</p>
 			</details>
 		{:else if applied.length > 0}
-			<div class="text-xs">
-				<p class="font-medium mb-1.5">Gate matrices</p>
-				<div class="flex flex-wrap gap-4">
-					{#each applied as { op } (op.id)}
-						{@const g = gateMatrix(op)}
-						<div class="flex flex-col gap-1">
-							<span class="font-mono">{g.title}{g.note ? `, ${g.note}` : ''}</span>
-							<MatrixView size="md" rows={g.matrix.rows} scale={g.matrix.scale} />
-						</div>
-					{/each}
-				</div>
-				<p class="mt-1.5" style="color: var(--color-muted);">
-					{#if step.measurements.length > 0}
-						This column also measures, so it has no single matrix.
-					{:else}
-						The full matrix for {n} qubits is {1 << n}×{1 << n}, too big to read, so only each
-						gate's own matrix is shown. The full matrix is shown up to {MAX_STEP_MATRIX_QUBITS}
-						qubits.
-					{/if}
-				</p>
-			</div>
+			<p class="text-xs" style="color: var(--color-muted);">
+				{#if step.measurements.length > 0}
+					This column also measures, so it has no single matrix.
+				{:else}
+					The full matrix for {n} qubits is {1 << n}×{1 << n}, too big to read. It is shown up to
+					{MAX_STEP_MATRIX_QUBITS} qubits; here, open each factor above instead. The full matrix is their
+					⊗ product.
+				{/if}
+			</p>
 		{/if}
 	{/if}
 </div>
@@ -241,6 +308,40 @@
 	.changed {
 		color: var(--color-probability);
 		font-weight: 600;
+	}
+	/* A factor of the operator line: reads as the formula, with a faint box that
+	   shows it can be opened. Opened, it fills with the brand colour. */
+	.factor-btn {
+		padding: 0 0.3rem;
+		border-radius: 0.25rem;
+		font-weight: 600;
+		color: var(--color-branding);
+		border: 1px dashed color-mix(in srgb, var(--color-branding) 45%, transparent);
+		cursor: pointer;
+		transition: background-color 120ms;
+	}
+	.factor-btn:hover {
+		background: color-mix(in srgb, var(--color-branding) 10%, transparent);
+	}
+	.factor-btn[aria-pressed='true'] {
+		border-style: solid;
+		background: color-mix(in srgb, var(--color-branding) 16%, transparent);
+	}
+	.factor-panel {
+		border-radius: 0.375rem;
+		padding: 0.5rem 0.625rem;
+		border: 1px solid color-mix(in srgb, var(--color-branding) 35%, transparent);
+		background: color-mix(in srgb, var(--color-branding) 5%, transparent);
+	}
+	.close-btn {
+		display: flex;
+		padding: 0.25rem;
+		border-radius: 0.25rem;
+		color: var(--color-muted);
+		cursor: pointer;
+	}
+	.close-btn:hover {
+		background: color-mix(in srgb, var(--color-text) 8%, transparent);
 	}
 	.step-btn {
 		display: flex;
