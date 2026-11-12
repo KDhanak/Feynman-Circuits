@@ -184,4 +184,53 @@ def validate_circuit_ir(value):
             # reset and barrier carry targets only.
             _qubit_indices(op, 'targets', num_qubits, label)
 
+    if 'zones' in value:
+        _validate_zones(value['zones'])
+
     return value
+
+
+# Same value as MAX_ZONE_NAME in frontend/src/lib/IR/validate.ts.
+MAX_ZONE_NAME = 40
+
+
+def _is_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _validate_zones(zones):
+    """Zones are named column ranges, notes for people reading the circuit.
+    They are optional, but a share link can carry anything, so they are checked
+    as strictly as the operations: unique ids, columns on the board, start <=
+    end, and no two zones covering the same column."""
+    if not isinstance(zones, list):
+        _fail("'zones' must be a list")
+    if len(zones) > MAX_COLUMNS + 1:
+        _fail(f"Circuit has {len(zones)} zones; the maximum is {MAX_COLUMNS + 1}")
+
+    seen_ids = set()
+    ranges = []
+    for index, zone in enumerate(zones):
+        label = f"Zone {index}"
+        if not isinstance(zone, dict):
+            _fail(f"{label}: must be an object")
+
+        zone_id = zone.get('id')
+        if not isinstance(zone_id, str) or not zone_id.strip():
+            _fail(f"{label}: 'id' must be a non-empty string")
+        if zone_id in seen_ids:
+            _fail(f"{label}: duplicate zone id '{zone_id}'")
+        seen_ids.add(zone_id)
+
+        name = zone.get('name')
+        if not isinstance(name, str) or len(name) > MAX_ZONE_NAME:
+            _fail(f"{label}: 'name' must be a string of at most {MAX_ZONE_NAME} characters")
+
+        start, end = zone.get('startColumn'), zone.get('endColumn')
+        if not _is_int(start) or not _is_int(end):
+            _fail(f"{label}: 'startColumn' and 'endColumn' must be integers")
+        if not (0 <= start <= end <= MAX_COLUMNS):
+            _fail(f"{label}: columns must satisfy 0 <= startColumn <= endColumn <= {MAX_COLUMNS}")
+        if any(start <= e and s <= end for s, e in ranges):
+            _fail(f"{label}: overlaps another zone")
+        ranges.append((start, end))

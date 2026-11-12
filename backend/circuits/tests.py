@@ -249,6 +249,44 @@ class CircuitAPITests(APITestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
+    # --- zones (named column ranges) ----------------------------------------
+
+    def _post_zones(self, name, zones):
+        return self.client.post(
+            self.list_url,
+            {"name": name, "ir": {**VALID_IR, "zones": zones}},
+            format="json",
+        )
+
+    def test_create_keeps_zones(self):
+        zones = [
+            {"id": "a", "name": "Oracle", "startColumn": 0, "endColumn": 2},
+            {"id": "b", "name": "Diffuser", "startColumn": 3, "endColumn": 6},
+        ]
+        resp = self._post_zones("Zoned", zones)
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Circuit.objects.get(name="Zoned").ir["zones"], zones)
+
+    def test_create_rejects_bad_zones(self):
+        bad = {
+            "overlap": [
+                {"id": "a", "name": "A", "startColumn": 0, "endColumn": 3},
+                {"id": "b", "name": "B", "startColumn": 3, "endColumn": 5},
+            ],
+            "backwards": [{"id": "a", "name": "A", "startColumn": 4, "endColumn": 2}],
+            "off the board": [{"id": "a", "name": "A", "startColumn": 0, "endColumn": 99}],
+            "long name": [{"id": "a", "name": "x" * 41, "startColumn": 0, "endColumn": 0}],
+            "duplicate id": [
+                {"id": "a", "name": "A", "startColumn": 0, "endColumn": 0},
+                {"id": "a", "name": "B", "startColumn": 1, "endColumn": 1},
+            ],
+            "not a list": {"id": "a"},
+        }
+        for i, (case, zones) in enumerate(bad.items()):
+            with self.subTest(case):
+                resp = self._post_zones(f"Bad zones {i}", zones)
+                self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
     # --- next-name helper ---------------------------------------------------
 
     def test_next_name_starts_at_untitled(self):

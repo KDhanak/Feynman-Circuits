@@ -33,6 +33,15 @@
 		shiftCircuit,
 		startNewCircuit
 	} from '$lib/circuit/circuitActions';
+	import {
+		ZONE_COLORS,
+		createZoneFromSelection,
+		layoutZoneTags,
+		MAX_TAG_WIDTH,
+		removeZone,
+		renameZone,
+		zonesOf
+	} from '$lib/circuit/zones';
 	import ConfirmDialog from '../ConfirmDialog.svelte';
 	import Loader from '../Loader.svelte';
 	import { buildInlineLink } from '$lib/circuit/handoff';
@@ -288,6 +297,42 @@
 	function closeGateMenu() {
 		gateMenuVisible = false;
 		gateMenuGate = null;
+	}
+
+	// Zones: named parts of the circuit, drawn as tinted boxes behind the gates.
+	// The board keeps a strip above the first wire for their name tags, but
+	// only while there is at least one zone.
+	$: zones = zonesOf($circuitIR);
+	let editingZoneId: string | null = null;
+
+	// Each tag is as wide as its name (see layoutZoneTags), so the text is
+	// measured with the tag's own font. The extra is the padding and the ×.
+	const TAG_ROW_PX = 22;
+	let measureCtx: CanvasRenderingContext2D | null = null;
+	function tagWidth(zone: { name: string }): number {
+		if (typeof document === 'undefined') return 120;
+		measureCtx ??= document.createElement('canvas').getContext('2d');
+		if (!measureCtx) return 120;
+		measureCtx.font = `600 11px ${getComputedStyle(document.body).fontFamily}`;
+		return Math.ceil(measureCtx.measureText(zone.name || 'Untitled').width) + 30;
+	}
+	$: tagLayout = layoutZoneTags(zones, columnWidth, tagWidth);
+	$: zoneStripStyle = zones.length ? `padding-top: ${tagLayout.rows * TAG_ROW_PX + 6}px;` : '';
+
+	async function makeZone() {
+		const id = createZoneFromSelection();
+		if (!id) return;
+		editingZoneId = id;
+		await tick();
+		const input = boardEl?.querySelector('[data-zone-name-input]') as HTMLInputElement | null;
+		input?.focus();
+		input?.select();
+	}
+
+	function finishZoneEdit(id: string, value: string) {
+		if (editingZoneId !== id) return;
+		editingZoneId = null;
+		renameZone(id, value);
 	}
 
 	function handleGateContextMenu(e: CustomEvent<{ gate: UnitaryOperation; x: number; y: number }>) {
@@ -691,6 +736,18 @@
 				<span>{startingNewCircuit ? 'Saving…' : 'New circuit'}</span>
 			{/if}
 		</button>
+		<!-- Zone: names the columns of the selected gates as one part of the
+		     circuit. It lights up once gates are selected, to show it is ready. -->
+		<button
+			type="button"
+			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500"
+			class:text-accent={$selectedGateIds.size > 0}
+			on:click|stopPropagation={makeZone}
+			aria-label="Make a zone from the selected gates"
+			title="Zone: select the gates of one part of the circuit, then press this to name that part"
+		>
+			<Icon icon="ph:bounding-box-bold" width="18" height="18" />
+		</button>
 		<button
 			type="button"
 			class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-wait disabled:opacity-50"
@@ -789,7 +846,7 @@
 			<!-- pt-10 keeps the first wire clear of the buttons pinned to the top. -->
 			<div class="flex items-start p-2 pt-10">
 				<!-- LEFT: qubit box + label (fixed, does not scroll) -->
-				<div class="flex shrink-0 flex-col gap-1 pr-1">
+				<div class="flex shrink-0 flex-col gap-1 pr-1" style={zoneStripStyle}>
 					{#each wires as wire (wire.id)}
 						{@const measured = $simulationResult?.measuredQubits?.includes(wire.qubit)}
 						<div
@@ -864,12 +921,73 @@
 				<div
 					class="relative flex flex-1 flex-col gap-1 overflow-x-auto"
 					class:shifting={$shiftingCircuit}
+					style={zoneStripStyle}
 					bind:this={centerEl}
 					bind:clientWidth={centerWidth}
 					on:scroll={() => connectorLayer?.recomputeConnectorsSync()}
 				>
 					<!-- Connectors -->
 					<ConnectorLayer bind:this={connectorLayer} boardEl={centerEl} />
+					<!-- Zones: a tinted box behind each named part, with its name in the
+					     strip above the first wire. The box lets every click through, so
+					     the gates inside it work as usual; only the name tag is clickable. -->
+					{#each zones as zone, i (zone.id)}
+						{@const color = ZONE_COLORS[i % ZONE_COLORS.length]}
+						{@const width = (zone.endColumn - zone.startColumn + 1) * columnWidth}
+						<div
+							class="zone-box pointer-events-none absolute top-0 bottom-0"
+							style="left: {zone.startColumn * columnWidth + 2}px; width: {width -
+								4}px; --zone: {color};"
+							role="note"
+							aria-label="Zone {zone.name}, columns {zone.startColumn + 1} to {zone.endColumn + 1}"
+						>
+							<div
+								class="zone-tag pointer-events-auto"
+								class:editing={editingZoneId === zone.id}
+								style="top: {4 +
+									(tagLayout.row.get(zone.id) ?? 0) * TAG_ROW_PX}px; max-width: {MAX_TAG_WIDTH}px"
+							>
+								{#if editingZoneId === zone.id}
+									<input
+										data-zone-name-input
+										class="zone-input"
+										value={zone.name}
+										maxlength={40}
+										aria-label="Zone name"
+										on:blur={(e) => finishZoneEdit(zone.id, e.currentTarget.value)}
+										on:keydown={(e) => {
+											if (e.key === 'Enter') e.currentTarget.blur();
+											if (e.key === 'Escape') {
+												editingZoneId = null;
+											}
+											e.stopPropagation();
+										}}
+									/>
+								{:else}
+									<button
+										type="button"
+										class="zone-name"
+										title="{zone.name || 'Untitled'}. Click to rename"
+										on:click|stopPropagation={async () => {
+											editingZoneId = zone.id;
+											await tick();
+											(
+												boardEl?.querySelector('[data-zone-name-input]') as HTMLInputElement | null
+											)?.select();
+										}}>{zone.name || 'Untitled'}</button
+									>
+									<button
+										type="button"
+										class="zone-remove"
+										class:always={$isMobile}
+										on:click|stopPropagation={() => removeZone(zone.id)}
+										aria-label="Remove zone {zone.name}"
+										title="Remove this zone (the gates stay)">×</button
+									>
+								{/if}
+							</div>
+						</div>
+					{/each}
 					<!-- The column open in the Steps results view. It sits behind the gates
 					     and lets every click through, so editing works the same. -->
 					{#if $selectedStepColumn !== null}
@@ -1122,16 +1240,18 @@
 />
 
 <style>
-	/* "Move all": gates and their connector lines slide one column instead of
+	/* "Move all": gates, their connector lines and zones slide one column instead of
 	   jumping. Only on while shiftingCircuit is set, so dragging stays instant.
 	   Keep the time under SHIFT_ANIMATION_MS in circuitActions.ts. */
 	.shifting :global(.gate),
-	.shifting :global(.connector) {
+	.shifting :global(.connector),
+	.shifting .zone-box {
 		transition: left 200ms ease-out;
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.shifting :global(.gate),
-		.shifting :global(.connector) {
+		.shifting :global(.connector),
+		.shifting .zone-box {
 			transition: none;
 		}
 	}
@@ -1227,5 +1347,67 @@
 		background: color-mix(in srgb, var(--color-branding) 14%, transparent);
 		outline: 1px dashed color-mix(in srgb, var(--color-branding) 60%, transparent);
 		outline-offset: -1px;
+	}
+
+	/* A zone: a light tint of its colour, with a faint edge. --zone is set per zone. */
+	.zone-box {
+		border-radius: 0.5rem;
+		background: color-mix(in srgb, var(--zone) 7%, transparent);
+		border: 1px solid color-mix(in srgb, var(--zone) 35%, transparent);
+	}
+	/* The name tag. It may be wider than its zone, so a one-column zone still
+	   shows its whole name; its row (top) is set by layoutZoneTags. */
+	.zone-tag {
+		position: absolute;
+		left: 0.25rem;
+		z-index: 5;
+		white-space: nowrap;
+		display: flex;
+		align-items: center;
+		gap: 0.125rem;
+		height: 1.25rem;
+		padding: 0 0.25rem 0 0.375rem;
+		border-radius: 0.3rem;
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--zone);
+		background: color-mix(in srgb, var(--zone) 16%, var(--color-surface));
+	}
+	/* While renaming, the tag sits above its neighbours. */
+	.zone-tag.editing {
+		z-index: 6;
+		box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+	}
+	.zone-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		cursor: text;
+	}
+	.zone-input {
+		width: 9rem;
+		max-width: 100%;
+		background: transparent;
+		outline: none;
+		color: var(--color-text);
+		font-weight: 600;
+	}
+	.zone-remove {
+		flex-shrink: 0;
+		width: 1rem;
+		height: 1rem;
+		line-height: 1;
+		border-radius: 0.25rem;
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 120ms;
+	}
+	.zone-tag:hover .zone-remove,
+	.zone-remove:focus-visible,
+	.zone-remove.always {
+		opacity: 0.8;
+	}
+	.zone-remove:hover {
+		background: color-mix(in srgb, var(--zone) 25%, transparent);
 	}
 </style>

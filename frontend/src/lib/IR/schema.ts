@@ -62,6 +62,23 @@ export interface CircuitIR {
 	};
 	qubitLabels: string[];
 	operations: CircuitOperation[];
+	// Named stages of the circuit, e.g. "Oracle". Optional, so every circuit
+	// made before zones existed is still valid as it is.
+	zones?: CircuitZone[];
+}
+
+/**
+ * A named part of the circuit: a range of columns, across every qubit. It is a
+ * note for people reading the circuit and does not change the simulation.
+ *
+ * It holds columns, not gate ids, because share links give every gate a new
+ * id. Zones never overlap, so each column belongs to at most one zone.
+ */
+export interface CircuitZone {
+	id: string;
+	name: string;
+	startColumn: number;
+	endColumn: number; // included, so a one-column zone has start === end
 }
 
 export interface SimulationResult {

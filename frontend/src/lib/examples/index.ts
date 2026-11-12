@@ -19,6 +19,8 @@ export interface Example {
 	/** A few sentences on what the circuit does and what to look for. */
 	detail: string;
 	build: () => UnitaryOperation[];
+	/** Named parts of the circuit, drawn as zones on the board. Columns are 0-based. */
+	zones?: { name: string; startColumn: number; endColumn: number }[];
 }
 
 type GateOptions = { controls?: number[]; param?: number };
@@ -94,6 +96,11 @@ export const EXAMPLES: Example[] = [
 		summary: 'Finds 1 marked item out of 4 in one step',
 		detail:
 			'H on both qubits gives all four answers the same chance. The controlled-Z marks the answer 11 by flipping its sign; no probability changes yet. The block after it (H, X, controlled-Z, X, H) reflects every amplitude about the average, which makes the marked one grow and the others cancel. With two qubits, one round finds 11 with certainty.',
+		zones: [
+			{ name: 'Superposition', startColumn: 0, endColumn: 0 },
+			{ name: 'Oracle: marks 11', startColumn: 1, endColumn: 1 },
+			{ name: 'Diffuser: amplifies 11', startColumn: 2, endColumn: 6 }
+		],
 		build: () => [
 			op('h', 0, [0]),
 			op('h', 0, [1]),
@@ -151,6 +158,9 @@ export function exampleCircuit(example: Example): CircuitIR {
 		version: '1.0',
 		registers: { q: example.qubits, c: example.qubits },
 		qubitLabels: Array.from({ length: example.qubits }, (_, i) => `Qubit ${i}`),
-		operations: example.build()
+		operations: example.build(),
+		...(example.zones && {
+			zones: example.zones.map((z) => ({ id: crypto.randomUUID(), ...z }))
+		})
 	};
 }

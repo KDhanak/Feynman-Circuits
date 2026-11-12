@@ -385,8 +385,50 @@ export function validateCanonicalIR(input: unknown): ValidationResult {
 		});
 	}
 
+	if (input.zones !== undefined) validateZones(input.zones, errors);
+
 	return {
 		valid: errors.length === 0,
 		errors
 	};
+}
+
+// The longest zone name allowed. Same as MAX_ZONE_NAME in the backend.
+export const MAX_ZONE_NAME = 40;
+
+// Zones are optional notes, but a share link can carry anything, so they are
+// checked as strictly as the operations.
+function validateZones(zones: unknown, errors: string[]) {
+	if (!Array.isArray(zones)) {
+		errors.push('"zones" must be an array.');
+		return;
+	}
+	const ids = new Set<string>();
+	const ranges: [number, number][] = [];
+	zones.forEach((zone, index) => {
+		const label = `Zone at index ${index}`;
+		if (!isPlainObject(zone)) {
+			errors.push(`${label}: must be an object.`);
+			return;
+		}
+		if (typeof zone.id !== 'string' || zone.id.trim() === '') {
+			errors.push(`${label}: missing or invalid "id".`);
+		} else if (ids.has(zone.id)) {
+			errors.push(`${label}: duplicate id ${zone.id}.`);
+		} else {
+			ids.add(zone.id);
+		}
+		if (typeof zone.name !== 'string' || zone.name.length > MAX_ZONE_NAME) {
+			errors.push(`${label}: "name" must be text of at most ${MAX_ZONE_NAME} characters.`);
+		}
+		const { startColumn: start, endColumn: end } = zone;
+		if (!isNonNegativeInteger(start) || !isNonNegativeInteger(end) || start > end) {
+			errors.push(`${label}: needs whole-number columns with startColumn ≤ endColumn.`);
+			return;
+		}
+		if (ranges.some(([s, e]) => start <= e && s <= end)) {
+			errors.push(`${label}: overlaps another zone.`);
+		}
+		ranges.push([start, end]);
+	});
 }

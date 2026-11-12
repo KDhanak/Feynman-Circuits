@@ -308,15 +308,41 @@ export function compactCircuit(): void {
 		// sort is stable, so ops in the same column keep their current order).
 		const sorted = [...ir.operations].sort((a, b) => a.column - b.column);
 
+		// Zones are stages, so a gate may not move into an earlier stage. Each
+		// column belongs to a zone or to the gap between two zones; when the walk
+		// reaches a new one, every qubit starts after the last gate so far.
+		const zones = ir.zones ?? [];
+		const stageOf = (column: number) =>
+			zones.find((z) => z.startColumn <= column && column <= z.endColumn)?.id ??
+			`gap-${zones.filter((z) => z.startColumn < column).length}`;
+
 		const freeCol = new Array(ir.registers.q).fill(0);
+		let stage: string | null = null;
+		const newColumns = new Map<string, number[]>(); // zone id → its gates' new columns
 		const remapped = sorted.map((op) => {
+			const opStage = stageOf(op.column);
+			if (opStage !== stage) {
+				freeCol.fill(Math.max(0, ...freeCol));
+				stage = opStage;
+			}
 			const qs = spanOf(op);
 			const col = qs.length ? Math.max(...qs.map((q) => freeCol[q] ?? 0)) : 0;
 			for (const q of qs) freeCol[q] = col + 1;
+			newColumns.set(opStage, [...(newColumns.get(opStage) ?? []), col]);
 			return { ...op, column: col } as CircuitOperation;
 		});
 
-		const next: CircuitIR = { ...ir, operations: remapped };
+		// Each zone now spans its own gates. A zone with no gates in it is dropped.
+		const nextZones = zones.flatMap((z) => {
+			const cols = newColumns.get(z.id);
+			return cols ? [{ ...z, startColumn: Math.min(...cols), endColumn: Math.max(...cols) }] : [];
+		});
+		const { zones: _old, ...rest } = ir;
+		const next: CircuitIR = {
+			...rest,
+			operations: remapped,
+			...(nextZones.length && { zones: nextZones })
+		};
 		triggerSimulation(next);
 		return next;
 	});
@@ -343,7 +369,8 @@ export function canShiftCircuit(
 ): boolean {
 	const columns = [
 		...ir.operations.map((op) => op.column),
-		...pending.flatMap((map) => [...map.keys()])
+		...pending.flatMap((map) => [...map.keys()]),
+		...(ir.zones ?? []).flatMap((z) => [z.startColumn, z.endColumn])
 	];
 	if (columns.length === 0) return false;
 	return direction === -1 ? Math.min(...columns) > 0 : Math.max(...columns) < MAX_COLUMNS - 1;
@@ -374,7 +401,15 @@ export function shiftCircuit(direction: -1 | 1): void {
 			...ir,
 			operations: ir.operations.map(
 				(op) => ({ ...op, column: op.column + direction }) as CircuitOperation
-			)
+			),
+			// Zones are columns too, so they move with the gates.
+			...(ir.zones && {
+				zones: ir.zones.map((z) => ({
+					...z,
+					startColumn: z.startColumn + direction,
+					endColumn: z.endColumn + direction
+				}))
+			})
 		};
 		triggerSimulation(next);
 		return next;

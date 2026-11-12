@@ -48,8 +48,13 @@ export function handleBoardMouseDown(e: MouseEvent) {
 	// classList) so it also works when the press lands on something inside a gate:
 	// the X-gate <svg>, the swap <span>, or the control/anti-control dot. Those used
 	// to get through and create a fake selection box while the gate was being dragged.
+	// A press on one of the board's own buttons or fields is not the start of a
+	// box either. Otherwise letting go without dragging clears the selection
+	// before the button's click arrives, and the Zone button, which works on
+	// the selection, would always find it empty.
 	if (
 		target.closest('.gate') ||
+		target.closest('button, input, textarea, select, a') ||
 		target.classList.contains('wire-container') ||
 		target.classList.contains('qubit-label')
 	)
