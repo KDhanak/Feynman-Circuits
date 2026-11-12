@@ -8,7 +8,6 @@
 	import {
 		applyBellPairPreset,
 		BELL_LABELS,
-		compactCircuit,
 		loadExample,
 		toggleQecMode,
 		type BellState
@@ -100,19 +99,23 @@
 			matrix: spec.tooltip.matrix
 		};
 	};
-	const singleAndParametric = UNITARY_GATE_IDS.filter((id) => GATE_REGISTRY[id].arity === 1).map(
-		toTile
-	);
-	const twoQubit = UNITARY_GATE_IDS.filter((id) => GATE_REGISTRY[id].arity >= 2).map(toTile);
+	const pick = (keep: (spec: (typeof GATE_REGISTRY)[keyof typeof GATE_REGISTRY]) => boolean) =>
+		UNITARY_GATE_IDS.filter((id) => keep(GATE_REGISTRY[id])).map(toTile);
 
-	// Same order as the original hand-written list: single/angle gates,
-	// then the control primitives, then two-qubit gates, then measure.
-	const gates: PaletteTile[] = [
-		...singleAndParametric,
-		CONTROL_TILE,
-		ANTI_CONTROL_TILE,
-		...twoQubit,
-		MEASURE_TILE
+	// The palette in groups, each in its own outlined box: fixed one-qubit gates
+	// (P sits with Z, S and T, its special cases), rotations, the pieces that
+	// join qubits, then measurement.
+	const groups: { label: string; tiles: PaletteTile[] }[] = [
+		{
+			label: 'Single-qubit gates',
+			tiles: pick((s) => s.arity === 1 && s.category !== 'rotation')
+		},
+		{ label: 'Rotations', tiles: pick((s) => s.category === 'rotation') },
+		{
+			label: 'Controls and two-qubit gates',
+			tiles: [CONTROL_TILE, ANTI_CONTROL_TILE, ...pick((s) => s.arity >= 2)]
+		},
+		{ label: 'Measurement', tiles: [MEASURE_TILE] }
 	];
 
 	// The four Bell states, in the order the menu and the tooltip pages show them.
@@ -199,21 +202,14 @@
 		dragEnterCount--;
 		if (dragEnterCount === 0) e.currentTarget.classList.remove('drop-target-active');
 	}}
-	class="panel relative mb-2 max-w-420 mx-auto w-[96%] h-auto py-3 px-3 flex flex-wrap justify-center items-center gap-2.5"
+	class="panel relative mb-2 max-w-420 mx-auto w-[96%] h-auto py-3 px-3 flex flex-wrap items-center gap-2.5"
 	data-tour="palette"
 >
-	{#each gates as gate (gate.name)}
+	{#snippet tile(gate: PaletteTile)}
 		<!-- Blocked, not hidden: a greyed-out tile shows that the gate is not available
 		     right now, while a missing one would just look broken. -->
 		{@const reason = $qecMode ? blockReason(gate) : null}
 		{@const blocked = reason !== null}
-		<!-- Separator before multi-qubit gates -->
-		{#if (gate.category === 'multi' || gate.category === 'two-qubit') && (gate.type === 'CONTROL' || gate.type === 'RZZ' || gate.type === 'SWAP')}
-			<div class="w-px h-7 self-center mx-1" style="background: var(--color-border-strong)"></div>
-		{/if}
-		{#if gate.category === 'parametric' && gate.type === 'RX'}
-			<div class="w-px h-7 self-center mx-1" style="background: var(--color-border-strong)"></div>
-		{/if}
 		<Tooltip
 			quick={gate.quick}
 			matrix={gate.matrix}
@@ -291,111 +287,128 @@ Unavailable in QEC mode: ${reason}`
 				{/if}
 			</div>
 		</Tooltip>
-	{/each}
-	<!-- Split button: the main part adds the chosen Bell state, the arrow picks
-	     which one. Picking from the menu adds it straight away too. -->
-	<Tooltip quick="Bell Pair" pages={BELL_PAGES} subtle>
-		<div class="relative inline-flex">
-			<button
-				class="btn-quiet h-9 rounded-r-none"
-				disabled={$qubitLimit < 2}
-				title={$qubitLimit < 2
-					? 'Bell Pair needs two qubits: not available in QEC mode'
-					: `Bell Pair ${BELL_LABELS[bellState]}`}
-				on:click={() => applyBellPairPreset(bellState)}
-			>
-				Bell Pair <span class="font-semibold">{BELL_LABELS[bellState]}</span>
-			</button>
-			<button
-				class="btn-quiet h-9 !px-1.5 rounded-l-none border-l-0"
-				disabled={$qubitLimit < 2}
-				aria-haspopup="menu"
-				aria-expanded={bellMenuOpen}
-				aria-label="Choose Bell state"
-				title="Choose Bell state"
-				on:click|stopPropagation={() => {
-					bellMenuOpen = !bellMenuOpen;
-					examplesMenuOpen = false;
-				}}
-			>
-				<Icon icon="ph:caret-down-bold" width="12" height="12" class="dropdown-caret" />
-			</button>
+	{/snippet}
 
-			{#if bellMenuOpen}
-				<div class="dropdown-menu" use:keepInView role="menu">
-					{#each BELL_STATES as s (s.id)}
-						<button
-							type="button"
-							role="menuitemradio"
-							aria-checked={s.id === bellState}
-							class="dropdown-item"
-							on:click={() => chooseBell(s.id)}
-						>
-							<span class="w-6 font-semibold">{BELL_LABELS[s.id]}</span>
-							<span class="dropdown-sub">{s.formula}</span>
-						</button>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</Tooltip>
-	<!-- Examples open as a new circuit, so the one on the board is kept. -->
-	<Tooltip quick="Examples" pages={EXAMPLE_PAGES} subtle>
-		<div class="relative inline-flex">
-			<button
-				class="btn-quiet h-9"
-				aria-haspopup="menu"
-				aria-expanded={examplesMenuOpen}
-				title="Open an example circuit"
-				on:click|stopPropagation={() => {
-					examplesMenuOpen = !examplesMenuOpen;
-					bellMenuOpen = false;
-				}}
-			>
-				Examples <Icon icon="ph:caret-down-bold" width="12" height="12" class="dropdown-caret" />
-			</button>
+	<!-- The groups wrap onto more rows on narrow screens. QEC stays at the far right; on a phone it drops to a row of its own, still on the right. -->
+	<div class="flex flex-1 flex-wrap items-center justify-center gap-2.5">
+		{#each groups as group (group.label)}
+			<div class="palette-group" role="group" aria-label={group.label}>
+				{#each group.tiles as gate (gate.type)}
+					{@render tile(gate)}
+				{/each}
+			</div>
+		{/each}
 
-			{#if examplesMenuOpen}
-				<div class="dropdown-menu" use:keepInView role="menu">
-					{#each EXAMPLES as ex (ex.id)}
-						{@const blocked = $qubitLimit < ex.qubits}
-						<button
-							type="button"
-							role="menuitem"
-							class="dropdown-item flex-col !items-start gap-0.5"
-							disabled={blocked}
-							title={blocked
-								? `${ex.name} needs ${ex.qubits} qubits: not available in QEC mode`
-								: ''}
-							on:click={() => {
-								examplesMenuOpen = false;
-								loadExample(ex);
-							}}
-						>
-							<span class="font-semibold">{ex.name}</span>
-							<span class="dropdown-sub">{ex.summary}</span>
-						</button>
-					{/each}
+		<div class="palette-group" role="group" aria-label="Ready-made circuits">
+			<!-- Split button: the main part adds the chosen Bell state, the arrow picks
+			     which one. Picking from the menu adds it straight away too. -->
+			<Tooltip quick="Bell Pair" pages={BELL_PAGES} subtle>
+				<div class="relative inline-flex">
+					<button
+						class="btn-quiet h-9 rounded-r-none"
+						disabled={$qubitLimit < 2}
+						title={$qubitLimit < 2
+							? 'Bell Pair needs two qubits: not available in QEC mode'
+							: `Bell Pair ${BELL_LABELS[bellState]}`}
+						on:click={() => applyBellPairPreset(bellState)}
+					>
+						Bell Pair <span class="font-semibold">{BELL_LABELS[bellState]}</span>
+					</button>
+					<button
+						class="btn-quiet h-9 !px-1.5 rounded-l-none border-l-0"
+						disabled={$qubitLimit < 2}
+						aria-haspopup="menu"
+						aria-expanded={bellMenuOpen}
+						aria-label="Choose Bell state"
+						title="Choose Bell state"
+						on:click|stopPropagation={() => {
+							bellMenuOpen = !bellMenuOpen;
+							examplesMenuOpen = false;
+						}}
+					>
+						<Icon icon="ph:caret-down-bold" width="12" height="12" class="dropdown-caret" />
+					</button>
+
+					{#if bellMenuOpen}
+						<div class="dropdown-menu" use:keepInView role="menu">
+							{#each BELL_STATES as s (s.id)}
+								<button
+									type="button"
+									role="menuitemradio"
+									aria-checked={s.id === bellState}
+									class="dropdown-item"
+									on:click={() => chooseBell(s.id)}
+								>
+									<span class="w-6 font-semibold">{BELL_LABELS[s.id]}</span>
+									<span class="dropdown-sub">{s.formula}</span>
+								</button>
+							{/each}
+						</div>
+					{/if}
 				</div>
-			{/if}
+			</Tooltip>
+			<!-- Examples open as a new circuit, so the one on the board is kept. -->
+			<Tooltip quick="Examples" pages={EXAMPLE_PAGES} subtle>
+				<div class="relative inline-flex">
+					<button
+						class="btn-quiet h-9"
+						aria-haspopup="menu"
+						aria-expanded={examplesMenuOpen}
+						title="Open an example circuit"
+						on:click|stopPropagation={() => {
+							examplesMenuOpen = !examplesMenuOpen;
+							bellMenuOpen = false;
+						}}
+					>
+						Examples <Icon
+							icon="ph:caret-down-bold"
+							width="12"
+							height="12"
+							class="dropdown-caret"
+						/>
+					</button>
+
+					{#if examplesMenuOpen}
+						<div class="dropdown-menu" use:keepInView role="menu">
+							{#each EXAMPLES as ex (ex.id)}
+								{@const blocked = $qubitLimit < ex.qubits}
+								<button
+									type="button"
+									role="menuitem"
+									class="dropdown-item flex-col !items-start gap-0.5"
+									disabled={blocked}
+									title={blocked
+										? `${ex.name} needs ${ex.qubits} qubits: not available in QEC mode`
+										: ''}
+									on:click={() => {
+										examplesMenuOpen = false;
+										loadExample(ex);
+									}}
+								>
+									<span class="font-semibold">{ex.name}</span>
+									<span class="dropdown-sub">{ex.summary}</span>
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			</Tooltip>
 		</div>
-	</Tooltip>
-	<button class="btn-quiet h-9" on:click={compactCircuit}>Compact</button>
+	</div>
 
 	<!--
 		The QEC mode button is next to the palette instead of in the header: it
-		changes what this bar offers, so it belongs beside the thing it changes. The
-		line before it shows it is a different kind of button. Bell Pair and Compact
-		do something once, while this is a mode that stays on.
+		changes what this bar offers, so it belongs beside the thing it changes. It
+		sits apart at the far right because it is a different kind of button: the
+		groups add something once, while this is a mode that stays on.
 	-->
-	<span class="w-px h-7 self-center mx-1" style="background: var(--color-border-strong)"></span>
 	<button
 		on:click={toggleQecMode}
 		aria-pressed={$qecMode}
 		title={$qecMode
 			? 'QEC mode is on — only Clifford gates are available'
 			: 'QEC mode — restricts the palette to Clifford gates'}
-		class="btn-quiet h-9 {$qecMode ? 'qec-on' : ''}"
+		class="btn-quiet h-9 ml-auto shrink-0 {$qecMode ? 'qec-on' : ''}"
 	>
 		<Icon icon="ph:shield-check-bold" width="15" height="15" />
 		QEC
@@ -403,6 +416,28 @@ Unavailable in QEC mode: ${reason}`
 </div>
 
 <style>
+	/* A group of tiles: a faint outline only, so the groups read as groups
+	   without competing with the coloured tiles inside. */
+	.palette-group {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		/* Roomy enough that the little "i" badge on each tile's corner stays
+		   inside the outline instead of sitting on it. */
+		padding: 0.75rem;
+		border-radius: 0.875rem;
+		border: 1px solid color-mix(in srgb, var(--color-text) 9%, transparent);
+	}
+	/* A little narrower on a phone, where the row is tight. The top keeps its
+	   full padding: phones show the "i" badges all the time, and they stick
+	   up above the tiles. */
+	@media (max-width: 640px) {
+		.palette-group {
+			padding: 0.75rem 0.5rem 0.5rem;
+			border-radius: 0.75rem;
+		}
+	}
+
 	/* QEC toggle when on: solid emerald, so the mode switch reads as "on". */
 	:global(.btn-quiet.qec-on) {
 		background: var(--color-qec-1);

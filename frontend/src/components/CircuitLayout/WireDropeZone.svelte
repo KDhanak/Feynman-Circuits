@@ -27,6 +27,7 @@
 	import { buildCanonicalString } from '$lib/circuit/circuitDataModal';
 	import {
 		canShiftCircuit,
+		compactCircuit,
 		copyToClipboard,
 		saveThenStartNewCircuit,
 		shiftCircuit,
@@ -1017,8 +1018,9 @@
 			     is the quick way to make room in front of the first gate (and on a
 			     phone, which cannot drag a box around the whole circuit, the only
 			     way). It sits under the wires so it moves down with them as qubits
-			     are added. -->
-			<div class="flex justify-center pb-2">
+			     are added. Compact sits under it, because it also moves gates left:
+			     it closes every empty column at once. -->
+			<div class="flex flex-col items-center gap-1 pb-2">
 				<div
 					class="flex items-center gap-1 backdrop-blur-lg rounded-sm shadow-sm"
 					style="color: var(--color-text);"
@@ -1048,6 +1050,22 @@
 					>
 						<Icon icon="ph:arrow-right-bold" width="18" height="18" />
 					</button>
+				</div>
+				<div
+					class="flex items-center gap-1 pr-2 backdrop-blur-lg rounded-sm shadow-sm"
+					style="color: var(--color-text);"
+				>
+					<button
+						type="button"
+						class="cursor-pointer flex items-center justify-center rounded-sm p-1.5 transition-colors active:text-green-500 disabled:cursor-not-allowed disabled:opacity-40"
+						on:click|stopPropagation={compactCircuit}
+						disabled={$circuitIR.operations.length === 0}
+						aria-label="Compact: remove empty columns"
+						title="Compact: move every gate as far left as it can go"
+					>
+						<Icon icon="ph:arrow-line-left-bold" width="18" height="18" />
+					</button>
+					<span class="select-none text-[11px]" style="color: var(--color-muted);">Compact</span>
 				</div>
 			</div>
 			<!-- In QEC mode the panel below runs its own demo. Nothing placed on
