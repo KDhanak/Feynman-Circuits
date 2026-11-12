@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { circuitToQiskit, qiskitToCircuit } from '$lib/circuit/qiskitConverter';
+import { simulateMultipleQubits } from '$lib/circuit/simulator';
 import type { CircuitIR, UnitaryOperation, CircuitOperation } from '$lib/IR/schema';
 
 function makeIR(
@@ -233,6 +234,50 @@ circuit.cx(qreg_a[1], qreg_b[0])
 		expect(h.column).toBe(0);
 		expect(cx.column).toBe(1);
 		expect(x.column).toBe(2);
+	});
+
+	// IBM Composer's export of Grover search, as a user pasted it. Composer
+	// writes the controlled-Z as an append with register qubits inside the list,
+	// `[qreg_q[0], qreg_q[1]]`. Those lines used to be dropped without a word,
+	// so the oracle and half the diffuser went missing and every outcome came
+	// out at 25% instead of 11 at 100%.
+	it('reads Composer append lines with register qubits (Grover search)', () => {
+		const py = `from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
+from qiskit.circuit.library import ZGate
+
+qreg_q = QuantumRegister(2, 'q')
+creg_c = ClassicalRegister(2, 'c')
+circuit = QuantumCircuit(qreg_q, creg_c)
+
+circuit.h(qreg_q[0])
+circuit.h(qreg_q[1])
+circuit.append(ZGate().control(1), [qreg_q[0], qreg_q[1]])
+circuit.h(qreg_q[0])
+circuit.h(qreg_q[1])
+circuit.x(qreg_q[1])
+circuit.x(qreg_q[0])
+circuit.append(ZGate().control(1), [qreg_q[0], qreg_q[1]])
+circuit.x(qreg_q[0])
+circuit.x(qreg_q[1])
+circuit.h(qreg_q[0])
+circuit.h(qreg_q[1])`;
+		const unread: string[] = [];
+		const ir = qiskitToCircuit(py, unread);
+		expect(unread).toEqual([]);
+		expect(ir!.operations).toHaveLength(12);
+		const cz = ir!.operations.filter((op) => op.gate === 'z');
+		expect(cz).toHaveLength(2);
+		for (const op of cz) {
+			expect(op).toMatchObject({ targets: [1], controls: [0] });
+		}
+		expect(simulateMultipleQubits(ir!).probabilities['11']).toBeCloseTo(1, 10);
+	});
+
+	it('lists the lines it could not read', () => {
+		const unread: string[] = [];
+		const ir = qiskitToCircuit('qc = QuantumCircuit(2)\nqc.h(0)\nqc.unitary(M, [0, 1])', unread);
+		expect(ir!.operations).toHaveLength(1);
+		expect(unread).toEqual(['qc.unitary(M, [0, 1])']);
 	});
 });
 

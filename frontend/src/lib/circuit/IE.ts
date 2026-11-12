@@ -8,7 +8,9 @@ import {
 import { circuitToQiskit, qiskitToCircuit, type QiskitExportOptions } from './qiskitConverter';
 import { circuitToQSharp, qsharpToCircuit, type QSharpExportOptions } from './qsharpConverter';
 
-export type ImportResult = { ok: true; data: CircuitIR } | { ok: false; error: string };
+export type ImportResult =
+	| { ok: true; data: CircuitIR; unread?: string[] }
+	| { ok: false; error: string };
 
 export function importCircuit(input: unknown): ImportResult {
 	const valid = validateCanonicalIR(input);
@@ -35,11 +37,12 @@ export function exportToQiskit(ir: CircuitIR, options?: QiskitExportOptions): st
 }
 
 export function importFromQiskit(pythonCode: string): ImportResult {
-	const circuit = qiskitToCircuit(pythonCode);
+	const unread: string[] = [];
+	const circuit = qiskitToCircuit(pythonCode, unread);
 	if (!circuit) {
 		return { ok: false, error: 'Failed to parse Qiskit code' };
 	}
-	return { ok: true, data: circuit };
+	return { ok: true, data: circuit, ...(unread.length && { unread }) };
 }
 
 export function exportToQSharp(ir: CircuitIR, options?: QSharpExportOptions): string {

@@ -458,6 +458,18 @@ export function importQiskit(pythonText: string): void {
 	} catch {
 		showNotification('Circuit imported but simulation failed', 'error');
 	}
+	// Say so when some lines were left out. Otherwise the circuit looks
+	// imported but gives a different result, with no hint why.
+	if (result.unread) {
+		const [first] = result.unread;
+		const more = result.unread.length - 1;
+		showNotification(
+			`Imported, but ${result.unread.length} line${more ? 's' : ''} could not be read and ${more ? 'were' : 'was'} left out: ${first}${more ? ` (and ${more} more)` : ''}`,
+			'error',
+			8000
+		);
+		return;
+	}
 	showNotification('Circuit imported from Qiskit successfully!', 'success');
 }
 

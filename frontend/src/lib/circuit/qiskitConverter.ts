@@ -169,8 +169,11 @@ function controlledInstruction(
 	return `${CIRCUIT_VAR}.append(${ctor}.control(${controls.length}), [${qubits}])`;
 }
 
-// Read Qiskit Python code and turn it back into CircuitIR
-export function qiskitToCircuit(pythonCode: string): CircuitIR | null {
+// Read Qiskit Python code and turn it back into CircuitIR.
+// `unread`, when given, collects every call on the circuit that could not be
+// read, so the import can say which lines it left out instead of dropping
+// them without a word.
+export function qiskitToCircuit(pythonCode: string, unread?: string[]): CircuitIR | null {
 	try {
 		const lines = pythonCode
 			.split('\n')
@@ -281,6 +284,8 @@ export function qiskitToCircuit(pythonCode: string): CircuitIR | null {
 			const parsed = parseMethodCall(method, argsStr, numQubits, offsets);
 			if (parsed) {
 				placeOp(parsed);
+			} else {
+				unread?.push(line);
 			}
 		}
 
@@ -429,8 +434,11 @@ function parseMethodCall(
 }
 
 // circuit.append(<Class>(<params?>).control(<n>), [<qubits>])
+// The qubit list runs to the last `]` on the line, not the first: IBM Composer
+// writes it as `[qreg_q[0], qreg_q[1]]`, with brackets inside. Stopping at the
+// first `]` made those lines fail to read, and their gates went missing.
 function parseAppendCall(argsStr: string, offsets: Map<string, number>): CircuitOperation | null {
-	const match = argsStr.match(/^(\w+)\(([^)]*)\)\.control\(\s*(\d+)\s*\)\s*,\s*\[([^\]]+)\]$/);
+	const match = argsStr.match(/^(\w+)\(([^)]*)\)\.control\(\s*(\d+)\s*\)\s*,\s*\[(.+)\]$/);
 	if (!match) return null;
 
 	const className = match[1];
