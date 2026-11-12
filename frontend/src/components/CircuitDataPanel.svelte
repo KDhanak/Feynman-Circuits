@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
+	import { keepInView } from '$lib/utils/keepInView';
 	import Loader from './Loader.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -222,6 +223,19 @@
 					? 'Q#'
 					: 'Canonical IR';
 
+	// The views in the narrow panel's dropdown, in menu order. OpenQASM has a
+	// row per version, because the wide panel's version picker isn't shown there.
+	const VIEW_OPTIONS: { label: string; view: DataViewMode; version?: OpenQasmVersion }[] = [
+		{ label: 'Canonical IR', view: 'cir' },
+		{ label: 'OpenQASM 3.0', view: 'qasm', version: '3.0' },
+		{ label: 'OpenQASM 2.0', view: 'qasm', version: '2.0' },
+		{ label: 'Qiskit', view: 'qiskit' },
+		{ label: 'Q#', view: 'qsharp' }
+	];
+	const QASM_VERSIONS: OpenQasmVersion[] = ['3.0', '2.0'];
+	const isCurrentView = (o: (typeof VIEW_OPTIONS)[number], view: DataViewMode, version: string) =>
+		o.view === view && (o.version === undefined || o.version === version);
+
 	let container: HTMLDivElement;
 	let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
 	let monacoPromise: Promise<typeof import('monaco-editor') | null> | null = null;
@@ -410,68 +424,24 @@
 					aria-expanded={showViewMenu}
 					class="btn-quiet !text-xs !px-2.5 !py-1"
 				>
-					<Icon icon="ph:list-bold" width="16" height="16" />
 					<span>{currentViewLabel}</span>
+					<Icon icon="ph:caret-down-bold" width="12" height="12" class="dropdown-caret" />
 				</button>
 
 				{#if showViewMenu}
-					<div
-						class="absolute left-0 top-full z-50 mt-1 flex min-w-full flex-col whitespace-nowrap rounded-sm shadow-sm"
-						style="background-color: var(--color-surface);"
-						role="menu"
-						tabindex="-1"
-						transition:fade={{ duration: 150 }}
-					>
-						<button
-							type="button"
-							role="menuitem"
-							on:click={() => selectViewFromMenu('cir')}
-							class="btn-highlight-item w-full rounded-t-sm"
-							class:opacity-100={activeView === 'cir'}
-							class:opacity-75={activeView !== 'cir'}
-						>
-							Canonical IR
-						</button>
-						<button
-							type="button"
-							role="menuitem"
-							on:click={() => selectQasmFromMenu('3.0')}
-							class="btn-highlight-item w-full"
-							class:opacity-100={activeView === 'qasm' && qasmVersion === '3.0'}
-							class:opacity-75={!(activeView === 'qasm' && qasmVersion === '3.0')}
-						>
-							OpenQASM 3.0
-						</button>
-						<button
-							type="button"
-							role="menuitem"
-							on:click={() => selectQasmFromMenu('2.0')}
-							class="btn-highlight-item w-full"
-							class:opacity-100={activeView === 'qasm' && qasmVersion === '2.0'}
-							class:opacity-75={!(activeView === 'qasm' && qasmVersion === '2.0')}
-						>
-							OpenQASM 2.0
-						</button>
-						<button
-							type="button"
-							role="menuitem"
-							on:click={() => selectViewFromMenu('qiskit')}
-							class="btn-highlight-item w-full"
-							class:opacity-100={activeView === 'qiskit'}
-							class:opacity-75={activeView !== 'qiskit'}
-						>
-							Qiskit
-						</button>
-						<button
-							type="button"
-							role="menuitem"
-							on:click={() => selectViewFromMenu('qsharp')}
-							class="btn-highlight-item w-full rounded-b-sm"
-							class:opacity-100={activeView === 'qsharp'}
-							class:opacity-75={activeView !== 'qsharp'}
-						>
-							Q#
-						</button>
+					<div class="dropdown-menu" use:keepInView role="menu" tabindex="-1">
+						{#each VIEW_OPTIONS as o (o.label)}
+							<button
+								type="button"
+								role="menuitemradio"
+								aria-checked={isCurrentView(o, activeView, qasmVersion)}
+								class="dropdown-item"
+								on:click={() =>
+									o.version ? selectQasmFromMenu(o.version) : selectViewFromMenu(o.view)}
+							>
+								{o.label}
+							</button>
+						{/each}
 					</div>
 				{/if}
 			</div>
@@ -498,42 +468,28 @@
 						type="button"
 						on:click={() => (showVersionMenu = !showVersionMenu)}
 						disabled={activeView !== 'qasm'}
+						aria-haspopup="menu"
+						aria-expanded={showVersionMenu}
+						aria-label="Choose OpenQASM version"
 						class:seg-active={activeView === 'qasm'}
-						class="seg-tab rounded-r-md px-1.5 py-1 text-[10px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+						class="seg-tab flex items-center rounded-r-md px-1.5 py-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
 					>
-						<span class="inline-block transition-transform" class:rotate-180={showVersionMenu}
-							>▼</span
-						>
+						<Icon icon="ph:caret-down-bold" width="10" height="10" class="dropdown-caret" />
 					</button>
 
 					{#if activeView === 'qasm' && showVersionMenu}
-						<div
-							class="absolute left-0 right-0 top-full z-50 mt-1 rounded-sm shadow-sm"
-							style="background-color: var(--color-surface);"
-							role="menu"
-							tabindex="-1"
-							transition:fade={{ duration: 150 }}
-						>
-							<button
-								type="button"
-								role="menuitem"
-								on:click={() => selectVersion('3.0')}
-								class="btn-highlight-item w-full rounded-t-sm"
-								class:opacity-100={qasmVersion === '3.0'}
-								class:opacity-75={qasmVersion !== '3.0'}
-							>
-								OpenQASM 3.0
-							</button>
-							<button
-								type="button"
-								role="menuitem"
-								on:click={() => selectVersion('2.0')}
-								class="btn-highlight-item w-full rounded-b-sm"
-								class:opacity-100={qasmVersion === '2.0'}
-								class:opacity-75={qasmVersion !== '2.0'}
-							>
-								OpenQASM 2.0
-							</button>
+						<div class="dropdown-menu" use:keepInView role="menu" tabindex="-1">
+							{#each QASM_VERSIONS as version (version)}
+								<button
+									type="button"
+									role="menuitemradio"
+									aria-checked={qasmVersion === version}
+									class="dropdown-item"
+									on:click={() => selectVersion(version)}
+								>
+									OpenQASM {version}
+								</button>
+							{/each}
 						</div>
 					{/if}
 				</div>

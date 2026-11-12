@@ -4,13 +4,16 @@
 	import { isDragging, armedGate } from '$lib/stores/uiStores';
 	import { clearSelection } from '$lib/circuit/selection';
 	import Icon from '@iconify/svelte';
+	import { keepInView } from '$lib/utils/keepInView';
 	import {
 		applyBellPairPreset,
 		BELL_LABELS,
 		compactCircuit,
+		loadExample,
 		toggleQecMode,
 		type BellState
 	} from '$lib/circuit/circuitActions';
+	import { EXAMPLES } from '$lib/examples';
 	import Tooltip from './Tooltip.svelte';
 	import { isMobile } from '$lib/stores/isMobile';
 	import {
@@ -147,6 +150,12 @@
 	let bellState: BellState = 'phi+';
 	let bellMenuOpen = false;
 
+	let examplesMenuOpen = false;
+	const EXAMPLE_PAGES = EXAMPLES.map((ex) => ({
+		quick: `${ex.name} (${ex.qubits} qubits)`,
+		detail: ex.detail
+	}));
+
 	function chooseBell(state: BellState) {
 		bellState = state;
 		bellMenuOpen = false;
@@ -169,8 +178,8 @@
 </script>
 
 <svelte:window
-	on:click={() => (bellMenuOpen = false)}
-	on:keydown={(e) => e.key === 'Escape' && (bellMenuOpen = false)}
+	on:click={() => (bellMenuOpen = examplesMenuOpen = false)}
+	on:keydown={(e) => e.key === 'Escape' && (bellMenuOpen = examplesMenuOpen = false)}
 />
 
 <div
@@ -304,31 +313,67 @@ Unavailable in QEC mode: ${reason}`
 				aria-expanded={bellMenuOpen}
 				aria-label="Choose Bell state"
 				title="Choose Bell state"
-				on:click|stopPropagation={() => (bellMenuOpen = !bellMenuOpen)}
+				on:click|stopPropagation={() => {
+					bellMenuOpen = !bellMenuOpen;
+					examplesMenuOpen = false;
+				}}
 			>
-				<Icon icon="ph:caret-down-bold" width="12" height="12" />
+				<Icon icon="ph:caret-down-bold" width="12" height="12" class="dropdown-caret" />
 			</button>
 
 			{#if bellMenuOpen}
-				<!-- z-250: above the board, which is z-50 and comes later on the page
-				     (so it would win a tie), and below the toast (z-300). -->
-				<div
-					class="absolute left-0 top-full z-250 mt-1 flex min-w-full flex-col overflow-hidden whitespace-nowrap rounded-md shadow-lg"
-					style="background: var(--color-surface); border: 1px solid var(--color-border);"
-					role="menu"
-				>
+				<div class="dropdown-menu" use:keepInView role="menu">
 					{#each BELL_STATES as s (s.id)}
 						<button
 							type="button"
 							role="menuitemradio"
 							aria-checked={s.id === bellState}
-							class="ctx-menu-item last:border-b-0 !py-2"
+							class="dropdown-item"
 							on:click={() => chooseBell(s.id)}
 						>
-							<span class="w-6 font-semibold" class:text-accent={s.id === bellState}
-								>{BELL_LABELS[s.id]}</span
-							>
-							<span class="text-xs text-muted">{s.formula}</span>
+							<span class="w-6 font-semibold">{BELL_LABELS[s.id]}</span>
+							<span class="dropdown-sub">{s.formula}</span>
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	</Tooltip>
+	<!-- Examples open as a new circuit, so the one on the board is kept. -->
+	<Tooltip quick="Examples" pages={EXAMPLE_PAGES} subtle>
+		<div class="relative inline-flex">
+			<button
+				class="btn-quiet h-9"
+				aria-haspopup="menu"
+				aria-expanded={examplesMenuOpen}
+				title="Open an example circuit"
+				on:click|stopPropagation={() => {
+					examplesMenuOpen = !examplesMenuOpen;
+					bellMenuOpen = false;
+				}}
+			>
+				Examples <Icon icon="ph:caret-down-bold" width="12" height="12" class="dropdown-caret" />
+			</button>
+
+			{#if examplesMenuOpen}
+				<div class="dropdown-menu" use:keepInView role="menu">
+					{#each EXAMPLES as ex (ex.id)}
+						{@const blocked = $qubitLimit < ex.qubits}
+						<button
+							type="button"
+							role="menuitem"
+							class="dropdown-item flex-col !items-start gap-0.5"
+							disabled={blocked}
+							title={blocked
+								? `${ex.name} needs ${ex.qubits} qubits: not available in QEC mode`
+								: ''}
+							on:click={() => {
+								examplesMenuOpen = false;
+								loadExample(ex);
+							}}
+						>
+							<span class="font-semibold">{ex.name}</span>
+							<span class="dropdown-sub">{ex.summary}</span>
 						</button>
 					{/each}
 				</div>

@@ -27,6 +27,7 @@ import { GATE_REGISTRY, isCliffordGate } from '$lib/quantum/gates';
 import type { UnitaryOperation } from '../IR/schema';
 import { MAX_COLUMNS } from '$lib/utils/constants';
 import { shiftingCircuit } from '$lib/stores/uiStores';
+import { exampleCircuit, type Example } from '$lib/examples';
 
 /**
  * Turning on QEC mode limits the palette to Clifford gates, because QEC runs
@@ -236,6 +237,35 @@ export function applyBellPairPreset(state: BellState = 'phi+'): void {
 		return next;
 	});
 	showNotification(`Bell pair ${BELL_LABELS[state]} circuit applied!`, 'success');
+}
+
+/**
+ * Opens an example as a new circuit. It is not added to the board like the
+ * Bell pair, because most examples only work from a fresh |0…0⟩ start.
+ *
+ * It goes the same way as starting a new circuit: whatever was open is saved
+ * first (for a signed-in user), and the example gets its own id, so the
+ * circuit that was open is left alone in the library.
+ */
+export async function loadExample(example: Example): Promise<void> {
+	if (get(qubitLimit) < example.qubits) {
+		showNotification(
+			`${example.name} needs ${example.qubits} qubits. QEC mode works on one logical qubit.`,
+			'error'
+		);
+		return;
+	}
+	if (get(session).status === 'authenticated') {
+		try {
+			await manualSave();
+		} catch {
+			showNotification('Could not save this circuit, so the example was not opened.', 'error');
+			return;
+		}
+	}
+	resetAutoSaveState();
+	applyCircuit(exampleCircuit(example), { name: example.name });
+	showNotification(`Opened the ${example.name} example.`, 'success');
 }
 
 /**
