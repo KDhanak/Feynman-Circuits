@@ -31,9 +31,14 @@
 	let popupWindow: Window | null = null;
 	let popupRebuildTimer: ReturnType<typeof setTimeout> | undefined;
 
+	// Sorted by the state's number, because an object does not keep its keys in
+	// the order they were added: keys that look like whole numbers ("10", "11")
+	// always come before the others ("00", "01").
 	function toEntriesArray(probObj: Record<string, number> | undefined) {
 		if (!probObj) return [];
-		return Object.entries(probObj).map(([state, prob]) => ({ state, prob }));
+		return Object.entries(probObj)
+			.map(([state, prob]) => ({ state, prob }))
+			.sort((a, b) => parseInt(a.state, 2) - parseInt(b.state, 2));
 	}
 
 	function chunkArray<T>(arr: T[], size: number) {
