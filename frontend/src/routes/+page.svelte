@@ -6,6 +6,7 @@
 	import { resolve } from '$app/paths';
 	import { loadSession } from '$lib/auth/session';
 	import { resolvedTheme, toggleTheme } from '$lib/stores/themeStore';
+	import { startBoardDemo } from '$lib/demo/boardDemo';
 	import { settings, updateSettings } from '$lib/stores/settingsStore';
 	import { isMobile } from '$lib/stores/isMobile';
 	import OverallBlochSphere from '../components/BlochSphere/OverallBlochSphere.svelte';
@@ -284,9 +285,9 @@
 		<!-- The circuit name and save status are now on the board itself
 		     (WireDropeZone), centred between its two groups of buttons, so they show
 		     on phones too. The copy that used to be in this header was hidden below `sm`. -->
-		<!-- Header buttons. All three have the same height and corner radius, so the
+		<!-- Header buttons. They all have the same height and corner radius, so the
 		     row lines up. The account button has a line before it because it is about
-		     who you are, not a tool, and should not look like just a third button. -->
+		     who you are, not a tool, and should not look like just another tool button. -->
 		<div class="flex items-center gap-1">
 			<button
 				on:click={openWelcome}
@@ -295,6 +296,22 @@
 				class="shrink-0 flex h-9 w-9 items-center justify-center rounded-sm cursor-pointer transition-colors hover:bg-text/5"
 			>
 				<Icon icon="ph:question-bold" width="20" height="20" style="color: var(--color-text)" />
+			</button>
+
+			<!-- Board demo: an animated hand shows every gesture and key on a
+			     practice board, then puts the user's circuit back. -->
+			<button
+				on:click={startBoardDemo}
+				aria-label="Show me how"
+				title="Show me how — a hand demonstrates every gesture and key on the board"
+				class="shrink-0 flex h-9 w-9 items-center justify-center rounded-sm cursor-pointer transition-colors hover:bg-text/5"
+			>
+				<Icon
+					icon="ph:hand-pointing-bold"
+					width="20"
+					height="20"
+					style="color: var(--color-text)"
+				/>
 			</button>
 
 			<button
